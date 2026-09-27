@@ -216,6 +216,44 @@ final class WeChatSDKTests: XCTestCase {
         XCTAssertNotEqual(WeChatBanner(kind: .info, text: "x"), banner, "横幅 id 唯一：内容相同也不等值")
     }
 
+    /// 横幅生命周期：展示 → 可被指定 id 消隐 → 错误 id 不误清（回执横幅可见性契约）
+    func testBannerLifecycle() {
+        let service = WeChatService.shared
+        service.showBanner("契约测试横幅", kind: .info)
+        guard let banner = service.banner else {
+            XCTFail("showBanner 后 banner 必须非空")
+            return
+        }
+        XCTAssertEqual(banner.text, "契约测试横幅")
+        service.clearBanner(id: UUID())
+        XCTAssertNotNil(service.banner, "非当前 id 的消隐请求不得误清新横幅")
+        service.clearBanner(id: banner.id)
+        XCTAssertNil(service.banner, "当前 id 消隐后横幅必须清空")
+    }
+
+    // MARK: - 日志联通（埋点链路契约）
+
+    /// 注册路径必须向既有日志系统写入 `wechat` 域条目（真机运行时验证埋点链路联通）
+    func testRegistrationPathWritesWeChatLog() {
+        let service = WeChatService.shared
+        let before = LogManager.shared.entries.filter { $0.module == "wechat" }.count
+        let registered = service.registerIfNeeded(reason: "contract_test")
+        let after = LogManager.shared.entries.filter { $0.module == "wechat" }
+
+        XCTAssertGreaterThan(after.count, before, "注册路径必须写入 wechat 域日志（埋点链路联通）")
+        XCTAssertTrue(after.contains { $0.message.contains("注册") }, "日志须包含注册结果说明")
+        XCTAssertTrue(after.allSatisfy { !$0.message.isEmpty })
+
+        if service.configuration.isPlaceholder {
+            // 占位配置的安全契约：不得注册成功、必须留 WARNING 级「占位」记录
+            XCTAssertFalse(registered, "占位配置下不得报告注册成功")
+            XCTAssertTrue(
+                after.contains { $0.level == .warning && $0.message.contains("占位") },
+                "占位配置必须留下 WARNING 级说明（含修复指引）"
+            )
+        }
+    }
+
     // MARK: - 辅助
 
     /// 高频噪声图：纯色图 JPEG 压缩率过高，无法验证压缩链路；条纹提升熵值

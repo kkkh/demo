@@ -113,6 +113,19 @@ Xcode → Target `DesignCode` → Build Settings → 搜索 `WECHAT_`，按 §0 
    - 「微信集成」页发起微信登录，`lastAuthCode` 出现授权码（需平台已开通登录能力）；
    - 日志中心筛选 `wechat` 域：注册 / 分享发起 / 回执 / 自检逐步均有记录。
 
+**已完成的工程验证（2026-09-27，占位配置阶段）**
+
+| 验证项 | 结果 | 证据 |
+| --- | --- | --- |
+| 全量编译（含 SDK 静态库链接 `-ObjC -all_load`） | 0 error / 0 warning | `xcodebuild -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build` |
+| 显示设置构建期护栏 | 通过（排版链 0 缺口、弹出层 0 缺口） | 同上（Run Script 阶段输出） |
+| 真机签名构建（Associated Domains 未启用） | BUILD SUCCEEDED | `xcodebuild -destination 'platform=iOS,id=00008110-000411A40EC1401E' -allowProvisioningUpdates build` |
+| 真机单元测试 | **104/104 通过（0 失败）** | `build/verify/wechat_test_20260927b.log`（含 WeChatSDKTests 17 例） |
+| 日志埋点联通（真机运行断言） | 通过：注册路径写入 `wechat` 域 LogEntry；占位配置留 WARNING 级说明且不报告注册成功 | `WeChatSDKTests.testRegistrationPathWritesWeChatLog` |
+| Info.plist 变量注入实测 | `CFBundleURLSchemes = wxPLACEHOLDER0000`、`WeChatUniversalLink`、`WeChatMiniProgramID`、`LSApplicationQueriesSchemes` 均按构建设置注入 | 构建产物 `DesignCode.app/Info.plist` |
+
+> 提示：App 日志以 **1000 条/文件** 滚动（高频图片/缓存 DEBUG 日志约 3 分钟即填满窗口），启动时刻的注册日志可能已被窗口挤出文件——排查微信问题时请看 App 内「我的 → 应用日志」（内存保留最多 3000 条，可筛 `wechat` 域）。
+
 ---
 
 ## 4. 行为约定
