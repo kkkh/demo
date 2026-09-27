@@ -239,6 +239,10 @@ final class WeChatSDKTests: XCTestCase {
         let before = LogManager.shared.entries.filter { $0.module == "wechat" }.count
         let registered = service.registerIfNeeded(reason: "contract_test")
         let after = LogManager.shared.entries.filter { $0.module == "wechat" }
+        let availability = service.refreshAvailability()
+
+        // 真机诊断输出（进 xcodebuild 测试日志，便于核对注册结论与可用性）
+        print("[WeChatContract] registered=\(registered) availability=\(availability.rawValue) installed=\(service.isWeChatInstalled) sdk=\(service.sdkVersion) appID=\(service.configuration.maskedAppID) ulHost=\(service.configuration.universalLinkHost) placeholder=\(service.configuration.isPlaceholder)")
 
         XCTAssertGreaterThan(after.count, before, "注册路径必须写入 wechat 域日志（埋点链路联通）")
         XCTAssertTrue(after.contains { $0.message.contains("注册") }, "日志须包含注册结果说明")
@@ -251,6 +255,13 @@ final class WeChatSDKTests: XCTestCase {
                 after.contains { $0.level == .warning && $0.message.contains("占位") },
                 "占位配置必须留下 WARNING 级说明（含修复指引）"
             )
+        } else {
+            // 真实配置：注册日志必须带上真实 AppID 与 Universal Link 主机名
+            XCTAssertTrue(
+                after.contains { $0.context?["appID"] == service.configuration.appID },
+                "注册日志须携带真实 AppID"
+            )
+            XCTAssertEqual(availability, service.availability, "可用性状态机须可重复求得同一状态")
         }
     }
 
