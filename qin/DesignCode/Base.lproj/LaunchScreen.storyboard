@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23506"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Launch Screen View Controller-->
+        <scene sceneID="EHf-IW-A2E">
+            <objects>
+                <viewController id="01J-lp-oVM" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <!-- 深蓝色渐变背景 -->
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="gradientBg">
+                                <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                                <color key="backgroundColor" red="0.023529411764705882" green="0.050980392156862744" blue="0.14117647058823529" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            </view>
+                            <!-- 校徽图标 -->
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="splash_icon" translatesAutoresizingMaskIntoConstraints="NO" id="logoIcon">
+                                <rect key="frame" x="156.5" y="316" width="80" height="80"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="80" id="logoWidth"/>
+                                    <constraint firstAttribute="height" constant="80" id="logoHeight"/>
+                                </constraints>
+                            </imageView>
+                            <!-- 学校名称 -->
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="山西晋中理工学院" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="schoolName">
+                                <rect key="frame" x="40" y="416" width="313" height="33.5"/>
+                                <fontDescription key="fontDescription" type="boldSystem" pointSize="28"/>
+                                <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            </label>
+                            <!-- 校训 -->
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="谨信博学  经世致用" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="motto">
+                                <rect key="frame" x="40" y="459.5" width="313" height="20"/>
+                                <fontDescription key="fontDescription" type="system" weight="medium" pointSize="16"/>
+                                <color key="textColor" red="1" green="1" blue="1" alpha="0.69999999999999996" colorSpace="custom" customColorSpace="sRGB"/>
+                            </label>
+                            <!-- 英文名称 -->
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="SHANXI JINZHONG INSTITUTE OF TECHNOLOGY" textAlignment="center" lineBreakMode="wordWrap" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="englishName">
+                                <rect key="frame" x="40" y="489.5" width="313" height="14.5"/>
+                                <fontDescription key="fontDescription" type="system" weight="light" pointSize="12"/>
+                                <color key="textColor" red="1" green="1" blue="1" alpha="0.5" colorSpace="custom" customColorSpace="sRGB"/>
+                            </label>
+                            <!-- 底部年份 -->
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="SINCE 2002" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="sinceYear">
+                                <rect key="frame" x="40" y="752" width="313" height="14.5"/>
+                                <fontDescription key="fontDescription" type="system" weight="light" pointSize="12"/>
+                                <color key="textColor" red="1" green="1" blue="1" alpha="0.34999999999999998" colorSpace="custom" customColorSpace="sRGB"/>
+                            </label>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
+                        <color key="backgroundColor" red="0.023529411764705882" green="0.050980392156862744" blue="0.14117647058823529" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="gradientBg" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="bgLeading"/>
+                            <constraint firstItem="gradientBg" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" id="bgTrailing"/>
+                            <constraint firstItem="gradientBg" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="bgTop"/>
+                            <constraint firstItem="gradientBg" firstAttribute="bottom" secondItem="Ze5-6b-2t3" secondAttribute="bottom" id="bgBottom"/>
+                            <constraint firstItem="logoIcon" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="logoCenterX"/>
+                            <constraint firstItem="logoIcon" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="-80" id="logoCenterY"/>
+                            <constraint firstItem="schoolName" firstAttribute="top" secondItem="logoIcon" secondAttribute="bottom" constant="20" id="nameTop"/>
+                            <constraint firstItem="schoolName" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" constant="40" id="nameLeading"/>
+                            <constraint firstItem="schoolName" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" constant="-40" id="nameTrailing"/>
+                            <constraint firstItem="motto" firstAttribute="top" secondItem="schoolName" secondAttribute="bottom" constant="10" id="mottoTop"/>
+                            <constraint firstItem="motto" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" constant="40" id="mottoLeading"/>
+                            <constraint firstItem="motto" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" constant="-40" id="mottoTrailing"/>
+                            <constraint firstItem="englishName" firstAttribute="top" secondItem="motto" secondAttribute="bottom" constant="10" id="enTop"/>
+                            <constraint firstItem="englishName" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" constant="40" id="enLeading"/>
+                            <constraint firstItem="englishName" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" constant="-40" id="enTrailing"/>
+                            <constraint firstItem="sinceYear" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" constant="40" id="yearLeading"/>
+                            <constraint firstItem="sinceYear" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" constant="-40" id="yearTrailing"/>
+                            <constraint firstItem="sinceYear" firstAttribute="bottom" secondItem="6Tk-OE-BBY" secondAttribute="bottom" constant="-20" id="yearBottom"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="53" y="375"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="splash_icon" width="80" height="80"/>
+    </resources>
+</document>

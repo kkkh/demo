@@ -1,0 +1,70 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: linear-gradient(160deg, #EEF2FA 0%, #E7ECF7 60%, #EFF3FB 100%);
+       font-family: "PingFang SC", "Hiragino Sans GB", sans-serif; color: #1E293B; }
+.page { margin: 34px 40px; background: #FFFFFF; border-radius: 26px; padding: 30px 34px 26px;
+        box-shadow: 0 18px 46px rgba(11,31,75,.10); }
+.head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.h-no { font-size: 15px; font-weight: 700; color: #C9A227; letter-spacing: 2px; }
+.h-cn { font-size: 30px; font-weight: 800; color: #0B1F4B; }
+.h-en { font-size: 13px; color: #8A97B1; letter-spacing: 1.4px; text-transform: uppercase; }
+.h-intro { font-size: 14.5px; color: #5A6B8C; margin: 8px 0 20px; line-height: 1.55; }
+.flow { display: flex; flex-direction: column; gap: 0; }
+.row { display: flex; gap: 12px; align-items: stretch; }
+.row.center { justify-content: center; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.node { background: #F8FAFE; border: 1.5px solid #E2E8F4; border-top: 4px solid var(--c, #2B5BD7);
+        border-radius: 14px; padding: 11px 14px; display: flex; gap: 12px; align-items: center; }
+.node .ic { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 12px; display: flex; align-items: center;
+           justify-content: center; font-size: 21px; background: var(--cb, #EAF1FE); }
+.node .t { font-size: 16px; font-weight: 700; color: #172A4D; line-height: 1.3; }
+.node .s { font-size: 12.5px; color: #64748B; margin-top: 3px; line-height: 1.45; }
+.ar { display: flex; align-items: center; justify-content: center; color: #C9A227; font-size: 26px;
+      font-weight: 800; height: 34px; }
+.ar.x { flex-direction: row; flex: 0 0 44px; font-size: 22px; height: auto; }
+.ar small { font-size: 12px; color: #8A97B1; font-weight: 600; margin: 0 6px; }
+.lane { border: 1.5px solid #E2E8F4; border-left: 6px solid var(--c, #2B5BD7); border-radius: 14px;
+        padding: 12px 14px; background: #FBFCFE; flex: 1; }
+.lane .lt { font-size: 14.5px; font-weight: 800; color: var(--c, #2B5BD7); margin-bottom: 9px; }
+.branch { display: grid; grid-template-columns: 1fr .12fr 1fr .12fr 1fr; gap: 8px; align-items: stretch; }
+.tag { align-self: center; text-align: center; font-size: 12px; font-weight: 800; color: #FFFFFF;
+       background: #64748B; border-radius: 999px; padding: 5px 8px; margin: 0 2px; }
+.tag.yes { background: #16A34A; } .tag.no { background: #C8102E; }
+.legend { margin-top: 18px; background: #F4F7FC; border: 1px dashed #C7D2E8; border-radius: 12px;
+          padding: 10px 16px; font-size: 12.5px; color: #5A6B8C; line-height: 1.6; }
+.legend b { color: #0B1F4B; }
+.hint { margin-top: 10px; background: #FFF9E8; border: 1px solid #F1DFA6; border-radius: 12px;
+        padding: 10px 16px; font-size: 12.5px; color: #8A6D1B; line-height: 1.6; }
+.mini { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.mini span { font-size: 11.5px; background:#EAF1FE; color:#2B5BD7; border-radius:999px; padding:3px 9px; font-weight:600; }
+</style></head>
+<body><div class="page">
+<div class="head"><div><span class="h-no">FIG 9 / 10</span> &nbsp;·&nbsp; <span class="h-cn">图片系统与三级缓存流水线</span></div>
+<span class="h-en">IMAGE PIPELINE & CACHE</span></div>
+<div class="h-intro">从统一入口到缓存直出、降采样解码、平均色占位、双限内存缓存与磁盘缓存——以及保存/分享的出口。</div>
+
+<div class="flow">
+<div class="node" style="--c:#0B1F4B;--cb:#0B1F4B18"><div class="ic">🖼️</div><div><div class="t">图片入口（全 App 统一下发）</div><div class="s">新闻/机构/风光/领导/合作交流/首页卡 —— 一律 SJZCachedImage</div></div></div>
+<div class="ar">↓</div>
+<div class="row">
+<div class="node" style="--c:#16A34A;--cb:#16A34A18"><div class="ic">⚡</div><div><div class="t">同步内存缓存直出</div><div class="s">初始化期同步检查 NSCache<br>命中即渲染，无占位帧</div></div></div>
+<div class="node" style="--c:#64748B;--cb:#64748B18"><div class="ic">🚫</div><div><div class="t">未命中 → 无图模式短路</div><div class="s">无图模式跳过加载计数</div></div></div>
+<div class="node" style="--c:#2B5BD7;--cb:#2B5BD718"><div class="ic">🌐</div><div><div class="t">未命中 → 网络加载</div><div class="s">RefererHeaderURLProtocol 注入引流标头</div></div></div>
+</div>
+<div class="ar"><small>解码与降采样</small>↓</div>
+<div class="row">
+<div class="node" style="--c:#0D9488;--cb:#0D948818"><div class="ic">🪶</div><div><div class="t">列表缩略图 720px</div><div class="s">防长列表内存驱逐</div></div></div>
+<div class="node" style="--c:#7C3AED;--cb:#7C3AED18"><div class="ic">💎</div><div><div class="t">详情主图 1440px</div><div class="s">高质量呈现</div></div></div>
+<div class="node" style="--c:#C9A227;--cb:#C9A22718"><div class="ic">🎨</div><div><div class="t">平均色计算</div><div class="s">8×8 采样 → 平均色占位 blur-up</div></div></div>
+</div>
+<div class="ar">↓</div>
+<div class="row">
+<div class="lane" style="--c:#2B5BD7"><div class="lt">内存缓存</div><div class="node" style="--c:#2B5BD7;--cb:#2B5BD718"><div class="ic">🧠</div><div><div class="t">NSCache 双限制模式</div><div class="s">96MB / 40MB 像素计费<br>OSAllocatedUnfairLock</div></div></div></div>
+<div class="lane" style="--c:#0D9488"><div class="lt">磁盘缓存</div><div class="node" style="--c:#0D9488;--cb:#0D948818"><div class="ic">💽</div><div><div class="t">cachedSession URLCache</div><div class="s">10MB 内存 / 50MB 磁盘<br>article_detail_cache</div></div></div></div>
+<div class="lane" style="--c:#16A34A"><div class="lt">消费端</div><div class="node" style="--c:#16A34A;--cb:#16A34A18"><div class="ic">📤</div><div><div class="t">点击全屏 · 长按保存相册（addOnly）· 系统分享</div><div class="s">ProfileImageSaveShare 全链路日志</div></div></div></div>
+</div>
+<div class="ar"><small>缓存命中日志按 URL 首现节流 · 7 天缓存策略（除非 no-store）· 协议层拦截全 sxjzit 域</small>↓</div>
+</div>
+<div class="legend"><b>读图方式：</b>自上而下=加载路径；底部三格=存储与消费。金=增强体验，绿=出口。</div>
+✅ 缩略图 720px 下采样是解决长列表滚动闪图的关键；图片内存缓存按像素计费双限。
+</div></body></html>

@@ -1,0 +1,15 @@
+# 「园枢」项目 Git 忽略规则（2026-09-27 仓库重建时制定）
+
+# ---- macOS 系统文件 ----
+.DS_Store
+.AppleDouble
+
+# ---- Xcode 用户态与构建产物 ----
+xcuserdata/
+qin/build/
+qin/.build/
+DerivedData/
+*.xcresult
+
+# ---- 历史备份快照（保留在磁盘、不入库；此后以 Git 作为回滚源）----
+DesignCode_backup_*/

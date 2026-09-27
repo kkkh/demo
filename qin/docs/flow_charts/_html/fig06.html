@@ -1,0 +1,63 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: linear-gradient(160deg, #EEF2FA 0%, #E7ECF7 60%, #EFF3FB 100%);
+       font-family: "PingFang SC", "Hiragino Sans GB", sans-serif; color: #1E293B; }
+.page { margin: 34px 40px; background: #FFFFFF; border-radius: 26px; padding: 30px 34px 26px;
+        box-shadow: 0 18px 46px rgba(11,31,75,.10); }
+.head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.h-no { font-size: 15px; font-weight: 700; color: #C9A227; letter-spacing: 2px; }
+.h-cn { font-size: 30px; font-weight: 800; color: #0B1F4B; }
+.h-en { font-size: 13px; color: #8A97B1; letter-spacing: 1.4px; text-transform: uppercase; }
+.h-intro { font-size: 14.5px; color: #5A6B8C; margin: 8px 0 20px; line-height: 1.55; }
+.flow { display: flex; flex-direction: column; gap: 0; }
+.row { display: flex; gap: 12px; align-items: stretch; }
+.row.center { justify-content: center; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.node { background: #F8FAFE; border: 1.5px solid #E2E8F4; border-top: 4px solid var(--c, #2B5BD7);
+        border-radius: 14px; padding: 11px 14px; display: flex; gap: 12px; align-items: center; }
+.node .ic { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 12px; display: flex; align-items: center;
+           justify-content: center; font-size: 21px; background: var(--cb, #EAF1FE); }
+.node .t { font-size: 16px; font-weight: 700; color: #172A4D; line-height: 1.3; }
+.node .s { font-size: 12.5px; color: #64748B; margin-top: 3px; line-height: 1.45; }
+.ar { display: flex; align-items: center; justify-content: center; color: #C9A227; font-size: 26px;
+      font-weight: 800; height: 34px; }
+.ar.x { flex-direction: row; flex: 0 0 44px; font-size: 22px; height: auto; }
+.ar small { font-size: 12px; color: #8A97B1; font-weight: 600; margin: 0 6px; }
+.lane { border: 1.5px solid #E2E8F4; border-left: 6px solid var(--c, #2B5BD7); border-radius: 14px;
+        padding: 12px 14px; background: #FBFCFE; flex: 1; }
+.lane .lt { font-size: 14.5px; font-weight: 800; color: var(--c, #2B5BD7); margin-bottom: 9px; }
+.branch { display: grid; grid-template-columns: 1fr .12fr 1fr .12fr 1fr; gap: 8px; align-items: stretch; }
+.tag { align-self: center; text-align: center; font-size: 12px; font-weight: 800; color: #FFFFFF;
+       background: #64748B; border-radius: 999px; padding: 5px 8px; margin: 0 2px; }
+.tag.yes { background: #16A34A; } .tag.no { background: #C8102E; }
+.legend { margin-top: 18px; background: #F4F7FC; border: 1px dashed #C7D2E8; border-radius: 12px;
+          padding: 10px 16px; font-size: 12.5px; color: #5A6B8C; line-height: 1.6; }
+.legend b { color: #0B1F4B; }
+.hint { margin-top: 10px; background: #FFF9E8; border: 1px solid #F1DFA6; border-radius: 12px;
+        padding: 10px 16px; font-size: 12.5px; color: #8A6D1B; line-height: 1.6; }
+.mini { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.mini span { font-size: 11.5px; background:#EAF1FE; color:#2B5BD7; border-radius:999px; padding:3px 9px; font-weight:600; }
+</style></head>
+<body><div class="page">
+<div class="head"><div><span class="h-no">FIG 6 / 10</span> &nbsp;·&nbsp; <span class="h-cn">党建专题双子站聚合引擎</span></div>
+<span class="h-en">PARTY SUBJECT DUAL-SITE AGGREGATION</span></div>
+<div class="h-intro">党建工作（djgz）与思政专题（mkszy）两站索引解析 → 16 栏目并发分页 → 300 篇全量聚合 → 加权全文搜索。</div>
+
+<div class="flow">
+<div class="node" style="--c:#C8102E;--cb:#C8102E18"><div class="ic">🚩</div><div><div class="t">入口：首页党建卡 / 通知深链 Sheet</div></div></div>
+<div class="ar">↓</div>
+<div class="row">
+<div class="lane" style="--c:#C8102E"><div class="lt">党建工作 · djgz</div><div class="flow"><div class="node" style="--c:#C8102E;--cb:#C8102E18"><div class="ic">🏛️</div><div><div class="t">站点索引解析</div><div class="s">/dept/home2?site_key=djgz<br>双通道栏目收集（column_id + 内容页节点）</div></div></div><div class="ar">↓</div><div class="node" style="--c:#0D9488;--cb:#0D948818"><div class="ic">📚</div><div><div class="t">4 栏目并发分页</div><div class="s">每栏常规 4 页×50=200 上限</div></div></div><div class="ar">↓</div><div class="node" style="--c:#16A34A;--cb:#16A34A18"><div class="ic">📦</div><div><div class="t">139 篇文章聚合</div><div class="s">容器栏 500 单栏容错隔离</div></div></div></div></div>
+<div class="lane" style="--c:#C8102E"><div class="lt">思政专题 · mkszy</div><div class="flow"><div class="node" style="--c:#C8102E;--cb:#C8102E18"><div class="ic">🏛️</div><div><div class="t">站点索引解析</div><div class="s">/dept/home2?site_key=mkszy<br>嵌套子块 + tabs-sub 子页全收集</div></div></div><div class="ar">↓</div><div class="node" style="--c:#0D9488;--cb:#0D948818"><div class="ic">📚</div><div><div class="t">12 栏目并发分页</div><div class="s">深度检索 400 条上限</div></div></div><div class="ar">↓</div><div class="node" style="--c:#16A34A;--cb:#16A34A18"><div class="ic">📦</div><div><div class="t">161 篇文章聚合</div><div class="s">空栏优雅降级</div></div></div></div></div>
+</div>
+<div class="ar"><small>全量 300 篇合并进入本地库</small>↓</div>
+<div class="row">
+<div class="node" style="--c:#2B5BD7;--cb:#2B5BD718"><div class="ic">🔍</div><div><div class="t">多词 AND 语义搜索</div><div class="s">分词（空格/全角）· 标题权重5 · 描述权重2 · 标签权重1<br>按相关度总分 → 时间排序</div></div></div>
+<div class="node" style="--c:#C9A227;--cb:#C9A22718"><div class="ic">🏷️</div><div><div class="t">两站命中分布徽章</div><div class="s">「党建工作 N 篇 · 思政专题 M 篇」站点色圆点</div></div></div>
+<div class="node" style="--c:#64748B;--cb:#64748B18"><div class="ic">📊</div><div><div class="t">行为埋点</div><div class="s">输入开始/聚焦失焦/防抖/提交/历史/滑向/触底</div></div></div>
+</div>
+<div class="ar"><small>刷新四来源状态机：工具栏按钮三态 → 顶部横幅 → 下拉刷新 → 失败重试；深度搜索自动补充至 400 条/栏</small>↓</div>
+</div>
+<div class="legend"><b>读图方式：</b>两站完全对称处理；红色=党建域、青色=取数、绿色=聚合结果。</div>
+⚠️ 服务端稳定 500 的容器型栏目（首页/师资队伍类）单栏容错隔离，绝不拖垮全站。
+</div></body></html>
