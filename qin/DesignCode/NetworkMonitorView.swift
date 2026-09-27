@@ -24,6 +24,10 @@ struct NetworkMonitorView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // 图表坐标轴（AxisValueLabel 为 ChartContent，不接受 View 修饰器）→ 读取排版环境值交给字体工厂构造 Font
+    @Environment(\.displayFontScale) private var displayFontScale
+    @Environment(\.displayBold) private var displayBold
+    @Environment(\.displayFontFamily) private var displayFontFamily
 
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
@@ -583,14 +587,16 @@ struct NetworkMonitorView: View {
         .chartYAxis {
             AxisMarks(position: .trailing) { _ in
                 AxisGridLine().foregroundStyle(Color.primary.opacity(0.05))
-                AxisValueLabel().font(.system(size: 9)).foregroundStyle(.tertiary)
+                AxisValueLabel()
+                    .font(DisplayFontFactory.font(size: 9, scale: displayFontScale, family: displayFontFamily, bold: displayBold))
+                    .foregroundStyle(.tertiary)
             }
         }
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 3)) { _ in
                 AxisGridLine().foregroundStyle(.clear)
                 AxisValueLabel(format: .dateTime.hour().minute().second())
-                    .font(.system(size: 9))
+                    .font(DisplayFontFactory.font(size: 9, scale: displayFontScale, family: displayFontFamily, bold: displayBold))
                     .foregroundStyle(.tertiary)
             }
         }
@@ -1424,7 +1430,7 @@ struct NetworkMonitorView: View {
                     .fill(SJZDesignTokens.successGradient.opacity(0.18))
                     .frame(width: 40, height: 40)
                 Image(systemName: "leaf.fill")
-                    .font(.system(size: 16, weight: .semibold))
+                    .displaySymbolFont(16, weight: .semibold)
                     .foregroundStyle(Color.sjzGreen)
             }
             VStack(alignment: .leading, spacing: 3) {

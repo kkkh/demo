@@ -296,7 +296,7 @@ struct OrganizationDetailView: View {
                     color: nav.color
                 )
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .sheet(item: $childNavigation) { nav in
             NavigationStack {
@@ -306,13 +306,13 @@ struct OrganizationDetailView: View {
                     color: nav.color
                 )
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .sheet(isPresented: $showSpecialtyList) {
             NavigationStack {
                 SpecialtyListView()
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .sheet(isPresented: $showScoreLine) {
             NavigationStack {
@@ -330,7 +330,7 @@ struct OrganizationDetailView: View {
                         }
                     }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
             .onAppear {
                 LogManager.shared.info("organization", "历年分数线查询WebView打开", context: [
                     "department": unit.name,
@@ -2139,7 +2139,7 @@ struct OrganizationArticleDetailView: View {
                 let displayTitle = detailTitle.isEmpty ? article.title : detailTitle
                 let titleLen = displayTitle.count
                 Text(displayTitle)
-                    .font(.system(size: titleLen > 30 ? 12 : (titleLen > 20 ? 13 : 15), weight: .semibold))
+                    .displayFont(titleLen > 30 ? 12 : (titleLen > 20 ? 13 : 15), weight: .semibold)
                     .lineLimit(titleLen > 40 ? 4 : (titleLen > 25 ? 3 : 2))
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.7)
@@ -2619,9 +2619,9 @@ struct OrganizationArticleDetailView: View {
                                             .overlay {
                                                 VStack(spacing: 4) {
                                                     Image(systemName: "arrow.clockwise")
-                                                        .font(.caption).foregroundStyle(.secondary)
+                                                        .displaySymbolFont(12).foregroundStyle(.secondary)
                                                     Text("轻点重试")
-                                                        .font(.system(size: 9)).foregroundStyle(.secondary)
+                                                        .displayFont(9).foregroundStyle(.secondary)
                                                 }
                                             }
                                     case .empty:
@@ -2682,7 +2682,7 @@ struct OrganizationArticleDetailView: View {
                         VStack(spacing: 12) {
                             // 流彩渲染图标（优雅等待态）
                             Image(systemName: "doc.richtext")
-                                .font(.system(size: 30, weight: .medium))
+                                .displaySymbolFont(30, weight: .medium)
                                 .symbolRenderingMode(.hierarchical)
                                 .foregroundStyle(color)
                                 .symbolEffect(.variableColor.iterative, isActive: true)
@@ -3980,11 +3980,13 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         let displaySettings = DisplaySettingsManager.shared
         let textLight = displaySettings.articleCSSTextLightHex
         let textDark = displaySettings.articleCSSTextDarkHex
-        LogManager.shared.debugLog("organization", "机构文章网页原文配色注入", context: [
+        var injectionContext: [String: String] = [
             "preset": displaySettings.articleTextColorPreset.rawValue,
             "lightHex": textLight,
             "darkHex": textDark
-        ])
+        ]
+        injectionContext.merge(displaySettings.articleCSSTypographyLogContext) { _, new in new }
+        LogManager.shared.debugLog("organization", "机构文章网页原文配色与排版注入", context: injectionContext)
         return """
         <!DOCTYPE html>
         <html lang="zh-CN">
@@ -4017,9 +4019,12 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                 }
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
-                    font-size: 16px;
-                    line-height: 1.85;
+                    /* 排版联动显示设置：字体家族 / 字号档位 / 行距 / 字距 / 粗体（注入值与下方构建日志 context 一致） */
+                    font-family: \(displaySettings.articleCSSFontFamily);
+                    font-size: \(String(format: "%.1f", displaySettings.articleCSSFontSize))px;
+                    line-height: \(String(format: "%.2f", displaySettings.articleCSSLineHeight));
+                    letter-spacing: \(String(format: "%.2f", displaySettings.articleCSSLetterSpacing))px;
+                    font-weight: \(displaySettings.articleCSSFontWeight);
                     padding: 16px 16px 40px;
                     color: var(--text-color);
                     background: var(--bg-color);
@@ -4035,10 +4040,10 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                     display: block;
                 }
                 p { margin: 0 0 14px 0; }
-                h1 { font-size: 22px; font-weight: 700; margin: 24px 0 16px 0; line-height: 1.4; }
-                h2 { font-size: 19px; font-weight: 600; margin: 20px 0 14px 0; line-height: 1.4; }
-                h3 { font-size: 17px; font-weight: 600; margin: 18px 0 12px 0; line-height: 1.4; }
-                h4, h5, h6 { font-size: 16px; font-weight: 600; margin: 16px 0 10px 0; }
+                h1 { font-size: 1.375em; font-weight: 700; margin: 24px 0 16px 0; line-height: 1.4; }
+                h2 { font-size: 1.1875em; font-weight: 600; margin: 20px 0 14px 0; line-height: 1.4; }
+                h3 { font-size: 1.0625em; font-weight: 600; margin: 18px 0 12px 0; line-height: 1.4; }
+                h4, h5, h6 { font-size: 1em; font-weight: 600; margin: 16px 0 10px 0; }
                 ul, ol { padding-left: 20px; margin: 0 0 14px 0; }
                 li { margin-bottom: 6px; }
                 blockquote {
@@ -4054,7 +4059,7 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                     max-width: 100%;
                     border-collapse: collapse;
                     margin: 16px 0;
-                    font-size: 14px;
+                    font-size: 0.875em;
                     display: block;
                     overflow-x: auto;
                     -webkit-overflow-scrolling: touch;
@@ -4070,7 +4075,7 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                 }
                 pre, code {
                     font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
-                    font-size: 14px;
+                    font-size: 0.875em;
                     background: var(--code-bg);
                     border-radius: 4px;
                 }
@@ -4304,11 +4309,13 @@ struct HTMLWebView: UIViewRepresentable {
         let displaySettings = DisplaySettingsManager.shared
         let textLight = displaySettings.articleCSSTextLightHex
         let textDark = displaySettings.articleCSSTextDarkHex
-        LogManager.shared.debugLog("organization", "原文浏览网页配色注入", context: [
+        var injectionContext: [String: String] = [
             "preset": displaySettings.articleTextColorPreset.rawValue,
             "lightHex": textLight,
             "darkHex": textDark
-        ])
+        ]
+        injectionContext.merge(displaySettings.articleCSSTypographyLogContext) { _, new in new }
+        LogManager.shared.debugLog("organization", "原文浏览网页配色与排版注入", context: injectionContext)
         return """
         <!DOCTYPE html>
         <html lang="zh-CN">
@@ -4341,9 +4348,12 @@ struct HTMLWebView: UIViewRepresentable {
                 }
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
-                    font-size: 16px;
-                    line-height: 1.85;
+                    /* 排版联动显示设置：字体家族 / 字号档位 / 行距 / 字距 / 粗体（注入值与下方构建日志 context 一致） */
+                    font-family: \(displaySettings.articleCSSFontFamily);
+                    font-size: \(String(format: "%.1f", displaySettings.articleCSSFontSize))px;
+                    line-height: \(String(format: "%.2f", displaySettings.articleCSSLineHeight));
+                    letter-spacing: \(String(format: "%.2f", displaySettings.articleCSSLetterSpacing))px;
+                    font-weight: \(displaySettings.articleCSSFontWeight);
                     padding: 16px 16px 40px;
                     color: var(--text-color);
                     background: var(--bg-color);
@@ -4359,10 +4369,10 @@ struct HTMLWebView: UIViewRepresentable {
                     display: block;
                 }
                 p { margin: 0 0 14px 0; }
-                h1 { font-size: 22px; font-weight: 700; margin: 24px 0 16px 0; line-height: 1.4; }
-                h2 { font-size: 19px; font-weight: 600; margin: 20px 0 14px 0; line-height: 1.4; }
-                h3 { font-size: 17px; font-weight: 600; margin: 18px 0 12px 0; line-height: 1.4; }
-                h4, h5, h6 { font-size: 16px; font-weight: 600; margin: 16px 0 10px 0; }
+                h1 { font-size: 1.375em; font-weight: 700; margin: 24px 0 16px 0; line-height: 1.4; }
+                h2 { font-size: 1.1875em; font-weight: 600; margin: 20px 0 14px 0; line-height: 1.4; }
+                h3 { font-size: 1.0625em; font-weight: 600; margin: 18px 0 12px 0; line-height: 1.4; }
+                h4, h5, h6 { font-size: 1em; font-weight: 600; margin: 16px 0 10px 0; }
                 ul, ol { padding-left: 20px; margin: 0 0 14px 0; }
                 li { margin-bottom: 6px; }
                 blockquote {
@@ -4378,7 +4388,7 @@ struct HTMLWebView: UIViewRepresentable {
                     max-width: 100%;
                     border-collapse: collapse;
                     margin: 16px 0;
-                    font-size: 14px;
+                    font-size: 0.875em;
                     display: block;
                     overflow-x: auto;
                     -webkit-overflow-scrolling: touch;
@@ -4394,7 +4404,7 @@ struct HTMLWebView: UIViewRepresentable {
                 }
                 pre, code {
                     font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
-                    font-size: 14px;
+                    font-size: 0.875em;
                     background: var(--code-bg);
                     border-radius: 4px;
                 }
@@ -4686,7 +4696,7 @@ struct ChildSectionDetailView: View {
                     color: nav.color
                 )
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .task {
             await performLoad()

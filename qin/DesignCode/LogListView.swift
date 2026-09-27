@@ -74,6 +74,7 @@ struct LogListView: View {
         }
         .sheet(item: $exportData) { data in
             ExportSheetView(text: data.text, fileName: data.fileName)
+                .sjzPresentationChrome()
         }
         .biometricLockProtected(reason: "sensitive_logs")
     }

@@ -190,7 +190,7 @@ struct NotificationTestView: View {
             if !notificationManager.isAuthorized {
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle.fill")
-                        .font(.system(size: 12))
+                        .displaySymbolFont(12)
                         .foregroundStyle(.orange)
                     Text("模拟链路不依赖系统权限，未授权也可测试")
                         .displayFont(12)
@@ -255,7 +255,7 @@ struct NotificationTestView: View {
                     Spacer()
                     VStack(spacing: 6) {
                         Image(systemName: "bell.and.waves.left.and.right")
-                            .font(.system(size: 26))
+                            .displaySymbolFont(26)
                             .foregroundStyle(.tertiary)
                         Text("暂无测试记录")
                             .displayFont(13)
@@ -275,11 +275,11 @@ struct NotificationTestView: View {
                                     .frame(width: 15, height: 15)
                             case .success:
                                 Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 15))
+                                    .displaySymbolFont(15)
                                     .foregroundStyle(Color.sjzGreen)
                             case .failure:
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 15))
+                                    .displaySymbolFont(15)
                                     .foregroundStyle(Color.sjzRed)
                             }
                         }
@@ -320,7 +320,7 @@ struct NotificationTestView: View {
     private func testButtonLabel(icon: String, title: String, subtitle: String, color: Color, isLoading: Bool, isEnabled: Bool) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 20))
+                .displaySymbolFont(20)
                 .foregroundStyle(color)
                 .frame(width: 34, height: 34)
                 .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
@@ -337,7 +337,7 @@ struct NotificationTestView: View {
                 ProgressView().scaleEffect(0.8)
             } else {
                 Image(systemName: "play.fill")
-                    .font(.system(size: 13))
+                    .displaySymbolFont(13)
                     .foregroundStyle(.tertiary)
             }
         }

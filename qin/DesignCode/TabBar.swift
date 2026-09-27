@@ -193,11 +193,11 @@ struct MainTabView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("DEBUG").font(.caption).bold()
+                            Text("DEBUG").displayFont(12).bold()
                             Spacer()
-                            Button("关闭") { showDebug = false }.font(.caption)
-                            Button("刷新") { data.syncIfNeeded(force: true) }.font(.caption)
-                            Button("模拟信箱新信") { PrincipalMailboxStore.shared.simulateNewMail() }.font(.caption)
+                            Button("关闭") { showDebug = false }.displayFont(12)
+                            Button("刷新") { data.syncIfNeeded(force: true) }.displayFont(12)
+                            Button("模拟信箱新信") { PrincipalMailboxStore.shared.simulateNewMail() }.displayFont(12)
                         }
                         Text("mailbox=\(PrincipalMailboxStore.shared.total) new=\(PrincipalMailboxStore.shared.newCount)")
                             .displayFont(10)
@@ -237,7 +237,7 @@ struct MainTabView: View {
                         withAnimation { showDebug.toggle() }
                     } label: {
                         Image(systemName: "ant.fill")
-                            .font(.caption2)
+                            .displaySymbolFont(11)
                             .padding(8)
                             .background(.ultraThinMaterial, in: Circle())
                     }
@@ -309,7 +309,7 @@ struct MainTabView: View {
                 NavigationStack {
                     EnhancedNewsDetailView(news: article)
                 }
-                .sjzGrayScale()
+                .sjzPresentationChrome()
             }
         }
         .sheet(isPresented: $showMailboxFromNotification, onDismiss: {
@@ -319,7 +319,7 @@ struct MainTabView: View {
                 showMailboxFromNotification = false
                 LogManager.shared.debugLog("mailbox", "信箱通知页已关闭", context: [:])
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .sheet(isPresented: $showSchoolProfileSheet) {
             NavigationStack {
@@ -337,7 +337,7 @@ struct MainTabView: View {
                         }
                     }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .sheet(isPresented: $showPartySubjectSheet) {
             NavigationStack {
@@ -353,7 +353,7 @@ struct MainTabView: View {
                         }
                     }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 
@@ -585,7 +585,7 @@ struct HomeView: View {
             NavigationStack {
                 HelpArticleDetailView(article: article)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 
@@ -674,7 +674,7 @@ struct HomeView: View {
                 }
 
                 HStack(spacing: 8) {
-                    Image(systemName: "book.fill").font(.caption2)
+                    Image(systemName: "book.fill").displaySymbolFont(11)
                     Text(SchoolInfo.motto)
                         .displayFont(14, weight: .semibold)
                 }
@@ -1043,7 +1043,7 @@ private struct HeroSlideDecoration: View {
             // 数据来源徽标：本地缓存生效时可见（直观状态提示）
             if data.dataSource == "缓存" {
                 HStack(spacing: 3) {
-                    Image(systemName: "archivebox.fill").font(.system(size: 8, weight: .semibold))
+                    Image(systemName: "archivebox.fill").displaySymbolFont(8, weight: .semibold)
                     Text("离线缓存").displayFont(9, weight: .semibold)
                 }
                 .foregroundStyle(Color.sjzGreen)
@@ -1649,7 +1649,7 @@ private struct HeroSlideDecoration: View {
             startPoint: .top, endPoint: .bottom)
         .overlay {
             Image(systemName: "person.text.rectangle.fill")
-                .font(.title).foregroundStyle(Color.sjzIndigo.opacity(0.1))
+                .displaySymbolFont(28).foregroundStyle(Color.sjzIndigo.opacity(0.1))
         }
     }
 
@@ -1713,7 +1713,7 @@ private struct HeroSlideDecoration: View {
             startPoint: .top, endPoint: .bottom)
         .overlay {
             Image(systemName: "play.rectangle.fill")
-                .font(.largeTitle).foregroundStyle(Color.sjzAccent.opacity(0.1))
+                .displaySymbolFont(34).foregroundStyle(Color.sjzAccent.opacity(0.1))
         }
     }
 
@@ -1768,7 +1768,7 @@ private struct HeroSlideDecoration: View {
             startPoint: .top, endPoint: .bottom)
         .overlay {
             Image(systemName: "person.2.fill")
-                .font(.title).foregroundStyle(Color.sjzPurple.opacity(0.1))
+                .displaySymbolFont(28).foregroundStyle(Color.sjzPurple.opacity(0.1))
         }
     }
 
@@ -1827,7 +1827,7 @@ private struct HeroSlideDecoration: View {
             startPoint: .top, endPoint: .bottom)
         .overlay {
             Image(systemName: "party.popper.fill")
-                .font(.title).foregroundStyle(Color.sjzPink.opacity(0.08))
+                .displaySymbolFont(28).foregroundStyle(Color.sjzPink.opacity(0.08))
         }
     }
 
@@ -1851,7 +1851,7 @@ private struct HeroSlideDecoration: View {
                     }
                     .frame(width: 56)
                     Text(event.event)
-                        .font(.subheadline).foregroundStyle(.primary)
+                        .displayFont(15).foregroundStyle(.primary)
                         .padding(.bottom, idx < data.timeline.count - 1 ? 28 : 0)
                     Spacer()
                 }
@@ -1980,10 +1980,10 @@ struct VideoPlayerView: View {
                         .displaySymbolFont(48)
                         .foregroundStyle(.white.opacity(0.5))
                     Text(errorMessage ?? "视频加载失败")
-                        .font(.headline)
+                        .displayFont(17, weight: .semibold)
                         .foregroundStyle(.white.opacity(0.7))
                     Text("学校服务器可能限制了直接访问，\n已自动添加访问来源标识后重试。")
-                        .font(.caption)
+                        .displayFont(12)
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
                     Button {
@@ -2004,10 +2004,10 @@ struct VideoPlayerView: View {
                         .tint(.white)
                         .scaleEffect(1.5)
                     Text("正在加载视频...")
-                        .font(.subheadline)
+                        .displayFont(15)
                         .foregroundStyle(.white.opacity(0.6))
                     Text(video.title)
-                        .font(.caption)
+                        .displayFont(12)
                         .foregroundStyle(.white.opacity(0.35))
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
@@ -2518,7 +2518,7 @@ struct EnhancedNewsDetailView: View {
                     // 分类和日期
                     HStack(spacing: 10) {
                         CategoryBadge(category: news.category)
-                        Text(news.date).font(.subheadline).foregroundStyle(.secondary)
+                        Text(news.date).displayFont(15).foregroundStyle(.secondary)
                         Spacer()
                         Button {
                             showWebView = true
@@ -2554,14 +2554,14 @@ struct EnhancedNewsDetailView: View {
                     if !isLoadingDetail {
                         if let author = fullDetail?.author, !author.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "person.fill").font(.caption2)
+                                Image(systemName: "person.fill").displaySymbolFont(11)
                                 Text("作者：\(author)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
                         }
                         if let source = fullDetail?.source, !source.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "link").font(.caption2)
+                                Image(systemName: "link").displaySymbolFont(11)
                                 Text("来源：\(source)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
@@ -2696,9 +2696,9 @@ struct EnhancedNewsDetailView: View {
                                                         Color.gray.opacity(0.08)
                                                         VStack(spacing: 4) {
                                                             Image(systemName: "arrow.clockwise")
-                                                                .font(.caption).foregroundStyle(.secondary)
+                                                                .displaySymbolFont(12).foregroundStyle(.secondary)
                                                             Text("轻点重试")
-                                                                .font(.system(size: 9)).foregroundStyle(.secondary)
+                                                                .displayFont(9).foregroundStyle(.secondary)
                                                         }
                                                     }
                                                 case .empty:
@@ -2809,7 +2809,7 @@ struct EnhancedNewsDetailView: View {
                         }
                     }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .sheet(isPresented: $webViewShowShare) {
             ShareSheet(items: [URL(string: news.originalArticleURL) as Any])
@@ -2824,7 +2824,7 @@ struct EnhancedNewsDetailView: View {
                     FullScreenImageView(url: url, title: news.title)
                 }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .task {
             await loadDetail()
@@ -3347,7 +3347,7 @@ private struct PhasedProgressIndicator: View {
                 // 计时器
                 HStack(spacing: 4) {
                     Image(systemName: "stopwatch")
-                        .font(.system(size: 10))
+                        .displaySymbolFont(10)
                         .foregroundStyle(.secondary)
                     Text(String(format: "%.1fs", elapsedDisplay))
                         .displayFont(12, weight: .medium)
@@ -3366,7 +3366,7 @@ private struct PhasedProgressIndicator: View {
             if phase == .complete && elapsedTime < 0.5 {
                 HStack(spacing: 4) {
                     Image(systemName: "bolt.fill")
-                        .font(.system(size: 10))
+                        .displaySymbolFont(10)
                         .foregroundStyle(.green)
                     Text("缓存秒开 · \(String(format: "%.0f", elapsedTime * 1000))ms")
                         .displayFont(11, weight: .medium)
@@ -3380,7 +3380,7 @@ private struct PhasedProgressIndicator: View {
             if phase == .complete && elapsedTime >= 0.5 {
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 10))
+                        .displaySymbolFont(10)
                         .foregroundStyle(.green)
                     Text("加载完成 · \(String(format: "%.1f", elapsedTime))s")
                         .displayFont(11, weight: .medium)
@@ -3394,7 +3394,7 @@ private struct PhasedProgressIndicator: View {
             if phase == .failed, let error = error {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10))
+                        .displaySymbolFont(10)
                         .foregroundStyle(.red)
                     Text(error)
                         .displayFont(11, weight: .medium)
@@ -3408,7 +3408,7 @@ private struct PhasedProgressIndicator: View {
                 Button(action: onRetry) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 10))
+                            .displaySymbolFont(10)
                         Text("重新加载")
                             .displayFont(12, weight: .medium)
                     }
@@ -3533,8 +3533,8 @@ struct FullScreenImageView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "photo.badge.exclamationmark")
                             .displaySymbolFont(48).foregroundStyle(.white.opacity(0.4))
-                        Text("图片加载失败").font(.caption).foregroundStyle(.white.opacity(0.5))
-                        Text(error).font(.caption2).foregroundStyle(.white.opacity(0.3))
+                        Text("图片加载失败").displayFont(12).foregroundStyle(.white.opacity(0.5))
+                        Text(error).displayFont(11).foregroundStyle(.white.opacity(0.3))
                             .multilineTextAlignment(.center).padding(.horizontal, 32)
                     }
                 } else if isLoading {
@@ -3558,14 +3558,14 @@ struct FullScreenImageView: View {
                                     .rotationEffect(.degrees(-90))
                                     .shadow(color: Color.sjzSkyBlue.opacity(0.6), radius: 6)
                                 Text("\(Int(progress * 100))%")
-                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .displayFont(13, weight: .semibold, design: .rounded)
                                     .monospacedDigit()
                                     .foregroundStyle(.white)
                                     .contentTransition(.numericText())
                             }
                             .animation(.smooth(duration: 0.3), value: progress)
                             Text("下载中 \(Int(progress * 100))%")
-                                .font(.caption)
+                                .displayFont(12)
                                 .foregroundStyle(.white.opacity(0.8))
                                 .contentTransition(.numericText())
                         } else {
@@ -3730,9 +3730,9 @@ struct WebViewContainer: View {
                         .displaySymbolFont(48)
                         .foregroundStyle(.secondary)
                     Text("无法打开链接")
-                        .font(.headline)
+                        .displayFont(17, weight: .semibold)
                     Text("链接格式无效")
-                        .font(.caption)
+                        .displayFont(12)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -3744,7 +3744,7 @@ struct WebViewContainer: View {
                         .tint(Color.sjzAccent)
                         .frame(width: 200)
                     Text("正在加载...")
-                        .font(.caption)
+                        .displayFont(12)
                         .foregroundStyle(.secondary)
                 }
                 .padding(24)
@@ -3757,9 +3757,9 @@ struct WebViewContainer: View {
                         .displaySymbolFont(40)
                         .foregroundStyle(.orange)
                     Text("加载失败")
-                        .font(.headline)
+                        .displayFont(17, weight: .semibold)
                     Text(error)
-                        .font(.caption)
+                        .displayFont(12)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                     Button {
@@ -3875,7 +3875,7 @@ struct HonorDetailView: View {
                         ZStack {
                             Circle().fill(Color.sjzGold.opacity(0.08)).frame(width: 60, height: 60)
                             Image(systemName: honor.icon)
-                                .font(.title2).foregroundStyle(Color.sjzGold)
+                                .displaySymbolFont(22).foregroundStyle(Color.sjzGold)
                         }
                         Text(honor.title)
                             .displayFont(22, weight: .bold)
@@ -3910,14 +3910,14 @@ struct HonorDetailView: View {
                     if !isLoadingDetail, loadError == nil {
                         if let author = fullDetail?.author, !author.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "person.fill").font(.caption2)
+                                Image(systemName: "person.fill").displaySymbolFont(11)
                                 Text("作者：\(author)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
                         }
                         if let source = fullDetail?.source, !source.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "link").font(.caption2)
+                                Image(systemName: "link").displaySymbolFont(11)
                                 Text("来源：\(source)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
@@ -3930,7 +3930,7 @@ struct HonorDetailView: View {
                     if isLoadingDetail {
                         VStack(spacing: 16) {
                             ProgressView()
-                            Text("正在加载完整内容...").font(.caption).foregroundStyle(.secondary)
+                            Text("正在加载完整内容...").displayFont(12).foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 50)
@@ -4090,7 +4090,7 @@ struct HonorDetailView: View {
                     FullScreenImageView(url: url, title: honor.title)
                 }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 
@@ -4410,7 +4410,7 @@ struct SceneryDetailView: View {
                     FullScreenImageView(url: url, title: scenery.title)
                 }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 
@@ -4492,14 +4492,14 @@ struct TeacherDetailView: View {
                     if !isLoadingDetail, loadError == nil {
                         if let author = fullDetail?.author, !author.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "person.fill").font(.caption2)
+                                Image(systemName: "person.fill").displaySymbolFont(11)
                                 Text("作者：\(author)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
                         }
                         if let source = fullDetail?.source, !source.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "link").font(.caption2)
+                                Image(systemName: "link").displaySymbolFont(11)
                                 Text("来源：\(source)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
@@ -4512,7 +4512,7 @@ struct TeacherDetailView: View {
                     if isLoadingDetail {
                         VStack(spacing: 16) {
                             ProgressView()
-                            Text("正在加载完整内容...").font(.caption).foregroundStyle(.secondary)
+                            Text("正在加载完整内容...").displayFont(12).foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 50)
@@ -4672,7 +4672,7 @@ struct TeacherDetailView: View {
                     FullScreenImageView(url: url, title: teacher.title)
                 }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 
@@ -5001,14 +5001,14 @@ struct StoryDetailView: View {
                     if !isLoadingDetail, loadError == nil {
                         if let author = fullDetail?.author, !author.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "person.fill").font(.caption2)
+                                Image(systemName: "person.fill").displaySymbolFont(11)
                                 Text("作者：\(author)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
                         }
                         if let source = fullDetail?.source, !source.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "link").font(.caption2)
+                                Image(systemName: "link").displaySymbolFont(11)
                                 Text("来源：\(source)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
@@ -5021,7 +5021,7 @@ struct StoryDetailView: View {
                     if isLoadingDetail {
                         VStack(spacing: 16) {
                             ProgressView()
-                            Text("正在加载完整内容...").font(.caption).foregroundStyle(.secondary)
+                            Text("正在加载完整内容...").displayFont(12).foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 50)
@@ -5184,7 +5184,7 @@ struct StoryDetailView: View {
                     FullScreenImageView(url: url, title: story.title)
                 }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 
@@ -5520,14 +5520,14 @@ struct ActivityDetailView: View {
                     if !isLoadingDetail, loadError == nil {
                         if let author = fullDetail?.author, !author.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "person.fill").font(.caption2)
+                                Image(systemName: "person.fill").displaySymbolFont(11)
                                 Text("作者：\(author)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
                         }
                         if let source = fullDetail?.source, !source.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "link").font(.caption2)
+                                Image(systemName: "link").displaySymbolFont(11)
                                 Text("来源：\(source)")
                             }
                             .displayFont(12).foregroundStyle(.secondary)
@@ -5540,7 +5540,7 @@ struct ActivityDetailView: View {
                     if isLoadingDetail {
                         VStack(spacing: 16) {
                             ProgressView()
-                            Text("正在加载完整内容...").font(.caption).foregroundStyle(.secondary)
+                            Text("正在加载完整内容...").displayFont(12).foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 50)
@@ -5700,7 +5700,7 @@ struct ActivityDetailView: View {
                     FullScreenImageView(url: url, title: activity.title)
                 }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 
@@ -6126,7 +6126,7 @@ struct DepartmentDetailView: View {
                     Text(department.name)
                         .displayFont(26, weight: .bold)
                     Text(department.englishName)
-                        .font(.subheadline).foregroundStyle(.secondary)
+                        .displayFont(15).foregroundStyle(.secondary)
                 }
                 .padding(.top, 24)
 
@@ -6163,7 +6163,7 @@ struct DepartmentDetailView: View {
                 if !department.majors.isEmpty {
                     VStack(alignment: .leading, spacing: 14) {
                         Label("开设专业", systemImage: "book.fill")
-                            .font(.headline).padding(.horizontal, 16)
+                            .displayLabelFont(17, weight: .semibold).padding(.horizontal, 16)
                         ForEach(department.majors) { major in
                             NavigationLink {
                                 MajorDetailView(major: major, color: color)
@@ -6200,7 +6200,7 @@ struct DepartmentDetailView: View {
 
 private func sectionCard<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
     VStack(alignment: .leading, spacing: 14) {
-        Label(title, systemImage: icon).font(.headline)
+        Label(title, systemImage: icon).displayLabelFont(17, weight: .semibold)
         content()
     }
     .padding(22).frame(maxWidth: .infinity, alignment: .leading)
@@ -6223,7 +6223,7 @@ struct MajorDetailView: View {
                         Label(major.category, systemImage: "tag.fill")
                         Label(major.duration, systemImage: "clock.fill")
                     }
-                    .font(.subheadline).foregroundStyle(color)
+                    .displayLabelFont(15).foregroundStyle(color)
                 }
                 .padding(.top, 24)
 
@@ -6351,7 +6351,7 @@ struct NewsListView: View {
                     Image(systemName: "newspaper.fill")
                         .displaySymbolFont(48).foregroundStyle(.secondary.opacity(0.15))
                     Text("暂无数据")
-                        .font(.subheadline).foregroundStyle(.secondary)
+                        .displayFont(15).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -6397,9 +6397,9 @@ struct NewsListView: View {
                         .displaySymbolFont(40)
                         .foregroundStyle(.secondary.opacity(0.3))
                     Text("未找到「\(searchText)」相关资讯")
-                        .font(.subheadline).foregroundStyle(.secondary)
+                        .displayFont(15).foregroundStyle(.secondary)
                     Text("请尝试其他关键词")
-                        .font(.caption).foregroundStyle(.tertiary)
+                        .displayFont(12).foregroundStyle(.tertiary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
@@ -6529,7 +6529,7 @@ struct NewsListView: View {
                 .fill(categoryColor(category).opacity(0.06))
                 .frame(width: 76, height: 60)
             Image(systemName: "newspaper.fill")
-                .font(.caption).foregroundStyle(categoryColor(category).opacity(0.15))
+                .displaySymbolFont(12).foregroundStyle(categoryColor(category).opacity(0.15))
         }
     }
 }
@@ -6566,7 +6566,7 @@ struct CampusView: View {
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("校园服务", systemImage: "square.grid.2x2.fill")
-                    .font(.headline)
+                    .displayLabelFont(17, weight: .semibold)
                 Spacer()
                 Text("\(data.services.count) 项服务")
                     .displayFont(11, weight: .semibold)
@@ -6605,7 +6605,7 @@ struct CampusView: View {
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("校园设施", systemImage: "building.2.fill")
-                    .font(.headline)
+                    .displayLabelFont(17, weight: .semibold)
                 Spacer()
                 Text("\(data.facilities.count) 大设施")
                     .displayFont(11, weight: .semibold)
@@ -6636,7 +6636,7 @@ struct CampusView: View {
     private var organizationSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("机构设置", systemImage: "building.columns.fill")
-                .font(.headline).padding(.horizontal, 16)
+                .displayLabelFont(17, weight: .semibold).padding(.horizontal, 16)
             NavigationLink {
                 OrganizationView()
             } label: {
@@ -6664,7 +6664,7 @@ struct CampusView: View {
     private var campusScenerySection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("校园风光", systemImage: "photo.on.rectangle.angled")
-                .font(.headline).padding(.horizontal, 16)
+                .displayLabelFont(17, weight: .semibold).padding(.horizontal, 16)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(data.campusSceneries) { scenery in
@@ -6709,7 +6709,7 @@ struct CampusView: View {
     private var campusActivitiesSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("校园活动", systemImage: "party.popper.fill")
-                .font(.headline).padding(.horizontal, 16)
+                .displayLabelFont(17, weight: .semibold).padding(.horizontal, 16)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(data.campusActivities) { activity in
@@ -6748,7 +6748,7 @@ struct CampusView: View {
     private var videosInCampus: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("映像校园", systemImage: "play.rectangle.fill")
-                .font(.headline).padding(.horizontal, 16)
+                .displayLabelFont(17, weight: .semibold).padding(.horizontal, 16)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(data.videos) { video in
@@ -6769,7 +6769,7 @@ struct CampusView: View {
                                         videoPlaceholder
                                     }
                                     Image(systemName: "play.circle.fill")
-                                        .font(.title).foregroundStyle(.white).shadow(radius: 4)
+                                        .displaySymbolFont(28).foregroundStyle(.white).shadow(radius: 4)
                                 }
                                 .frame(width: 270, height: 160).clipped()
                                 Text(video.title)
@@ -6791,7 +6791,7 @@ struct CampusView: View {
     private var videoPlaceholder: some View {
         Color.sjzLight.overlay {
             Image(systemName: "play.rectangle.fill")
-                .font(.title).foregroundStyle(Color.sjzAccent.opacity(0.1))
+                .displaySymbolFont(28).foregroundStyle(Color.sjzAccent.opacity(0.1))
         }
     }
 
@@ -6800,7 +6800,7 @@ struct CampusView: View {
     private var teachersInCampus: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("教师风采", systemImage: "person.text.rectangle.fill")
-                .font(.headline).padding(.horizontal, 16)
+                .displayLabelFont(17, weight: .semibold).padding(.horizontal, 16)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(data.teacherProfiles) { teacher in
@@ -6838,7 +6838,7 @@ struct CampusView: View {
     private var storiesInCampus: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("学生故事", systemImage: "person.2.fill")
-                .font(.headline).padding(.horizontal, 16)
+                .displayLabelFont(17, weight: .semibold).padding(.horizontal, 16)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(data.studentStories) { story in
@@ -6877,7 +6877,7 @@ struct CampusView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("学校概况", systemImage: "info.circle.fill")
-                    .font(.headline)
+                    .displayLabelFont(17, weight: .semibold)
                 Spacer()
                 Text("8 项档案")
                     .displayFont(11, weight: .semibold)
@@ -6899,7 +6899,7 @@ struct CampusView: View {
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("友情链接", systemImage: "link")
-                    .font(.headline)
+                    .displayLabelFont(17, weight: .semibold)
                 Spacer()
                 Text("\(data.footerLinks.count) 个站点")
                     .displayFont(11, weight: .semibold)
@@ -6939,7 +6939,7 @@ struct CampusView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("关注我们", systemImage: "qrcode.viewfinder")
-                    .font(.headline)
+                    .displayLabelFont(17, weight: .semibold)
                 Spacer()
                 Text("\(data.socialPlatforms.count) 个平台")
                     .displayFont(11, weight: .semibold)
@@ -7799,7 +7799,7 @@ struct FacilityDetailView: View {
                                 HStack(spacing: 10) {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(Color.sjzGreen).displaySymbolFont(14)
-                                    Text(detail).font(.subheadline)
+                                    Text(detail).displayFont(15)
                                 }
                                 .padding(.vertical, 3)
                             }
@@ -8396,7 +8396,7 @@ private struct FacilityCardLabel: View {
                     .displayFont(15, weight: .semibold)
                     .foregroundStyle(.primary)
                 Text(facility.desc)
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    .displayFont(12).foregroundStyle(.secondary).lineLimit(2)
             }
             Spacer(minLength: 8)
             countChip
@@ -8436,9 +8436,9 @@ private struct InfoRow: View {
     let label: String; let value: String
     var body: some View {
         HStack {
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
+            Text(label).displayFont(15).foregroundStyle(.secondary)
             Spacer()
-            Text(value).font(.subheadline).foregroundStyle(.primary)
+            Text(value).displayFont(15).foregroundStyle(.primary)
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
         .overlay(alignment: .bottom) {
@@ -8484,21 +8484,21 @@ struct ProfileView: View {
             .padding(.vertical, 24)
         }
         .navigationTitle("我的").navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showSettings) { SettingsView().preferredColorScheme(resolvedColorScheme).sjzGrayScale() }
-        .sheet(isPresented: $showAbout) { AboutView().preferredColorScheme(resolvedColorScheme).sjzGrayScale() }
+        .sheet(isPresented: $showSettings) { SettingsView().preferredColorScheme(resolvedColorScheme).sjzPresentationChrome() }
+        .sheet(isPresented: $showAbout) { AboutView().preferredColorScheme(resolvedColorScheme).sjzPresentationChrome() }
         .sheet(isPresented: $showBookmarks) {
-            NavigationStack { BookmarkListView() }.preferredColorScheme(resolvedColorScheme).sjzGrayScale()
+            NavigationStack { BookmarkListView() }.preferredColorScheme(resolvedColorScheme).sjzPresentationChrome()
         }
         .sheet(isPresented: $showLogs) {
-            NavigationStack { LogListView() }.preferredColorScheme(resolvedColorScheme).sjzGrayScale()
+            NavigationStack { LogListView() }.preferredColorScheme(resolvedColorScheme).sjzPresentationChrome()
         }
         .sheet(isPresented: $showAnnouncementDetail) {
-            AnnouncementDetailView().preferredColorScheme(resolvedColorScheme).sjzGrayScale()
+            AnnouncementDetailView().preferredColorScheme(resolvedColorScheme).sjzPresentationChrome()
         }
         .sheet(isPresented: $showMessageCenter, onDismiss: {
             LogManager.shared.debugLog("messageCenter", "消息中心页已关闭", context: [:])
         }) {
-            NavigationStack { MessageCenterView() }.preferredColorScheme(resolvedColorScheme).sjzGrayScale()
+            NavigationStack { MessageCenterView() }.preferredColorScheme(resolvedColorScheme).sjzPresentationChrome()
         }
         .onChange(of: messageCenterStore.dismissRequest) { _, requestId in
             // 消息中心内点击消息 → 先关闭自身 sheet，让出收起动画后再走通知深链分发（防 sheet 叠加）
@@ -8616,7 +8616,7 @@ struct ProfileView: View {
                             }
                         } label: {
                             HStack(spacing: 6) {
-                                Image(systemName: "phone.fill").font(.caption2)
+                                Image(systemName: "phone.fill").displaySymbolFont(11)
                                 Text(phone).displayFont(12, weight: .medium)
                             }
                             .foregroundStyle(Color.sjzAccent)
@@ -8655,11 +8655,11 @@ struct ProfileView: View {
     private var versionInfo: some View {
         VStack(spacing: 10) {
             Text("山西晋中理工学院")
-                .font(.headline).foregroundStyle(Color.sjzPrimary)
+                .displayFont(17, weight: .semibold).foregroundStyle(Color.sjzPrimary)
             Text("校园移动应用 · v1.0")
-                .font(.caption).foregroundStyle(.secondary)
+                .displayFont(12).foregroundStyle(.secondary)
             Text("数据实时同步自学校官网")
-                .font(.caption2).foregroundStyle(.tertiary)
+                .displayFont(11).foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity).padding(.vertical, 28)
     }
@@ -8728,7 +8728,7 @@ private struct MenuCard: View {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(color).frame(width: 46, height: 46)
                     Image(systemName: icon)
-                        .font(.body).foregroundStyle(.white)
+                        .displaySymbolFont(17).foregroundStyle(.white)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
@@ -8792,7 +8792,7 @@ struct AboutView: View {
                     .modifier(SJZRevealOnce(key: "about-info-rows", delay: 0.18))
 
                     VStack(alignment: .leading, spacing: 14) {
-                        Label("学校简介", systemImage: "text.justify").font(.headline)
+                        Label("学校简介", systemImage: "text.justify").displayLabelFont(17, weight: .semibold)
                         Text(SchoolInfo.description)
                             .displayFont(15).foregroundStyle(.secondary).lineSpacing(8)
                     }
@@ -8878,7 +8878,7 @@ struct AboutView: View {
             Text(SchoolInfo.name)
                 .displayFont(26, weight: .bold)
             Text(SchoolInfo.englishName)
-                .font(.subheadline).foregroundStyle(.secondary)
+                .displayFont(15).foregroundStyle(.secondary)
             Text(SchoolInfo.motto)
                 .displayFont(13, weight: .semibold)
                 .foregroundStyle(Color.sjzGold)
@@ -9065,20 +9065,20 @@ struct SettingsView: View {
                                 .displayFont(12)
                                 .foregroundStyle(.secondary)
                             Text("·")
-                                .font(.system(size: 12))
+                                .displayFont(12)
                                 .foregroundStyle(.tertiary)
                             Text(displaySettings.fontSizeTier.title)
                                 .displayFont(12)
                                 .foregroundStyle(.secondary)
                             Text("·")
-                                .font(.system(size: 12))
+                                .displayFont(12)
                                 .foregroundStyle(.tertiary)
                             Text(displaySettings.themeStyle.title)
                                 .displayFont(12)
                                 .foregroundStyle(.secondary)
                             if displaySettings.nonDefaultChangeCount > 0 {
                                 Text("\(displaySettings.nonDefaultChangeCount)")
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .displayFont(10, weight: .bold, design: .rounded)
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2.5)
@@ -9254,7 +9254,7 @@ struct SettingsView: View {
                             Spacer()
                             if notificationManager.lastCheckError != nil {
                                 Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.caption).foregroundStyle(.orange)
+                                    .displaySymbolFont(12).foregroundStyle(.orange)
                             }
                         }
                         .displayFont(13)
@@ -9555,7 +9555,7 @@ struct SettingsView: View {
                                 .foregroundColor(.primary)
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.caption)
+                                .displaySymbolFont(12)
                                 .foregroundColor(.secondary.opacity(0.5))
                         }
                     }
@@ -9634,7 +9634,7 @@ struct SettingsView: View {
                 NavigationStack {
                     PrivacyPolicyHomeView()
                 }
-                .sjzGrayScale()
+                .sjzPresentationChrome()
             }
         }
     }
@@ -9658,7 +9658,7 @@ struct ZSWHomeView: View {
             if data.zswIsLoading && data.zswHomeData == nil {
                 VStack(spacing: 16) {
                     ProgressView()
-                    Text("正在加载招生信息...").font(.caption).foregroundStyle(.secondary)
+                    Text("正在加载招生信息...").displayFont(12).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 80)
             } else if let home = data.zswHomeData {
@@ -9692,7 +9692,7 @@ struct ZSWHomeView: View {
             } else {
                 VStack(spacing: 16) {
                     Image(systemName: "tray").displaySymbolFont(48).foregroundStyle(.secondary.opacity(0.15))
-                    Text("招生信息加载失败").font(.subheadline).foregroundStyle(.secondary)
+                    Text("招生信息加载失败").displayFont(15).foregroundStyle(.secondary)
                     Button("重新加载") {
                         Task { await data.loadZSWHomeData() }
                     }
@@ -9896,7 +9896,7 @@ struct ZSWHomeView: View {
                             }
                         } label: {
                             Text(child.titleCn)
-                                .font(.system(size: 13, weight: selectedTab.wrappedValue == idx ? .semibold : .regular))
+                                .displayFont(13, weight: selectedTab.wrappedValue == idx ? .semibold : .regular)
                                 .foregroundStyle(selectedTab.wrappedValue == idx ? .white : Color(hex: "1A73E8"))
                                 .padding(.horizontal, 14).padding(.vertical, 8)
                                 .background(
@@ -10061,7 +10061,7 @@ struct ZSWArticleListView: View {
                         .fill(Color(hex: "1A73E8").opacity(0.06))
                         .frame(width: 70, height: 54)
                     Image(systemName: "doc.text.fill")
-                        .font(.caption).foregroundStyle(Color(hex: "1A73E8").opacity(0.15))
+                        .displaySymbolFont(12).foregroundStyle(Color(hex: "1A73E8").opacity(0.15))
                 }
             }
         }
@@ -10133,13 +10133,13 @@ struct ZSWArticleDetailView: View {
                         }
                         if let author = fullDetail?.author, !author.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "person.fill").font(.caption2)
+                                Image(systemName: "person.fill").displaySymbolFont(11)
                                 Text(author)
                             }
                         }
                         if let source = fullDetail?.source, !source.isEmpty {
                             HStack(spacing: 4) {
-                                Image(systemName: "link").font(.caption2)
+                                Image(systemName: "link").displaySymbolFont(11)
                                 Text(source)
                             }
                         }
@@ -10290,7 +10290,7 @@ struct ZSWArticleDetailView: View {
                     FullScreenImageView(url: url, title: article.title)
                 }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .task {
             await loadDetail()
@@ -10478,7 +10478,7 @@ struct SJZImageFreePlaceholder: View {
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .medium))
+                .displaySymbolFont(15, weight: .medium)
                 .foregroundStyle(tone.opacity(0.35))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -11214,12 +11214,12 @@ struct SJZPageLoadProgressBar: View {
                 }
             }
             Image(systemName: done ? "checkmark.circle.fill" : (indeterminate ? "arrow.triangle.2.circlepath" : "photo.stack.fill"))
-                .font(.system(size: 11, weight: .semibold))
+                .displaySymbolFont(11, weight: .semibold)
                 .foregroundStyle(done ? Color.sjzGreen : accent)
                 .symbolEffect(.bounce, value: done)
                 .symbolEffect(.variableColor.iterative, isActive: !done)
             Text(indeterminate ? (label ?? "加载中…") : (label ?? (done ? "全部就绪" : "\(Int(clamped * 100))%")))
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .displayFont(11, weight: .semibold, design: .rounded)
                 .monospacedDigit()
                 .foregroundStyle(done ? Color.sjzGreen : .primary)
                 .contentTransition(.numericText())
@@ -11280,11 +11280,11 @@ struct SJZGalleryProgressBar: View {
                     )
             }
             Image(systemName: isDone ? "checkmark.circle.fill" : "photo.fill")
-                .font(.system(size: 11, weight: .semibold))
+                .displaySymbolFont(11, weight: .semibold)
                 .foregroundStyle(isDone ? Color.sjzGreen : Color.sjzAccent)
                 .symbolEffect(.bounce, value: isDone)
             Text(isDone ? "全部就绪" : "\(loaded)/\(total)")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .displayFont(12, weight: .semibold, design: .rounded)
                 .monospacedDigit()
                 .foregroundStyle(isDone ? Color.sjzGreen : Color.primary)
                 .contentTransition(.numericText())
@@ -11306,10 +11306,10 @@ struct SJZSlowNetworkBanner: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 12, weight: .semibold))
+                .displaySymbolFont(12, weight: .semibold)
                 .symbolEffect(.pulse, options: .repeating, isActive: true)
             Text(message)
-                .font(.system(size: 13, weight: .medium))
+                .displayFont(13, weight: .medium)
                 .foregroundStyle(Color.sjzOrange)
         }
         .padding(.horizontal, 13)
@@ -11329,10 +11329,10 @@ struct SJZCachedBadge: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "archivebox.fill")
-                .font(.system(size: 9, weight: .semibold))
+                .displaySymbolFont(9, weight: .semibold)
                 .symbolEffect(.bounce, options: .nonRepeating, value: appeared)
             Text("已缓存 · 秒开")
-                .font(.system(size: 11, weight: .semibold))
+                .displayFont(11, weight: .semibold)
         }
         .foregroundStyle(AnyShapeStyle(SJZDesignTokens.successGradient))
         .padding(.horizontal, 10)
@@ -11362,7 +11362,7 @@ struct SJZArticleLoadingView: View {
         VStack(spacing: 14) {
             // 流彩图标（iOS 17 variableColor 特效，层级渲染+微光）
             Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 34, weight: .medium))
+                .displaySymbolFont(34, weight: .medium)
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(accent)
                 .symbolEffect(.variableColor.iterative, isActive: active)
@@ -11490,7 +11490,7 @@ struct SpecialtyListView: View {
             if data.specialtyIsLoading || isLoading {
                 VStack(spacing: 16) {
                     ProgressView()
-                    Text("正在加载专业介绍...").font(.caption).foregroundStyle(.secondary)
+                    Text("正在加载专业介绍...").displayFont(12).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let specialtyData = data.specialtyData, !specialtyData.colleges.isEmpty {
@@ -11666,7 +11666,7 @@ struct SpecialtyCollegeDetailView: View {
             NavigationStack {
                 SpecialtyMajorDetailView(major: major)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 
@@ -11947,7 +11947,7 @@ struct AppIconSettingsView: View {
     private var statusHeader: some View {
         HStack(spacing: 10) {
             Image(systemName: "app.badge")
-                .font(.system(size: 15, weight: .semibold))
+                .displaySymbolFont(15, weight: .semibold)
                 .foregroundStyle(Color.sjzAccent)
             Text("当前：\(manager.currentDisplayName)")
                 .displayFont(14, weight: .semibold)
@@ -12000,7 +12000,7 @@ struct AppIconSettingsView: View {
                         .scaleEffect(isSelected ? 1.06 : 1.0)
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 18, weight: .bold))
+                            .displaySymbolFont(18, weight: .bold)
                             .symbolRenderingMode(.palette)
                             .foregroundStyle(.white, Color.sjzAccent)
                             .background(Circle().fill(Color(.systemBackground)).padding(2))

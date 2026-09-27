@@ -34,7 +34,7 @@ struct PrivacyPolicyHomeView: View {
             NavigationStack {
                 PrivacyDocumentView(documentType: docType)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 
@@ -44,17 +44,17 @@ struct PrivacyPolicyHomeView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Image(systemName: "lock.shield.fill")
-                    .font(.title2)
+                    .displaySymbolFont(22)
                     .foregroundColor(.sjzPrimary)
                 Text("您的隐私与权利")
-                    .font(.title3)
+                    .displayFont(20)
                     .fontWeight(.bold)
                     .foregroundColor(.sjzPrimary)
             }
             .padding(.top, 8)
 
             Text("我们重视您的隐私，请仔细阅读以下法律文件，了解您的权利与我们的承诺。")
-                .font(.subheadline)
+                .displayFont(15)
                 .foregroundColor(.secondary)
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
@@ -84,12 +84,12 @@ struct PrivacyPolicyHomeView: View {
                 // 文字内容
                 VStack(alignment: .leading, spacing: 4) {
                     Text(docType.title)
-                        .font(.headline)
+                        .displayFont(17, weight: .semibold)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
 
                     Text(docType == .terms ? "使用规则、免责声明、知识产权与争议解决" : "信息收集清单、权限说明、数据安全与您的权利")
-                        .font(.caption)
+                        .displayFont(12)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -99,7 +99,7 @@ struct PrivacyPolicyHomeView: View {
 
                 // 箭头
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .displaySymbolFont(12, weight: .semibold)
                     .foregroundColor(.secondary.opacity(0.5))
             }
             .padding(16)
@@ -209,11 +209,11 @@ struct PrivacyDocumentView: View {
                 .tint(.sjzPrimary)
 
             Text("正在加载...")
-                .font(.subheadline)
+                .displayFont(15)
                 .foregroundColor(.secondary)
 
             Text("优先从网络获取最新版本")
-                .font(.caption)
+                .displayFont(12)
                 .foregroundColor(.secondary.opacity(0.7))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -257,7 +257,7 @@ struct PrivacyDocumentView: View {
                 .frame(width: 8, height: 8)
 
             Text(source == .online ? "联网最新版本" : "离线兜底版本")
-                .font(.caption)
+                .displayFont(12)
                 .fontWeight(.medium)
                 .foregroundColor(source == .online ? .sjzGreen : .sjzOrange)
 
@@ -271,9 +271,9 @@ struct PrivacyDocumentView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.clockwise")
-                            .font(.caption2)
+                            .displaySymbolFont(11)
                         Text("重试联网")
-                            .font(.caption)
+                            .displayFont(12)
                     }
                     .foregroundColor(.sjzPrimary)
                     .padding(.horizontal, 10)
@@ -302,10 +302,10 @@ struct PrivacyDocumentView: View {
     private func updateDateLabel(_ date: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: "calendar")
-                .font(.caption2)
+                .displaySymbolFont(11)
                 .foregroundColor(.secondary)
             Text("更新日期：\(date)")
-                .font(.caption)
+                .displayFont(12)
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 20)
@@ -323,7 +323,7 @@ struct PrivacyDocumentView: View {
                 .foregroundColor(.sjzOrange)
 
             Text(message)
-                .font(.subheadline)
+                .displayFont(15)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -335,9 +335,9 @@ struct PrivacyDocumentView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.clockwise")
-                        .font(.subheadline)
+                        .displaySymbolFont(15)
                     Text("重新加载")
-                        .font(.subheadline)
+                        .displayFont(15)
                         .fontWeight(.medium)
                 }
                 .foregroundColor(.white)
@@ -412,12 +412,12 @@ struct PrivacyConsentView: View {
                     }
 
                     Text("隐私保护指引")
-                        .font(.title3)
+                        .displayFont(20)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
 
                     Text("欢迎使用山西晋中理工学院校园应用。\n为了更好地保障您的权益，请阅读并同意以下协议。")
-                        .font(.subheadline)
+                        .displayFont(15)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
@@ -468,9 +468,9 @@ struct PrivacyConsentView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.subheadline)
+                                .displaySymbolFont(15)
                             Text("同意并继续")
-                                .font(.subheadline)
+                                .displayFont(15)
                                 .fontWeight(.semibold)
                         }
                         .foregroundColor(.white)
@@ -502,7 +502,7 @@ struct PrivacyConsentView: View {
                         onReject()
                     } label: {
                         Text("不同意")
-                            .font(.subheadline)
+                            .displayFont(15)
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity)
@@ -530,7 +530,7 @@ struct PrivacyConsentView: View {
             NavigationStack {
                 PrivacyDocumentView(documentType: .terms)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .onChange(of: showTerms) { _, newValue in
             if !newValue {
@@ -544,7 +544,7 @@ struct PrivacyConsentView: View {
             NavigationStack {
                 PrivacyDocumentView(documentType: .privacy)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .onChange(of: showPrivacy) { _, newValue in
             if !newValue {
@@ -588,18 +588,18 @@ struct PrivacyConsentView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.subheadline)
+                        .displayFont(15)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
                     Text(subtitle)
-                        .font(.caption)
+                        .displayFont(12)
                         .foregroundColor(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.caption)
+                    .displaySymbolFont(12)
                     .foregroundColor(.secondary.opacity(0.5))
             }
             .padding(12)
@@ -685,14 +685,14 @@ struct RestrictedModeView: View {
 
                 // 标题
                 Text("需要您的同意")
-                    .font(.title2)
+                    .displayFont(22)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
                     .padding(.bottom, 14)
 
                 // 说明文字
                 Text("您还未同意《用户协议》和《隐私政策》。\n为保障您的信息安全，应用需要获得您的同意\n后才能继续使用全部功能。")
-                    .font(.subheadline)
+                    .displayFont(15)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(6)
@@ -703,10 +703,10 @@ struct RestrictedModeView: View {
                 // 隐私承诺
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.shield.fill")
-                        .font(.caption)
+                        .displaySymbolFont(12)
                         .foregroundColor(.sjzGreen)
                     Text("您的隐私权利受到严格保护")
-                        .font(.caption)
+                        .displayFont(12)
                         .foregroundColor(.secondary)
                 }
                 .padding(.bottom, 36)
@@ -732,9 +732,9 @@ struct RestrictedModeView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "doc.text.fill")
-                                .font(.subheadline)
+                                .displaySymbolFont(15)
                             Text("查看并同意")
-                                .font(.subheadline)
+                                .displayFont(15)
                                 .fontWeight(.semibold)
                         }
                         .foregroundColor(.white)
@@ -763,7 +763,7 @@ struct RestrictedModeView: View {
                         exit(0)
                     } label: {
                         Text("退出应用")
-                            .font(.subheadline)
+                            .displayFont(15)
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity)

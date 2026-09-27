@@ -250,6 +250,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = ABE07CCF22D74F5900D209BE /* Build configuration list for PBXNativeTarget "DesignCode" */;
 			buildPhases = (
+				DC0000A0000000000000A001 /* 显示设置覆盖护栏 */,
 				ABE07CB722D74F5700D209BE /* Sources */,
 				ABE07CB822D74F5700D209BE /* Frameworks */,
 				ABE07CB922D74F5700D209BE /* Resources */,
@@ -327,6 +328,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		DC0000A0000000000000A001 /* 显示设置覆盖护栏 */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "显示设置覆盖护栏";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "python3 \"$SRCROOT/Scripts/display_coverage_guard.py\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		ABE07CB722D74F5700D209BE /* Sources */ = {

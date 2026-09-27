@@ -374,6 +374,22 @@
 - **UI**：画廊三态徽章（进度环百分比 / 不确定转圈 / 橙色可重试箭头）+「全部下载」批量入口（`ensureAllFontFamilies`，带体积确认弹窗）。实测资产体积：行楷-简 54.7MB、隶变-简 21.6MB、魏碑-简 17.4MB。
 - **埋点全链**：`字体按需下载开始（faces/includeBold/reason）→ 字体资产开始下载（localizedFamily/字节数）→ 字体下载进度（每 25% 分档：百分比/字节/ETA）→ 字体资产传输完成 → 字体字面匹配成功 → 字体按需下载完成并已全局生效（revision/boldFaceReady）`；失败/停滞为 `warning`（含诊断描述）与 `INFO` 状态流转。
 
+**显示设置全链覆盖（2026-09-27 全库审计固化，构建期强制）**：
+
+| 设置 | 生效机制 | 覆盖面（审计结论） |
+|------|---------|------------------|
+| 字号档位 / 字体家族 / 粗体 / 字距 / 行距 | 自定义 EnvironmentKey + `display*` 修饰器（环境值，自动穿透弹出层） | **全库 0 处原始字体**：137 处文本 + 17 处 Label + 124 处图标已全部接入（图标一律 `displaySymbolFont` 随档位缩放；图表 `AxisValueLabel` 为 ChartContent，经 `DisplayFontFactory.font` 构造 Font 注入） |
+| 外观模式（浅/深/跟随） | `preferredColorScheme`（呈现修饰器，**不跨 presentation**） | 根部（MainTabView）+ 全部 59 处 sheet/fullScreenCover 经 `sjzPresentationChrome()` 注入 |
+| 专注灰度 | `.saturation`（渲染修饰器，**不跨 presentation**） | 同上（与外观合并为统一 chrome 修饰器，一处挂载双效） |
+| 主题色 | 根 `.tint`（环境值） | 全 App 自动穿透（含弹出层） |
+| 按钮形状 | `.buttonStyle`（环境值） | 全 App 自动穿透（含弹出层） |
+| 正文文字颜色 | 渲染点三路 | 主文章纯文本（`foregroundStyle(articleBodyColor)`）+ 机构子站原文 WebView（明暗双 hex 注入 CSS 变量）+ 长图分享渲染（非主线程快照 hex） |
+| 原文页排版（WebView） | CSS 注入 | 机构子站两处模板：字体栈/字号（16px × 档位）/行高（0.85+行距系数）/字距/粗细全部联动显示设置；标题改 em 随基准缩放；构建日志「机构文章网页原文配色与排版注入」 |
+| 阅读统计 | 计算器 + 展示组件 | 详情页 `ArticleReadingStatsText`（10 处）+ 列表徽标 `ReadingTimeBadgeView`（6 处：要闻/校园动态/招生/机构搜索/党建/收藏）；学校概况板块属图片/品牌/相册卡（不适用）；子开关（字数/时长/列表徽标）与速度档位全链消费 |
+| 亮度 / 自动锁定 / 屏幕常亮 | UIKit 全局 | `UIScreen.brightness` / `isIdleTimerDisabled`（与全局状态无关的渲染点不存在） |
+
+- **防回归护栏**：`Scripts/display_coverage_guard.py` 接入 Xcode Run Script 构建阶段（详见 §11.2）——新增功能若绕过排版链或漏挂弹出层呈现链，**构建直接失败**并给出修复指引与例外登记入口。
+
 **系统无障碍监听**：@objc selector 监听 reduceMotion/reduceTransparency/darkerColors 变化通知。
 
 **全局注入机制**：自定义 `EnvironmentKey` × 5 + `DisplayTypographyModifier`；视图 API `displayText(size:weight:baseLineSpacing:)`、`displayFont`、`displaySymbolFont`（图标仅缩放不换字体）、`displayLabelFont`；`DisplayFontFactory.font(...)` 组装最终字体。
@@ -1001,6 +1017,17 @@ DesignCodeApp
 | 签名 | `CODE_SIGN_STYLE = Automatic`，Team `F2JL9GNLCC` | pbxproj |
 
 ### 11.2 构建设置详解（[project.pbxproj](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode.xcodeproj/project.pbxproj)）
+
+#### Target 层构建阶段：显示设置覆盖护栏（Run Script，2026-09-27 全链审计新增）
+
+| 项 | 值 |
+|----|-----|
+| 阶段名 | `显示设置覆盖护栏`（置于 Sources 之前，先于编译执行） |
+| 脚本 | `python3 "$SRCROOT/Scripts/display_coverage_guard.py"`（`alwaysOutOfDate = 1`，每次构建必跑） |
+| 规则一 | `DesignCode/*.swift` 禁止原始字体写法（必须走 `displayFont / displayText / displaySymbolFont / displayLabelFont / DisplayFontFactory.font`） |
+| 规则二 | 每个 `.sheet / .fullScreenCover` 内容必须挂载 `.sjzPresentationChrome()`（系统分享面板 `ShareSheet` 自带豁免） |
+| 例外 | `Scripts/display_coverage_allowlist.txt`（`font:文件\|片段 # 理由` / `presentation:文件\|片段 # 理由`），空文件 = 100% 覆盖 |
+| 失败行为 | 打印违规清单 + 修复指引，退出码 65 → 构建中断（新增功能无法绕过显示设置） |
 
 #### Project 层（Debug 与 Release 共享：`SDKROOT = iphoneos`、全组 CLANG_WARN_* 警告开启；以下为差异项）
 

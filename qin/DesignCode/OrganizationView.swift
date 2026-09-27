@@ -357,7 +357,7 @@ struct OrganizationView: View {
                     color: Color.sjzAccent
                 )
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 

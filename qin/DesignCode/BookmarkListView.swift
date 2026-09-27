@@ -201,8 +201,12 @@ struct BookmarkListView: View {
     /// 卡片主体内容（不含交互层）
     private func bookmarkCardBody(_ bookmark: BookmarkItem) -> some View {
         VStack(spacing: 0) {
-            // 缩略图
+            // 缩略图（右下角统一阅读时长角标，与全 App 列表规范一致；受「列表徽标」开关控制）
             BookmarkThumbnailView(imageUrl: bookmark.imageUrl, category: bookmark.category)
+                .overlay(alignment: .bottomTrailing) {
+                    ReadingTimeBadgeView(cachedID: bookmark.readKey, summary: bookmark.summary)
+                        .padding(6)
+                }
 
             // 信息区
             VStack(alignment: .leading, spacing: 8) {

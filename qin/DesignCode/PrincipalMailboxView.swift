@@ -598,7 +598,7 @@ struct PrincipalMailboxView: View {
                     .frame(width: 58, height: 58)
                     .overlay {
                         Image(systemName: "envelope.open.fill")
-                            .font(.system(size: 24, weight: .semibold))
+                            .displaySymbolFont(24, weight: .semibold)
                             .foregroundStyle(.white)
                     }
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -1061,7 +1061,7 @@ struct PrincipalMailboxView: View {
     private var emptySearchView: some View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 34, weight: .light))
+                .displaySymbolFont(34, weight: .light)
                 .foregroundStyle(Color.sjzTeal.opacity(0.7))
             Text("未找到匹配「\(trimmedSearch)」的信件")
                 .displayFont(14, weight: .semibold)
@@ -1090,7 +1090,7 @@ struct PrincipalMailboxView: View {
     private var emptyDataView: some View {
         VStack(spacing: 12) {
             Image(systemName: "envelope.open")
-                .font(.system(size: 34, weight: .light))
+                .displaySymbolFont(34, weight: .light)
                 .foregroundStyle(Color.sjzTeal.opacity(0.7))
             Text("暂无公开回复信件")
                 .displayFont(14, weight: .semibold)
@@ -1119,7 +1119,7 @@ struct PrincipalMailboxView: View {
     private func errorCard(_ message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 34, weight: .light))
+                .displaySymbolFont(34, weight: .light)
                 .foregroundStyle(Color.sjzOrange.opacity(0.8))
             Text("信箱数据加载失败")
                 .displayFont(14, weight: .semibold)
@@ -1448,7 +1448,7 @@ struct MailboxMessageDetailView: View {
                 // 服务端隐私保护：来信内容不公开
                 VStack(spacing: 10) {
                     Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 26, weight: .medium))
+                        .displaySymbolFont(26, weight: .medium)
                         .foregroundStyle(Color.sjzOrange.opacity(0.75))
                     Text(detail.content.isEmpty ? "为保护个人隐私，来信内容已隐藏" : detail.content)
                         .displayFont(13)
@@ -1506,7 +1506,7 @@ struct MailboxMessageDetailView: View {
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "hourglass")
-                        .font(.system(size: 26, weight: .medium))
+                        .displaySymbolFont(26, weight: .medium)
                         .foregroundStyle(Color.sjzIndigo.opacity(0.6))
                     Text("感谢您的来信，我们正在加急办理中")
                         .displayFont(13, weight: .medium)
@@ -1623,7 +1623,7 @@ struct MailboxMessageDetailView: View {
     private func errorCard(_ message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 30, weight: .light))
+                .displaySymbolFont(30, weight: .light)
                 .foregroundStyle(Color.sjzOrange.opacity(0.8))
             Text("信件内容加载失败")
                 .displayFont(14, weight: .semibold)
@@ -1772,7 +1772,7 @@ private struct MailboxMessageMissingView: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "envelope.badge.questionmark")
-                .font(.system(size: 34, weight: .light))
+                .displaySymbolFont(34, weight: .light)
                 .foregroundStyle(Color.sjzTeal.opacity(0.7))
             Text("信件暂不可用")
                 .displayFont(14, weight: .semibold)

@@ -871,7 +871,7 @@ struct CampusCalendarDetailView: View {
         }
         .fullScreenCover(item: $fullScreenItem) { item in
             FullScreenImageView(url: item.url, title: item.title)
-                .sjzGrayScale()
+                .sjzPresentationChrome()
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: shareItems)
