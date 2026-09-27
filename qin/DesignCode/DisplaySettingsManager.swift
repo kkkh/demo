@@ -755,6 +755,8 @@ final class DisplaySettingsManager: ObservableObject {
     @Published private(set) var typographyRevision = 0
     /// 在途下载集合（防重入）
     private var inFlightFontDownloads = Set<String>()
+    /// 每次下载尝试的令牌：超时与迟到回调只作用于同一次尝试，杜绝误伤重试中的新下载（2026-09-27 完美性审查加固）
+    private var fontDownloadTokens: [String: UUID] = [:]
 
     // MARK: - 初始化
 
@@ -1076,6 +1078,10 @@ final class DisplaySettingsManager: ObservableObject {
         fontAvailability = states
     }
 
+    /// 字体下载超时兜底（秒）：苹果字体服务在部分网络环境不可达时，进度回调可能永不触发；
+    /// 超时后复位为「未下载·可重试」，避免界面永久停留「下载中」（2026-09-27 实机日志实证）
+    private static let fontDownloadTimeoutSeconds: TimeInterval = 60
+
     /// 确保字体家族就绪：已就绪直接返回；未就绪触发系统按需下载（完成自动驱动全 App 字体刷新）
     func ensureFontFamily(_ family: DisplayFontFamily, reason: String) {
         refreshFontAvailability()
@@ -1088,6 +1094,8 @@ final class DisplaySettingsManager: ObservableObject {
             LogManager.shared.debugLog("display", "字体家族下载已在途，忽略重复触发", context: ["family": family.rawValue])
             return
         }
+        let attemptToken = UUID()
+        fontDownloadTokens[family.rawValue] = attemptToken
         inFlightFontDownloads.insert(family.rawValue)
         fontAvailability[family] = .downloading
         LogManager.shared.info("display", "字体按需下载开始", context: [
@@ -1102,7 +1110,11 @@ final class DisplaySettingsManager: ObservableObject {
                 guard let self else { return }
                 switch state {
                 case .didMatch:
-                    self.inFlightFontDownloads.remove(family.rawValue)
+                    // 迟到命中（本次已被超时复位）也置 ready：字体确已可用；仅令牌仍属本次时才清在途态
+                    if self.fontDownloadTokens[family.rawValue] == attemptToken {
+                        self.fontDownloadTokens.removeValue(forKey: family.rawValue)
+                        self.inFlightFontDownloads.remove(family.rawValue)
+                    }
                     self.fontAvailability[family] = .ready
                     // 修订号 +1：驱动所有 display* 文本重建字体值，下载完成即刻全局生效
                     self.typographyRevision += 1
@@ -1112,6 +1124,9 @@ final class DisplaySettingsManager: ObservableObject {
                         "revision": "\(self.typographyRevision)"
                     ])
                 case .didFailWithError:
+                    // 仅本次尝试的失败才复位；迟到失败（超时已处理、或有新尝试在途）忽略，避免误伤
+                    guard self.fontDownloadTokens[family.rawValue] == attemptToken else { return }
+                    self.fontDownloadTokens.removeValue(forKey: family.rawValue)
                     self.inFlightFontDownloads.remove(family.rawValue)
                     self.fontAvailability[family] = .unavailable
                     LogManager.shared.warning("display", "字体按需下载失败（可点击重试）", context: [
@@ -1123,6 +1138,26 @@ final class DisplaySettingsManager: ObservableObject {
                 }
             }
             return true
+        }
+
+        // 超时兜底：60s 内无终态则复位为可重试；令牌校验保证只作用于同一次尝试（不误伤重试中的新下载）
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.fontDownloadTimeoutSeconds * 1_000_000_000))
+            guard let self, self.fontDownloadTokens[family.rawValue] == attemptToken else { return }
+            self.fontDownloadTokens.removeValue(forKey: family.rawValue)
+            self.inFlightFontDownloads.remove(family.rawValue)
+            // 超时后二次实查：若字体其实已落地（迟到命中前）直接置 ready，避免误报
+            if UIFont(name: family.fontName, size: 17) != nil {
+                self.fontAvailability[family] = .ready
+                self.typographyRevision += 1
+                LogManager.shared.info("display", "字体下载超时但实查已就绪", context: ["family": family.rawValue])
+            } else {
+                self.fontAvailability[family] = .unavailable
+                LogManager.shared.warning("display", "字体按需下载超时（可点击重试）", context: [
+                    "family": family.rawValue,
+                    "timeoutSeconds": "\(Int(Self.fontDownloadTimeoutSeconds))"
+                ])
+            }
         }
     }
 

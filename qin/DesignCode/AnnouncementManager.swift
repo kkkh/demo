@@ -83,6 +83,7 @@ final class AnnouncementManager: ObservableObject {
 
     private func fetchAnnouncement() async {
         isLoading = true
+        defer { isLoading = false }   // 守卫分支提前返回也能复位（2026-09-27 修复：非 200/编码异常等路径曾致转圈永久）
         errorMessage = nil
 
         guard let url = URL(string: targetURL) else {
@@ -184,8 +185,6 @@ final class AnnouncementManager: ObservableObject {
                 "error": error.localizedDescription
             ])
         }
-
-        isLoading = false
     }
 
     // MARK: HTML 解析
