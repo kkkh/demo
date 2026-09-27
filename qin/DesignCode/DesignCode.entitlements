@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  关联域名（Associated Domains）：微信 Universal Link 回跳本 App 必填能力。
+	  官方要求：登录/分享/支付等所有微信回调在 iOS 上均通过 Universal Link 返回本 App。
+	  域名与本文件中的 $(WECHAT_UL_HOST) 同步：只需在 Target 构建设置中修改
+	  WECHAT_UL_HOST（域名，如 sxjzit.edu.cn），此处自动替换，无需改本文件。
+	  注意：域名必须与「微信开放平台 → 应用详情 → Universal Link」及服务器 AASA
+	  文件（https://<域名>/.well-known/apple-app-site-association）完全一致。
+	-->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:$(WECHAT_UL_HOST)</string>
+	</array>
+</dict>
+</plist>
