@@ -300,7 +300,7 @@ checkForUpdates(pushToSystem:)：
 | 7 | 低 | `TabBar.swift` 巨型文件（**11,991 行**、60+ View，2026-09-26 校园 Tab 升级后继续增长） | — |
 | 8 | 低 | 搜索 columnId 硬编码：机构降级链两处已改运行时动态解析（2026-09-27，`resolveMainSiteSearchColumns`），持续核验 | OrganizationDetailView |
 | 9 | 环境 | Team ID 明文（ExportOptions.plist）；git 已于 2026-09-27 重建 | 仓库根 |
-| 10 | — | 已修复（2026-09-27）：AnnouncementManager isLoading 转圈卡死（defer）；字体下载悬挂（60s 超时 + 令牌防护）；机构降级 ID（见 #8）。真机 BUILD SUCCEEDED + 83/83 测试全绿 | — |
+| 10 | — | 已修复（2026-09-27）：AnnouncementManager isLoading 转圈卡死（defer）；字体下载悬挂（60s 超时 + 令牌防护）；机构降级 ID（见 #8）；图片缓存直读+自愈（重复加载根治，列表/全屏/预取）。真机 BUILD SUCCEEDED + 83/83 测试全绿 | — |
 
 ---
 
