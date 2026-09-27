@@ -78,11 +78,11 @@ qin/
 │   ├── SplashView.swift                ← 启动页（125 行）
 │   ├── WeChatService.swift             ← 微信 SDK 集成（1,095 行：注册/分享/登录/小程序/自检/回执/日志桥）
 │   ├── WeChatIntegrationViews.swift    ← 微信界面（628 行：分享菜单/集成中心/回执横幅）
-│   ├── DesignCode.entitlements         ← 关联域名（Universal Link 用，默认未启用）
+│   ├── DesignCode.entitlements         ← 关联域名（Universal Link 用；免费个人团队不支持该能力，暂未启用）
 │   └── Assets.xcassets / Base.lproj    ← 资源（5 套 AppIcon 含 AppIconAlt1~4）
 ├── Frameworks/                         ← WechatOpenSDK.xcframework（OpenSDK 2.0.8，唯一第三方）
 ├── DesignCode.xcodeproj/               ← Xcode 工程
-├── DesignCodeTests/                    ← 单元测试 3 文件 102 用例（NetworkServiceDTOTests 650 行 / MessageCenterStoreTests 729 行 / WeChatSDKTests 238 行）
+├── DesignCodeTests/                    ← 单元测试 3 文件 104 用例（NetworkServiceDTOTests 650 行 / MessageCenterStoreTests 818 行 / WeChatSDKTests 276 行）
 ├── docs/code-wiki/                     ← ★ 权威 Wiki 分册（01~07 + README）
 ├── docs/wechat-integration/            ← ★ 微信接入指南 + AASA 模板
 ├── CODE_WIKI.md                        ← 历史合并版（头部统计已刷新，以分册为准）
@@ -174,7 +174,7 @@ DTO 与业务模型分离（DTO 在 `NetworkService.swift`，全 Optional + `Cod
 | 内容域 | 首页 12 模块 / 新闻资讯 / 院系专业 / **校园生活七大分区**（校园服务·机构入口卡·概况卡·设施详情·友情链接·关注我们）/ ZSW 招生网 / 专业介绍 |
 | 自包含业务模块（2026-09-24 后模式：私有 Store 直连 NetworkService，不经 DataService） | 学校概况（七板块+合作交流）/ 党建专题（双子站+详情页）/ 校长信箱 / 消息中心（站内信五通道）/ 使用帮助（32 篇内置，零网络）/ 校园日历（复用文章接口） |
 | 支撑服务 | 机构设置 / 收藏（+第五推送通道）/ 通知（四通道轮询）/ 公告 / 隐私合规 / 生物识别锁 / 显示设置 / 缓存模式 / 日志 / 网络监测 / 已读状态 / 防盗链 / App 图标切换 |
-| 微信开放平台集成（2026-09-27 新增） | `WeChatService`（注册/分享/登录/小程序/自检/回执中枢/日志桥）+ `WeChatIntegrationViews`（分享菜单/集成中心/回执横幅）+ `DesignCode.entitlements`（关联域名，默认未启用）；配置单点 4 个构建设置，指南见 [docs/wechat-integration](docs/wechat-integration/README.md) |
+| 微信开放平台集成（2026-09-27 新增） | `WeChatService`（注册/分享/登录/小程序/自检/回执中枢/日志桥）+ `WeChatIntegrationViews`（分享菜单/集成中心/回执横幅）+ `DesignCode.entitlements`（关联域名，**受签名团队为免费「个人团队」限制暂未启用**：该能力属付费 ADP 专属，证据=真机描述文件 7 天有效期）；配置单点 4 个构建设置，指南见 [docs/wechat-integration](docs/wechat-integration/README.md) |
 
 ---
 
