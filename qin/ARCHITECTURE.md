@@ -35,7 +35,7 @@
 | **部署目标** | ⚠️ **冲突**：project 层 `13.0`，target 层 `26.0`（target 覆盖 project，实际生效 26.0） |
 | **Target** | `DesignCode`（主 App）+ `DesignCodeTests`（单元测试） |
 | **代码规模** | 48 个 Swift 文件共 **59,121 行**（主 target 46 文件 57,377 行 + 测试 3 文件 1,744 行）；**104 个单元用例**（2026-09-27 真机复测 104/104 通过，日志 `build/verify/wechat_test_20260927b.log`） |
-| **日志** | 自研 `LogManager`：**37 个日志域、1,077 处带域埋点**（`LogManager.shared` 调用点 1,106 处；其中 `wechat` 域 51 处）、日轮转、崩溃捕获、可导出 |
+| **日志** | 自研 `LogManager`：**37 个日志域、1,078 处带域埋点**（`LogManager.shared` 调用点 1,107 处；其中 `wechat` 域 52 处）、日轮转、崩溃捕获、可导出 |
 
 关键文件：
 - `DesignCode/DesignCodeApp.swift` — `@main` 入口（190 行）：URLCache 扩容、URLProtocol 注册、隐私分流、生物识别遮罩
@@ -288,7 +288,7 @@ checkForUpdates(pushToSystem:)：
 - 设计模式：单例/观察者/门面（DataService）/三层降级/轻量 MVVM/防护代理（URLProtocol）。
 - `@MainActor` 单例（除 `NetworkService`），中文文案与中文注释，`contentShape(Rectangle())`，按钮无 Liquid Glass Tab API。
 - 新业务模块范式（2026-09-24 起）：私有 `XxxStore: ObservableObject` 直连 NetworkService + 独立 View；缓存优先 + 三态刷新状态机 + `refreshDetached` 防取消误报 + 搜索防抖 `isSearchPending`。
-- 日志：新增功能必须接 `LogManager` 埋点（现有 37 域、1,077 处为基准；`wechat` 域为 2026-09-27 新增）。
+- 日志：新增功能必须接 `LogManager` 埋点（现有 37 域、1,078 处为基准；`wechat` 域为 2026-09-27 新增）。
 - 图片：720/1440px 下采样；WebP 保存走 JPEG 重编码 + file-based 写入。
 - 消息中心落盘：临时文件 + `replaceItemAt` 原子替换 + 写后读回自校验。
 

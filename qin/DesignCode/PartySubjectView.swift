@@ -1832,6 +1832,9 @@ struct PartyArticleDetailView: View {
     @State private var loadTask: Task<Void, Never>?
     /// 全屏图片
     @State private var fullScreenImage: PartyFullScreenPayload?
+
+    /// 微信分享菜单展示状态（富卡片分享：标题 + 摘要 + 原站链接 + 封面缩略图）
+    @State private var showWeChatShare = false
     /// 操作结果 toast
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
@@ -1885,6 +1888,17 @@ struct PartyArticleDetailView: View {
                     if phase == .content || phase == .summary {
                         Menu {
                             Button {
+                                // 微信富卡片分享（与其余文章详情页一致：标题/摘要/缩略图自动生成）
+                                showWeChatShare = true
+                                LogManager.shared.info("wechat", "打开微信分享菜单", context: [
+                                    "entry": "party_article_detail",
+                                    "articleId": ref.article.articleId,
+                                    "title": resolvedTitle.isEmpty ? ref.article.title : resolvedTitle
+                                ])
+                            } label: {
+                                Label("分享到微信", systemImage: "bubble.left.and.bubble.right.fill")
+                            }
+                            Button {
                                 copyFullText()
                             } label: {
                                 Label("复制全文", systemImage: "doc.on.doc")
@@ -1907,10 +1921,28 @@ struct PartyArticleDetailView: View {
                             .foregroundStyle(accent)
                     }
                     .contentShape(Rectangle())
+                    .accessibilityLabel("分享")
                 }
             }
         }
+        .sheet(isPresented: $showWeChatShare) {
+            WeChatShareMenu(payload: weChatSharePayload)
+                .sjzPresentationChrome()
+        }
         .task { await loadDetail() }
+    }
+
+    // MARK: 微信分享载荷（网页卡片：标题 + 摘要 + 原站链接 + 封面缩略图）
+
+    private var weChatSharePayload: WeChatSharePayload {
+        let title = resolvedTitle.isEmpty ? ref.article.title : resolvedTitle
+        let summary = fullPlainText.isEmpty ? ref.article.description : fullPlainText
+        return WeChatSharePayload(
+            title: title,
+            description: summary,
+            urlString: shareURL.absoluteString,
+            thumbImageURL: ref.article.imageUrl
+        )
     }
 
     // MARK: 分享链接（官网原文优先，无 href 时用真实 id 构造）
