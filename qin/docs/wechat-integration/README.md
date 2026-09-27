@@ -15,14 +15,15 @@
 
 代码已全部就绪，**只需填写 4 个构建设置**（`Debug` 与 `Release` 各一份），Info.plist 与 entitlements 通过 `$(...)` 自动注入：
 
-| 构建设置 | 当前占位值 | 含义 | 示例 |
+| 构建设置 | 当前值 | 含义 | 说明 |
 | --- | --- | --- | --- |
-| `WECHAT_APPID` | `wxPLACEHOLDER0000` | 移动应用 AppID（同时作为 URL Scheme） | `wx1234567890abcdef` |
-| `WECHAT_UNIVERSAL_LINK` | `https://example.com/app/` | Universal Link（微信开放平台填写的同一个） | `https://www.sxjzit.edu.cn/app/` |
-| `WECHAT_UL_HOST` | `example.com` | 关联域名（entitlements 用） | `www.sxjzit.edu.cn` |
-| `WECHAT_MINI_PROGRAM` | `gh_PLACEHOLDER0000` | 小程序原始 ID（仅小程序跳转需要） | `gh_abcdef123456` |
+| `WECHAT_APPID` | `wx8e60d3a37d3cff47` ✅ 已落地 | 移动应用 AppID（同时作为 URL Scheme） | 与微信开放平台后台一致 |
+| `WECHAT_UNIVERSAL_LINK` | `https://jl.43322.cn/app/` ✅ 已落地 | Universal Link | 必须与后台填写值完全一致 |
+| `WECHAT_UL_HOST` | `jl.43322.cn` ✅ 已落地 | 关联域名（entitlements 用） | `applinks:jl.43322.cn` |
+| `WECHAT_MINI_PROGRAM` | `gh_PLACEHOLDER0000` ⏳ 待填 | 小程序原始 ID（仅小程序跳转需要） | 未填则小程序入口只读提示 |
 
-> 占位值下：微信入口可见但不可用，所有点击给出「未配置」提示与日志（`wechat` 域），**不发任何微信请求**，不影响其它功能。
+> 应用官网 / Bundle ID（iPhone 与测试同为 `com.qinchao`）/ Team：`https://jl.43322.cn` · `F2JL9GNLCC`
+> **AppSecret 不入库**：仅存本机 `qin/.secrets/wechat-credentials.env`（已被 `.gitignore` 排除），只用于**服务端**换取 access_token，客户端不得接触。
 
 ---
 
@@ -60,49 +61,79 @@
 
 ## 3. 配置步骤
 
-### 3.1 微信开放平台侧
+### 3.1 微信开放平台侧（已完成）
 
-1. 在 [微信开放平台](https://open.weixin.qq.com/) → 管理中心 → 移动应用 → 创建/进入应用；
-2. 填写 **iOS Bundle ID**：`com.qinchao`；
-3. 填写 **Universal Link**：`https://<你的域名>/app/`（必须 https、且与 App 配置完全一致）；
-4. 申请开通所需能力：**分享到微信**、**微信登录**（登录需开发者资质审核）；
-5. 记录 **AppID**（`wx` 开头 18 位）。
+已在 [微信开放平台](https://open.weixin.qq.com/) 注册移动应用，后台与本工程一致：
+
+| 后台字段 | 填写值 |
+| --- | --- |
+| 应用官网 | `https://jl.43322.cn` |
+| AppID | `wx8e60d3a37d3cff47` |
+| iPhone Bundle ID | `com.qinchao` |
+| 测试 Bundle ID | `com.qinchao` |
+| Universal Link | `https://jl.43322.cn/app/` |
+
+还需在后台确认/开通能力：**分享到微信**、**微信登录**（登录需开发者资质审核）。
 
 ### 3.2 Xcode 侧（单点配置）
 
 Xcode → Target `DesignCode` → Build Settings → 搜索 `WECHAT_`，按 §0 表格替换 4 个值（Debug / Release 各一份）。
 
-### 3.3 服务器 AASA 部署
+### 3.3 服务器 AASA 部署（域名 `jl.43322.cn` · 腾讯 EdgeOne Pages）
 
-1. 将 [`apple-app-site-association`](./apple-app-site-association) 上传至服务器根目录的 `.well-known` 子目录：
+**现状（2026-09-27 实测）**：`https://jl.43322.cn/` → 200（EdgeOne Pages 站点），`/.well-known/apple-app-site-association` → **404（尚未部署）**，`/app/` → 404。需完成以下两步：
 
-   ```
-   https://<你的域名>/.well-known/apple-app-site-association
-   ```
+**① 上传 AASA**：将本仓库 [`deploy/.well-known/apple-app-site-association`](./deploy/.well-known/apple-app-site-association)（或等价的 [`well-known/apple-app-site-association`](./well-known/apple-app-site-association)，两份内容一致）原样放入站点根目录（保持 `.well-known` 目录结构，**文件名无扩展名**）：
 
-2. 要求（Apple 官方）：
-   - **必须是 HTTPS**，且返回 `Content-Type: application/json`；
-   - **不得重定向**（301/302 会导致校验失败）；
-   - **不得携带 `.json` 后缀**；
-   - `appID` 格式为 `TeamID.BundleID`（本工程：`F2JL9GNLCC.com.qinchao`）；
-   - `paths` 必须覆盖 `/app/*`（微信 Universal Link 回跳路径）。
-3. 校验：
+```
+https://jl.43322.cn/.well-known/apple-app-site-association
+```
 
-   ```bash
-   curl -sI https://<你的域名>/.well-known/apple-app-site-association | head -3
-   curl -s  https://<你的域名>/.well-known/apple-app-site-association | python3 -m json.tool
-   ```
+- EdgeOne Pages：把 `deploy/` 目录内容并入站点发布目录（`deploy/.well-known/…` 与 `deploy/app/…` 保持层级），重新部署即可；
+- 若平台忽略点开头的目录，改用重定向/重写规则把 `/.well-known/apple-app-site-association` 指向一个真实文件（如 `/aasa.json`），**不得 301/302 跳转**。
 
-> Apple 校验收敛需要时间（首次安装/更新后由系统拉取，可用 `swcutil` 或重装 App 触发）。
+**② 落地页（推荐）**：将 [`deploy/app/index.html`](./deploy/app/index.html) 部署到 `/app/`，让 Universal Link 命中时展示友好页面而不是 404（微信拉起 App 前会先加载该 URL）。
 
-### 3.4 启用 Associated Domains（官方要求④）
+**③ 校验**：
 
-本工程默认**未**启用该能力（CI/真机签名使用的描述文件不含 Associated Domains，启用会导致构建失败）。拿到真实域名后：
+```bash
+# 直连校验（必须 200 + Content-Type: application/json）
+curl -sI https://jl.43322.cn/.well-known/apple-app-site-association | head -5
+curl -s  https://jl.43322.cn/.well-known/apple-app-site-association | python3 -m json.tool
 
-1. Xcode → Target → **Signing & Capabilities** → **+ Capability** → **Associated Domains**；
-2. 添加 `applinks:<你的域名>`（或直接在 Build Settings 打开 `CODE_SIGN_ENTITLEMENTS = DesignCode/DesignCode.entitlements`，该文件已就绪，值由 `$(WECHAT_UL_HOST)` 注入）；
-3. 确保开发者账号（Team `F2JL9GNLCC`）的 App ID 已勾选 **Associated Domains** 能力；
-4. 重新构建并在设备上安装。
+# Apple CDN 校验（部署后可能需数分钟~数小时收敛）
+curl -s https://app-site-association.cdn-apple.com/a/v1/jl.43322.cn | python3 -m json.tool
+
+# 落地页校验
+curl -sI https://jl.43322.cn/app/ | head -3
+```
+
+**AASA 内容（本仓库已生成，appID 与本工程完全一致）**：
+
+```json
+{ "applinks": { "apps": [], "details": [ { "appID": "F2JL9GNLCC.com.qinchao", "paths": ["/app/*"] } ] } }
+```
+
+- `appID` = `TeamID.BundleID` = `F2JL9GNLCC.com.qinchao`；
+- `paths` 必须覆盖 `/app/*`（微信 Universal Link 回跳路径，与 `WECHAT_UNIVERSAL_LINK` 的路径一致）。
+
+### 3.4 启用 Associated Domains（官方要求④ · 当前为唯一阻塞项）
+
+**实测结论（2026-09-27）**：把 `CODE_SIGN_ENTITLEMENTS = DesignCode/DesignCode.entitlements` 打开后，命令行构建报
+`No Accounts` + `Provisioning profile "iOS Team Provisioning Profile: com.qinchao" doesn't include the Associated Domains capability`
+→ **CLI 自动签名无法开通该能力**，故工程默认**不启用**该设置（保证日常命令行构建/测试不被破坏）。
+
+**请在 Xcode GUI 中完成一次（之后命令行构建也会带上该能力）**：
+
+1. Xcode 打开 `qin/DesignCode.xcodeproj` → Target `DesignCode` → **Signing & Capabilities**；
+2. 确认 Team 已登录（Xcode → Settings → Accounts，看不到 `No Accounts` 报错即可）；
+3. **+ Capability** → **Associated Domains** → 添加 `applinks:jl.43322.cn`；
+   （或手动：Build Settings 里把 `CODE_SIGN_ENTITLEMENTS` 设为 `DesignCode/DesignCode.entitlements`，该文件已就绪，值由 `$(WECHAT_UL_HOST)` 注入）
+4. 让 Xcode 更新描述文件（必要时勾选 Automatically manage signing）；
+5. 在 [Apple Developer](https://developer.apple.com/account/resources/identifiers) 确认 App ID `com.qinchao` 的 **Associated Domains** 能力已勾选（自动签名通常会代劳）；
+6. 重新真机构建安装，进入「微信集成」运行七步自检。
+
+> 未启用前：微信**分享/登录的返回回调**无法送达本 App（微信自 SDK 1.8.6 起统一经 Universal Link 回跳），表现为微信侧返回失败或本 App 收不到 onResp。
 
 ### 3.5 自检与验收
 
@@ -113,16 +144,17 @@ Xcode → Target `DesignCode` → Build Settings → 搜索 `WECHAT_`，按 §0 
    - 「微信集成」页发起微信登录，`lastAuthCode` 出现授权码（需平台已开通登录能力）；
    - 日志中心筛选 `wechat` 域：注册 / 分享发起 / 回执 / 自检逐步均有记录。
 
-**已完成的工程验证（2026-09-27，占位配置阶段）**
+**已完成的工程验证（2026-09-27；先占位配置、后真实配置各一轮）**
 
 | 验证项 | 结果 | 证据 |
 | --- | --- | --- |
-| 全量编译（含 SDK 静态库链接 `-ObjC -all_load`） | 0 error / 0 warning | `xcodebuild -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build` |
+| 全量编译（含 SDK 静态库链接 `-ObjC -all_load`） | 0 error / 0 warning | `build/verify/wechat_fullbuild_real.log`（真实配置轮） |
 | 显示设置构建期护栏 | 通过（排版链 0 缺口、弹出层 0 缺口） | 同上（Run Script 阶段输出） |
-| 真机签名构建（Associated Domains 未启用） | BUILD SUCCEEDED | `xcodebuild -destination 'platform=iOS,id=00008110-000411A40EC1401E' -allowProvisioningUpdates build` |
-| 真机单元测试 | **104/104 通过（0 失败）** | `build/verify/wechat_test_20260927b.log`（含 WeChatSDKTests 17 例） |
-| 日志埋点联通（真机运行断言） | 通过：注册路径写入 `wechat` 域 LogEntry；占位配置留 WARNING 级说明且不报告注册成功 | `WeChatSDKTests.testRegistrationPathWritesWeChatLog` |
-| Info.plist 变量注入实测 | `CFBundleURLSchemes = wxPLACEHOLDER0000`、`WeChatUniversalLink`、`WeChatMiniProgramID`、`LSApplicationQueriesSchemes` 均按构建设置注入 | 构建产物 `DesignCode.app/Info.plist` |
+| 真机签名构建（Associated Domains 未启用） | BUILD SUCCEEDED（两轮均通过） | `build/verify/wechat_device_build_real.log` 等 |
+| 真机单元测试 | **104/104 通过（0 失败）**，两轮均全绿 | `build/verify/wechat_test_real.log`（真实配置轮，含 WeChatSDKTests 17 例） |
+| 日志埋点联通（真机运行断言） | 通过：注册路径写入 `wechat` 域 LogEntry（真实 AppID 下同样成立） | `WeChatSDKTests.testRegistrationPathWritesWeChatLog` |
+| Info.plist 变量注入实测 | 真实值注入正确：`CFBundleURLSchemes = wx8e60d3a37d3cff47`、`WeChatUniversalLink = https://jl.43322.cn/app/`、`WeChatMiniProgramID`（占位）、`LSApplicationQueriesSchemes` | 构建产物 `DesignCode.app/Info.plist` |
+| Associated Domains（entitlements） | 尚未启用：CLI 自动签名无法开通该能力（`No Accounts` + 描述文件缺能力）→ 需 Xcode GUI 一次性操作，见 §3.4 | `build/verify/wechat_device_build_real.log`（开启后构建失败记录） |
 
 > 提示：App 日志以 **1000 条/文件** 滚动（高频图片/缓存 DEBUG 日志约 3 分钟即填满窗口），启动时刻的注册日志可能已被窗口挤出文件——排查微信问题时请看 App 内「我的 → 应用日志」（内存保留最多 3000 条，可筛 `wechat` 域）。
 
@@ -186,3 +218,4 @@ Xcode → Target `DesignCode` → Build Settings → 搜索 `WECHAT_`，按 §0 
 | 日期 | 变更 |
 | --- | --- |
 | 2026-09-27 | 首次接入：OpenSDK 2.0.8 XCFramework、分享/登录/小程序/自检全链、设置页集成中心、契约测试、本指南 |
+| 2026-09-27 | **真实配置落地**：AppID `wx8e60d3a37d3cff47`、UL `https://jl.43322.cn/app/`、域名 `jl.43322.cn` 写入构建设置（Debug/Release）；构建产物 Info.plist 实测注入正确；全量编译 0/0 + 真机 104/104 通过（`build/verify/wechat_test_real.log`）；AASA 部署物料生成（[`deploy/`](./deploy)），实测域名侧尚未部署（404）；AppSecret 仅存本机 `qin/.secrets/`（gitignore），不入仓库 |

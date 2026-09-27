@@ -13,3 +13,8 @@ DerivedData/
 
 # ---- 历史备份快照（保留在磁盘、不入库；此后以 Git 作为回滚源）----
 DesignCode_backup_*/
+
+# ---- 密钥/凭据（严禁入库；微信 AppSecret 等仅存本机）----
+.secrets/
+qin/.secrets/
+*appsecret*

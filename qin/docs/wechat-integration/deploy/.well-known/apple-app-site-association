@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "F2JL9GNLCC.com.qinchao",
+        "paths": ["/app/*"]
+      }
+    ]
+  }
+}

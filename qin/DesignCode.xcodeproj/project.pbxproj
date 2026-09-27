@@ -615,10 +615,10 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				WECHAT_APPID = wxPLACEHOLDER0000;
+				WECHAT_APPID = wx8e60d3a37d3cff47;
 				WECHAT_MINI_PROGRAM = gh_PLACEHOLDER0000;
-				WECHAT_UL_HOST = example.com;
-				WECHAT_UNIVERSAL_LINK = "https://example.com/app/";
+				WECHAT_UL_HOST = jl.43322.cn;
+				WECHAT_UNIVERSAL_LINK = "https://jl.43322.cn/app/";
 			};
 			name = Debug;
 		};
@@ -663,10 +663,10 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				WECHAT_APPID = wxPLACEHOLDER0000;
+				WECHAT_APPID = wx8e60d3a37d3cff47;
 				WECHAT_MINI_PROGRAM = gh_PLACEHOLDER0000;
-				WECHAT_UL_HOST = example.com;
-				WECHAT_UNIVERSAL_LINK = "https://example.com/app/";
+				WECHAT_UL_HOST = jl.43322.cn;
+				WECHAT_UNIVERSAL_LINK = "https://jl.43322.cn/app/";
 			};
 			name = Release;
 		};
