@@ -3632,7 +3632,9 @@ struct FullScreenImageView: View {
             ])
         }
 
-        // 网络下载（进度上报）
+        // 网络下载（进度上报）；并发闸与其余图片加载共享（全局 ≤4）
+        await SJZImageConcurrencyGate.shared.acquire()
+        defer { Task { await SJZImageConcurrencyGate.shared.release() } }
         do {
             let delegate = SJZImageDownloadDelegate()
             delegate.onProgress = { value in
@@ -3668,6 +3670,11 @@ struct FullScreenImageView: View {
                 "elapsed": String(format: "%.0fms", Date().timeIntervalSince(startTime) * 1000)
             ])
         } catch {
+            // 取消类错误（关闭/切页的正常中断）：静默退出，不记 ERROR（2026-09-27 警告误报治理）
+            if SJZImageKit.isCancellation(error) {
+                isLoading = false
+                return
+            }
             loadError = error.localizedDescription
             isLoading = false
             LogManager.shared.error("imageCache", "全屏图片加载失败", context: [
@@ -10621,6 +10628,9 @@ struct SJZCachedImage<Content: View>: View {
         }
 
         // ② 网络加载（下载进度上报）+ 失败自动重试：指数退避 1s/3s，最多 2 次（E8）
+        // 并发闸：全局最多 4 张图片同时下载（镜像站拥塞治理；发起前闸控 → URLSession 无排队、TTFB 不含排队时延）
+        await SJZImageConcurrencyGate.shared.acquire()
+        defer { Task { await SJZImageConcurrencyGate.shared.release() } }
         for retry in 0...2 {
             if Task.isCancelled { return }
             do {
@@ -10651,6 +10661,8 @@ struct SJZCachedImage<Content: View>: View {
                     try? await Task.sleep(nanoseconds: retry == 0 ? 1_000_000_000 : 3_000_000_000)
                 }
             } catch {
+                // 取消类错误（滚动/切页的正常中断）：静默退出，不告警、不重试（2026-09-27 警告误报治理）
+                if SJZImageKit.isCancellation(error) { return }
                 LogManager.shared.warning("imageCache", "图片网络加载失败，自动重试", context: [
                     "url": url.lastPathComponent,
                     "error": error.localizedDescription,
@@ -10764,6 +10776,8 @@ enum SJZImageKit {
     static let imageSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForResource = 120
+        // 注：真实连接由协议层 RefererHeaderURLProtocol.sharedSession 建立，本会话的 per-host 设置不生效；
+        // 图片下载并发统一由 SJZImageConcurrencyGate（≤4）在发起前闸控（2026-09-27 拥塞治理）
         config.requestCachePolicy = .useProtocolCachePolicy
         config.protocolClasses = [RefererHeaderURLProtocol.self]
         return URLSession(configuration: config)
@@ -10772,7 +10786,9 @@ enum SJZImageKit {
     /// 构建统一图片请求：缓存读取策略随缓存模式切换
     static func makeRequest(url: URL) -> URLRequest {
         var request = URLRequest(url: url)
-        request.timeoutInterval = 30
+        // 15s 为「等待数据中断」超时（inactivity）：传输中数据持续到达不受影响；
+        // 连接被服务器挂起时 15s 判死快速换道重试，替代旧值 30s×3 次最多干等 94s 的体验（2026-09-27 拥塞治理）
+        request.timeoutInterval = 15
         request.cachePolicy = CacheModeManager.isCacheEnabledFromAnyThread
             ? .returnCacheDataElseLoad
             : .useProtocolCachePolicy
@@ -10795,6 +10811,16 @@ enum SJZImageKit {
             return nil
         }
         return cached
+    }
+
+    /// 判定取消类错误（任务取消 / URLError.cancelled / CancellationError）——取消属正常中断而非失败：
+    /// 不告警、不退避、不重试（对齐工程红线：cancelled 一律不重试不记错，2026-09-27 警告误报治理）
+    static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled { return true }
+        return Task.isCancelled
     }
 
     /// 单图解码像素护栏（E4）：超过该像素数的原图强制降采样，防内存峰值
@@ -11010,6 +11036,31 @@ final class SJZDecodedImageCache: @unchecked Sendable {
     }
 }
 
+// MARK: - 图片下载并发闸（全局 ≤4）
+
+/// 全局图片下载并发闸：抑制学校镜像站在大图文批量拉取时的限流/挂起；
+/// 因在**发起前**闸控，URLSession 不产生排队，TTFB 统计不含排队时延（2026-09-27 拥塞治理 + 审计加固）。
+actor SJZImageConcurrencyGate {
+    static let shared = SJZImageConcurrencyGate()
+    private let limit = 4
+    private var active = 0
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        if active < limit { active += 1; return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        if let next = waiters.first {
+            waiters.removeFirst()
+            next.resume()
+        } else {
+            active = max(0, active - 1)
+        }
+    }
+}
+
 // MARK: - 智能预取器（E1/E5/E6 共用）
 
 @MainActor
@@ -11048,6 +11099,8 @@ enum SJZImagePrefetcher {
             let batchFetched = await withTaskGroup(of: Bool.self) { group in
                 for url in batch {
                     group.addTask(priority: .utility) {
+                        await SJZImageConcurrencyGate.shared.acquire()
+                        defer { Task { await SJZImageConcurrencyGate.shared.release() } }
                         let delegate = SJZImageDownloadDelegate()
                         let request = SJZImageKit.makeRequest(url: url)
                         do {
