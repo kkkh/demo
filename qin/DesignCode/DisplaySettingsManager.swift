@@ -443,17 +443,44 @@ enum DisplayFontFamily: String, CaseIterable, Identifiable {
     /// 画廊真字貌示例（以各字体自身渲染，中文全字形立即可见差异）
     var sampleText: String { "园枢书卷气 晨读好时光" }
 
-    /// 系统字体名（工厂渲染与按需下载共用；system 恒可用不需要下载）
+    /// 系统字体名（**PostScript 字面名**；工厂渲染、可用性实查与按需下载共用）
+    /// 关键契约：系统按需下载的匹配引擎只认 PostScript 字面名——
+    /// 传家族名（如 "Songti SC"）会「didBegin → didFinish 静默完成且不下载任何资产」，
+    /// 表现为界面永远停在「下载中」直到看门狗复位（2026-09-27 真机 A/B 实证，历史误用家族名）。
+    /// 字面名核准来源：macOS 同版本字体 CoreText 枚举 + Apple System Fonts 页 iOS 可下载清单（均一致）。
     var fontName: String {
         switch self {
-        case .system:  return "PingFang SC"
-        case .songti:  return "Songti SC"
-        case .kaiti:   return "Kaiti SC"
-        case .yuanti:  return "Yuanti SC"
-        case .xingkai: return "Xingkai SC"
-        case .libian:  return "Libian SC"
-        case .weibei:  return "Weibei SC"
+        case .system:  return "PingFang SC"          // 苹方：系统恒内置（非按需下载）
+        case .songti:  return "STSongti-SC-Regular"  // 宋体-简 常规
+        case .kaiti:   return "STKaitiSC-Regular"    // 楷体-简 常规
+        case .yuanti:  return "STYuanti-SC-Regular"  // 圆体-简 常规
+        case .xingkai: return "STXingkaiSC-Light"    // 行楷-简 细（系统目录无 Regular 字面，Light 即标准字重）
+        case .libian:  return "STLibianSC-Regular"   // 隶变-简 常规
+        case .weibei:  return "WeibeiSC-Bold"        // 魏碑-简（系统目录仅粗体字面）
         }
+    }
+
+    /// 粗体字面名（开启「粗体文本」时优先使用真实粗体字面；nil = 无独立粗体字面，回退主字面合成加粗）
+    var boldFontName: String? {
+        switch self {
+        case .system:  return nil
+        case .songti:  return "STSongti-SC-Bold"
+        case .kaiti:   return "STKaitiSC-Bold"
+        case .yuanti:  return "STYuanti-SC-Bold"
+        case .xingkai: return "STXingkaiSC-Bold"
+        case .libian:  return nil   // iOS 可下载目录仅常规字面
+        case .weibei:  return nil   // 主字面即粗体
+        }
+    }
+
+    /// 按需下载字面清单（主字面 + 需要时的粗体字面；去重；system 不需要下载）
+    func downloadFaceNames(includeBold: Bool) -> [String] {
+        guard self != .system else { return [] }
+        var faces = [fontName]
+        if includeBold, let boldFace = boldFontName, boldFace != fontName {
+            faces.append(boldFace)
+        }
+        return faces
     }
 
     /// 迁移历史西文字体存储值 → 中文字体家族（未知/非法值回退系统）
@@ -474,8 +501,17 @@ enum DisplayFontFamily: String, CaseIterable, Identifiable {
 
 /// 中文字体可用状态：iOS 内置书法字体（宋/楷/圆/行楷/隶变/魏碑）为系统级按需下载字体，
 /// 即时命中仅苹方；覆盖安装会清下载状态，必须显式触发下载并在 UI 直观反馈。
-enum DisplayFontAvailability: String, Equatable {
-    case ready, downloading, unavailable
+/// downloading 携带系统回调的下载进度（0...100；nil = 尚未取得进度，UI 显示不确定态）
+enum DisplayFontAvailability: Equatable {
+    case ready
+    case downloading(percent: Double?)
+    case unavailable
+
+    /// 是否就绪（UI/逻辑统一判定入口）
+    var isReady: Bool {
+        if case .ready = self { return true }
+        return false
+    }
 }
 
 // MARK: - 自动锁定
@@ -552,9 +588,15 @@ final class DisplaySettingsManager: ObservableObject {
         didSet { persist(fontSizeTier.rawValue, forKey: Self.fontSizeKey); log("font_size_tier", fontSizeTier.rawValue) }
     }
 
-    /// 粗体文本
+    /// 粗体文本（开启且使用自定义家族时顺带预热该家族的真实粗体字面——系统中文字体粗体字面独立于常规字面）
     @Published var boldTextEnabled: Bool {
-        didSet { persist(boldTextEnabled, forKey: Self.boldKey); log("bold_text", "\(boldTextEnabled)") }
+        didSet {
+            persist(boldTextEnabled, forKey: Self.boldKey)
+            log("bold_text", "\(boldTextEnabled)")
+            if boldTextEnabled && !useSystemFont && fontFamily != .system {
+                ensureFontFamily(fontFamily, reason: "bold_toggle")
+            }
+        }
     }
 
     /// 使用系统字体（关闭后使用所选字体家族）
@@ -757,6 +799,10 @@ final class DisplaySettingsManager: ObservableObject {
     private var inFlightFontDownloads = Set<String>()
     /// 每次下载尝试的令牌：超时与迟到回调只作用于同一次尝试，杜绝误伤重试中的新下载（2026-09-27 完美性审查加固）
     private var fontDownloadTokens: [String: UUID] = [:]
+    /// 每次尝试的最近一次系统进度回调时间（看门狗续期基准；键 = family.rawValue）
+    private var fontDownloadLastProgress: [String: Date] = [:]
+    /// 下载进度日志分档（每 25% 记一条，防刷屏且保留完整轨迹）
+    private var fontDownloadProgressBucket: [String: Int] = [:]
 
     // MARK: - 初始化
 
@@ -1063,14 +1109,18 @@ final class DisplaySettingsManager: ObservableObject {
 
     // MARK: - 字体按需下载（系统级一次性下载，之后离线可用）
 
-    /// 刷新全部字体家族可用状态（system 恒就绪；其余以 UIFont 实查为准，在途下载保持 downloading）
+    /// 刷新全部字体家族可用状态（system 恒就绪；其余以 UIFont 实查为准；在途下载保持 downloading 进度）
     func refreshFontAvailability() {
         var states: [DisplayFontFamily: DisplayFontAvailability] = [:]
         for family in DisplayFontFamily.allCases {
             if family == .system {
                 states[family] = .ready
             } else if inFlightFontDownloads.contains(family.rawValue) {
-                states[family] = .downloading
+                if case .downloading(let percent) = fontAvailability[family] {
+                    states[family] = .downloading(percent: percent)
+                } else {
+                    states[family] = .downloading(percent: nil)
+                }
             } else {
                 states[family] = (UIFont(name: family.fontName, size: 17) != nil) ? .ready : .unavailable
             }
@@ -1078,90 +1128,247 @@ final class DisplaySettingsManager: ObservableObject {
         fontAvailability = states
     }
 
-    /// 字体下载超时兜底（秒）：苹果字体服务在部分网络环境不可达时，进度回调可能永不触发；
-    /// 超时后复位为「未下载·可重试」，避免界面永久停留「下载中」（2026-09-27 实机日志实证）
-    private static let fontDownloadTimeoutSeconds: TimeInterval = 60
+    /// 停滞阈值（秒）：以「最近一次系统进度回调」为基准的看门狗——
+    /// 系统仍在报进度就不判超时（行楷-简实测资产 54.7MB，慢网耗时远超 60s）；
+    /// 连续无进展才复位为「未下载·可重试」（2026-09-27 由绝对时长语义升级为「无进展」语义）
+    private static let fontDownloadStallSeconds: TimeInterval = 60
+    /// 看门狗轮询间隔（秒）
+    private static let fontDownloadWatchdogTickSeconds: UInt64 = 5
 
-    /// 确保字体家族就绪：已就绪直接返回；未就绪触发系统按需下载（完成自动驱动全 App 字体刷新）
+    /// 确保字体家族就绪：已就绪直接返回；未就绪触发系统按需下载（完成自动驱动全 App 字体刷新）。
+    /// 请求字面 = 主字面 +（开启粗体文本时）粗体字面，一次匹配调用合并请求、合并进度
     func ensureFontFamily(_ family: DisplayFontFamily, reason: String) {
-        refreshFontAvailability()
         guard family != .system else { return }
-        if fontAvailability[family] == .ready {
-            LogManager.shared.debugLog("display", "字体家族已就绪", context: ["family": family.rawValue, "reason": reason])
+        refreshFontAvailability()
+        let wantedFaces = family.downloadFaceNames(includeBold: boldTextEnabled)
+        let missingFaces = wantedFaces.filter { UIFont(name: $0, size: 17) == nil }
+        guard !missingFaces.isEmpty else {
+            LogManager.shared.debugLog("display", "字体家族已就绪", context: [
+                "family": family.rawValue,
+                "faces": wantedFaces.joined(separator: ","),
+                "reason": reason
+            ])
             return
         }
         guard !inFlightFontDownloads.contains(family.rawValue) else {
-            LogManager.shared.debugLog("display", "字体家族下载已在途，忽略重复触发", context: ["family": family.rawValue])
+            LogManager.shared.debugLog("display", "字体家族下载已在途，忽略重复触发", context: [
+                "family": family.rawValue,
+                "reason": reason
+            ])
             return
         }
         let attemptToken = UUID()
         fontDownloadTokens[family.rawValue] = attemptToken
         inFlightFontDownloads.insert(family.rawValue)
-        fontAvailability[family] = .downloading
+        fontDownloadLastProgress[family.rawValue] = Date()
+        fontDownloadProgressBucket.removeValue(forKey: family.rawValue)
+        fontAvailability[family] = .downloading(percent: nil)
         LogManager.shared.info("display", "字体按需下载开始", context: [
             "family": family.rawValue,
-            "fontName": family.fontName,
+            "title": family.title,
+            "faces": missingFaces.joined(separator: ","),
+            "includeBold": "\(boldTextEnabled)",
             "reason": reason
         ])
-        let attributes = [kCTFontNameAttribute: family.fontName] as CFDictionary
-        let descriptor = CTFontDescriptorCreateWithAttributes(attributes)
-        CTFontDescriptorMatchFontDescriptorsWithProgressHandler([descriptor] as CFArray, nil) { [weak self] state, _ in
+        // 系统匹配：多字面合并为一次调用（进度为合并进度；只认 PostScript 字面名，见 DisplayFontFamily.fontName 契约）
+        let descriptors = missingFaces.map { face -> CTFontDescriptor in
+            CTFontDescriptorCreateWithAttributes([kCTFontNameAttribute: face] as CFDictionary)
+        }
+        CTFontDescriptorMatchFontDescriptorsWithProgressHandler(descriptors as CFArray, nil) { [weak self] state, progressParameter in
+            let info = (progressParameter as NSDictionary?) as? [String: Any] ?? [:]
             DispatchQueue.main.async {
                 guard let self else { return }
-                switch state {
-                case .didMatch:
-                    // 迟到命中（本次已被超时复位）也置 ready：字体确已可用；仅令牌仍属本次时才清在途态
-                    if self.fontDownloadTokens[family.rawValue] == attemptToken {
-                        self.fontDownloadTokens.removeValue(forKey: family.rawValue)
-                        self.inFlightFontDownloads.remove(family.rawValue)
-                    }
-                    self.fontAvailability[family] = .ready
-                    // 修订号 +1：驱动所有 display* 文本重建字体值，下载完成即刻全局生效
-                    self.typographyRevision += 1
-                    LogManager.shared.info("display", "字体按需下载完成并已全局生效", context: [
-                        "family": family.rawValue,
-                        "fontName": family.fontName,
-                        "revision": "\(self.typographyRevision)"
-                    ])
-                case .didFailWithError:
-                    // 仅本次尝试的失败才复位；迟到失败（超时已处理、或有新尝试在途）忽略，避免误伤
-                    guard self.fontDownloadTokens[family.rawValue] == attemptToken else { return }
-                    self.fontDownloadTokens.removeValue(forKey: family.rawValue)
-                    self.inFlightFontDownloads.remove(family.rawValue)
-                    self.fontAvailability[family] = .unavailable
-                    LogManager.shared.warning("display", "字体按需下载失败（可点击重试）", context: [
-                        "family": family.rawValue,
-                        "fontName": family.fontName
-                    ])
-                default:
-                    break
-                }
+                self.handleFontMatchingCallback(state: state, info: info, family: family, token: attemptToken, requestedFaces: missingFaces)
             }
             return true
         }
-
-        // 超时兜底：60s 内无终态则复位为可重试；令牌校验保证只作用于同一次尝试（不误伤重试中的新下载）
+        // 停滞看门狗：令牌匹配才生效；连续无进展 → 终态收尾（可重试，UI 橙色徽章）
         Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(Self.fontDownloadTimeoutSeconds * 1_000_000_000))
-            guard let self, self.fontDownloadTokens[family.rawValue] == attemptToken else { return }
-            self.fontDownloadTokens.removeValue(forKey: family.rawValue)
-            self.inFlightFontDownloads.remove(family.rawValue)
-            // 超时后二次实查：若字体其实已落地（迟到命中前）直接置 ready，避免误报
-            if UIFont(name: family.fontName, size: 17) != nil {
-                self.fontAvailability[family] = .ready
-                self.typographyRevision += 1
-                LogManager.shared.info("display", "字体下载超时但实查已就绪", context: ["family": family.rawValue])
+            while true {
+                try? await Task.sleep(nanoseconds: Self.fontDownloadWatchdogTickSeconds * 1_000_000_000)
+                guard let self, self.fontDownloadTokens[family.rawValue] == attemptToken else { return }
+                let last = self.fontDownloadLastProgress[family.rawValue] ?? Date()
+                guard Date().timeIntervalSince(last) > Self.fontDownloadStallSeconds else { continue }
+                self.finalizeFontDownload(family: family, token: attemptToken, outcome: .stalled, diagnostic: nil)
+                return
+            }
+        }
+    }
+
+    /// 批量确保全部家族就绪（「全部下载」入口：未就绪家族各发起一次，独立进度与独立重试）
+    func ensureAllFontFamilies(reason: String) {
+        let targets = DisplayFontFamily.allCases.filter { family in
+            family != .system && UIFont(name: family.fontName, size: 17) == nil
+        }
+        guard !targets.isEmpty else {
+            refreshFontAvailability()
+            LogManager.shared.debugLog("display", "全部字体家族已就绪，无需批量下载", context: ["reason": reason])
+            return
+        }
+        LogManager.shared.info("display", "字体批量下载开始", context: [
+            "families": targets.map(\.rawValue).joined(separator: ","),
+            "count": "\(targets.count)",
+            "reason": reason
+        ])
+        for family in targets {
+            ensureFontFamily(family, reason: reason)
+        }
+    }
+
+    /// 字体匹配进度回调（主线程）：续期看门狗 → 进度/里程碑日志 → 终态收尾
+    private func handleFontMatchingCallback(
+        state: CTFontDescriptorMatchingState,
+        info: [String: Any],
+        family: DisplayFontFamily,
+        token: UUID,
+        requestedFaces: [String]
+    ) {
+        // 迟到回调（本尝试已收尾、或已有新尝试在途）一律忽略，避免误伤重试
+        guard fontDownloadTokens[family.rawValue] == token else { return }
+        fontDownloadLastProgress[family.rawValue] = Date()
+        switch state {
+        case .didBegin:
+            LogManager.shared.debugLog("display", "字体匹配开始", context: [
+                "family": family.rawValue,
+                "faces": requestedFaces.joined(separator: ",")
+            ])
+        case .willBeginQuerying:
+            break   // 进入查询阶段（瞬时态，无用户可感信息，避免日志噪声）
+        case .willBeginDownloading:
+            LogManager.shared.info("display", "字体资产开始下载", context: [
+                "family": family.rawValue,
+                "localizedFamily": "\(info["CTFontDescriptorMatchingLocalizedFamilyName"] ?? "-")",
+                "assetCount": "\(info["CTFontDescriptorMatchingTotalAssetCount"] ?? "-")",
+                "totalBytes": "\(info["CTFontDescriptorMatchingTotalAssetSize"] ?? "-")"
+            ])
+        case .downloading, .stalled:
+            // stalled 为系统分块间隙的正常回传（与 downloading 交替出现），不视为异常
+            guard let percent = info["CTFontDescriptorMatchingPercentage"] as? Double else { break }
+            let rounded = percent.rounded(.down)
+            if case .downloading(let current) = fontAvailability[family], let current, abs(rounded - current) < 1 {
+                break   // 进度变化 <1% 不刷新 UI，防高频重渲染
+            }
+            fontAvailability[family] = .downloading(percent: rounded)
+            let bucket = min(4, Int(rounded / 25))
+            if fontDownloadProgressBucket[family.rawValue] != bucket {
+                fontDownloadProgressBucket[family.rawValue] = bucket
+                let eta = (info["CTFontDescriptorMatchingEstimatedSecondsRemaining"] as? Double).map { String(format: "%.0f", $0) } ?? "-"
+                LogManager.shared.debugLog("display", "字体下载进度", context: [
+                    "family": family.rawValue,
+                    "percent": "\(Int(rounded))",
+                    "downloadedBytes": "\(info["CTFontDescriptorMatchingTotalDownloadedSize"] ?? "-")",
+                    "totalBytes": "\(info["CTFontDescriptorMatchingTotalAssetSize"] ?? "-")",
+                    "etaSeconds": eta
+                ])
+            }
+        case .didFinishDownloading:
+            LogManager.shared.info("display", "字体资产传输完成，等待系统安装生效", context: [
+                "family": family.rawValue,
+                "downloadedBytes": "\(info["CTFontDescriptorMatchingTotalDownloadedSize"] ?? "-")"
+            ])
+        case .didMatch:
+            LogManager.shared.info("display", "字体字面匹配成功", context: ["family": family.rawValue])
+        case .didFailWithError:
+            finalizeFontDownload(family: family, token: token, outcome: .failed, diagnostic: Self.fontMatchingDiagnostic(info))
+        case .didFinish:
+            // 终局：didFinish 在「匹配成功」与「无匹配静默完成（历史家族名缺陷形态）」两种情形都会回传——必须以实查判定成败
+            finalizeFontDownload(family: family, token: token, outcome: .finished, diagnostic: Self.fontMatchingDiagnostic(info))
+        @unknown default:
+            break
+        }
+    }
+
+    /// 下载终态类型（统一收尾路径）
+    private enum FontDownloadOutcome {
+        case finished   // 系统匹配流程正常结束（成功与否以实查判定）
+        case failed     // didFailWithError
+        case stalled    // 看门狗触发（连续无进度）
+    }
+
+    /// 下载终态收尾：实查自愈 / 就绪生效 / 失败与停滞复位，并归档完整日志
+    private func finalizeFontDownload(
+        family: DisplayFontFamily,
+        token: UUID,
+        outcome: FontDownloadOutcome,
+        diagnostic: String?
+    ) {
+        guard fontDownloadTokens[family.rawValue] == token else { return }
+        fontDownloadTokens.removeValue(forKey: family.rawValue)
+        inFlightFontDownloads.remove(family.rawValue)
+        fontDownloadLastProgress.removeValue(forKey: family.rawValue)
+        fontDownloadProgressBucket.removeValue(forKey: family.rawValue)
+
+        // 实查自愈：无论何种终态，只要主字面已落地即视为就绪（覆盖「下载完成与终态回调之间的空窗」）
+        let primaryReady = UIFont(name: family.fontName, size: 17) != nil
+        let boldFace = family.boldFontName
+        let boldReady = boldFace.map { UIFont(name: $0, size: 17) != nil } ?? false
+
+        switch outcome {
+        case .stalled:
+            if primaryReady {
+                fontAvailability[family] = .ready
+                typographyRevision += 1
+                LogManager.shared.info("display", "字体下载停滞但实查已就绪（自愈）", context: [
+                    "family": family.rawValue,
+                    "boldFaceReady": boldFace == nil ? "无独立字面" : "\(boldReady)"
+                ])
             } else {
-                self.fontAvailability[family] = .unavailable
+                fontAvailability[family] = .unavailable
                 // 状态流转（已转「可重试」态）而非待处理异常：INFO 级完整记录，警告栏只留真异常（2026-09-27 警告栏净化）；
                 // 用户可操作入口由 UI 橙色徽章呈现（点击重新发起下载）
-                LogManager.shared.info("display", "字体按需下载超时，已转为可重试状态", context: [
+                LogManager.shared.info("display", "字体下载停滞超时，已转为可重试状态", context: [
                     "family": family.rawValue,
-                    "timeoutSeconds": "\(Int(Self.fontDownloadTimeoutSeconds))",
+                    "stallSeconds": "\(Int(Self.fontDownloadStallSeconds))",
                     "action": "转为可重试（橙色徽章），点击后重新发起下载"
                 ])
             }
+        case .failed:
+            if primaryReady {
+                fontAvailability[family] = .ready
+                typographyRevision += 1
+            } else {
+                fontAvailability[family] = .unavailable
+            }
+            LogManager.shared.warning("display", "字体按需下载失败（可点击重试）", context: [
+                "family": family.rawValue,
+                "faces": family.downloadFaceNames(includeBold: boldTextEnabled).joined(separator: ","),
+                "diagnostic": diagnostic ?? "-",
+                "primaryReady": "\(primaryReady)"
+            ])
+        case .finished:
+            if primaryReady {
+                fontAvailability[family] = .ready
+                // 修订号 +1：驱动所有 display* 文本重建字体值，下载完成即刻全局生效
+                typographyRevision += 1
+                LogManager.shared.info("display", "字体按需下载完成并已全局生效", context: [
+                    "family": family.rawValue,
+                    "title": family.title,
+                    "boldFaceReady": boldFace == nil ? "无独立字面" : "\(boldReady)",
+                    "revision": "\(typographyRevision)"
+                ])
+            } else {
+                fontAvailability[family] = .unavailable
+                LogManager.shared.warning("display", "字体匹配结束但未取得字面（可点击重试）", context: [
+                    "family": family.rawValue,
+                    "faces": family.downloadFaceNames(includeBold: boldTextEnabled).joined(separator: ","),
+                    "diagnostic": diagnostic ?? "-",
+                    "hint": "PostScript 字面名或系统目录不匹配；已复位为可重试"
+                ])
+            }
         }
+    }
+
+    /// 系统匹配回调的诊断描述（错误 / 结果），用于失败日志取证（截断超长输出）
+    private static func fontMatchingDiagnostic(_ info: [String: Any]) -> String? {
+        for key in ["CTFontDescriptorMatchingError", "CTFontDescriptorMatchingResult"] {
+            guard let value = info[key] else { continue }
+            if let error = value as? NSError {
+                return "[\(error.domain) \(error.code)] \(error.localizedDescription)"
+            }
+            let text = String(describing: value)
+            return text.count > 300 ? String(text.prefix(300)) + "…" : text
+        }
+        return nil
     }
 
     func logSliderSettled(_ field: String, _ value: Double) {
@@ -1419,7 +1626,9 @@ extension EnvironmentValues {
 
 // MARK: - 字体工厂
 
-/// 显示设置字体工厂：档位缩放 + 粗体 + 家族组装
+/// 显示设置字体工厂：档位缩放 + 粗体 + 家族组装。
+/// 自定义家族一律走 PostScript 字面名（Font.custom / UIFont 只认字面名）；
+/// 开启粗体时若该家族的真实粗体字面已就绪则直接用字面（中式字形合成加粗观感差），否则回退主字面加粗
 enum DisplayFontFactory {
     static func font(
         size: CGFloat,
@@ -1428,11 +1637,16 @@ enum DisplayFontFactory {
         family: DisplayFontFamily = .system,
         bold: Bool = false
     ) -> Font {
-        let resolvedWeight: Font.Weight = bold ? .bold : weight
         let resolvedSize = size * scale
         switch family {
-        case .system: return .system(size: resolvedSize, weight: resolvedWeight)
-        default:      return .custom(family.fontName, size: resolvedSize).weight(resolvedWeight)
+        case .system:
+            return .system(size: resolvedSize, weight: bold ? .bold : weight)
+        default:
+            if bold, let boldFace = family.boldFontName, UIFont(name: boldFace, size: resolvedSize) != nil {
+                return .custom(boldFace, size: resolvedSize)
+            }
+            let resolvedWeight: Font.Weight = bold ? .bold : weight
+            return .custom(family.fontName, size: resolvedSize).weight(resolvedWeight)
         }
     }
 }

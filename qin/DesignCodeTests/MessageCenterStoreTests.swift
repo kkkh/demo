@@ -712,19 +712,73 @@ final class DisplaySettingsLogicTests: XCTestCase {
         XCTAssertEqual(DisplayFontFamily.normalized(rawValue: ""), .system, "空值回退系统")
     }
 
-    /// 字体名映射契约：工厂与按需下载共用，名称必须与 iOS 官方内置字体清单一致
+    /// 字体名映射契约：工厂渲染、可用性实查与按需下载共用。
+    /// 必须为 **PostScript 字面名**（Apple System Fonts 页 iOS 可下载清单 + macOS 同版本字体枚举核准）——
+    /// 历史误用家族名（如 "Songti SC"）导致按需下载静默完成且零资产（2026-09-27 真机 A/B 实证）
     func testFontFamilyNameMapping() {
         XCTAssertEqual(DisplayFontFamily.system.fontName, "PingFang SC")
-        XCTAssertEqual(DisplayFontFamily.songti.fontName, "Songti SC")
-        XCTAssertEqual(DisplayFontFamily.kaiti.fontName, "Kaiti SC")
-        XCTAssertEqual(DisplayFontFamily.yuanti.fontName, "Yuanti SC")
-        XCTAssertEqual(DisplayFontFamily.xingkai.fontName, "Xingkai SC")
-        XCTAssertEqual(DisplayFontFamily.libian.fontName, "Libian SC")
-        XCTAssertEqual(DisplayFontFamily.weibei.fontName, "Weibei SC")
+        XCTAssertEqual(DisplayFontFamily.songti.fontName, "STSongti-SC-Regular")
+        XCTAssertEqual(DisplayFontFamily.kaiti.fontName, "STKaitiSC-Regular")
+        XCTAssertEqual(DisplayFontFamily.yuanti.fontName, "STYuanti-SC-Regular")
+        XCTAssertEqual(DisplayFontFamily.xingkai.fontName, "STXingkaiSC-Light")
+        XCTAssertEqual(DisplayFontFamily.libian.fontName, "STLibianSC-Regular")
+        XCTAssertEqual(DisplayFontFamily.weibei.fontName, "WeibeiSC-Bold")
+    }
+
+    /// 粗体字面契约：可下载家族的真实粗体字面名（libian/weibei 无独立粗体字面）
+    func testFontFamilyBoldFaceMapping() {
+        XCTAssertNil(DisplayFontFamily.system.boldFontName)
+        XCTAssertEqual(DisplayFontFamily.songti.boldFontName, "STSongti-SC-Bold")
+        XCTAssertEqual(DisplayFontFamily.kaiti.boldFontName, "STKaitiSC-Bold")
+        XCTAssertEqual(DisplayFontFamily.yuanti.boldFontName, "STYuanti-SC-Bold")
+        XCTAssertEqual(DisplayFontFamily.xingkai.boldFontName, "STXingkaiSC-Bold")
+        XCTAssertNil(DisplayFontFamily.libian.boldFontName, "iOS 可下载目录仅常规字面")
+        XCTAssertNil(DisplayFontFamily.weibei.boldFontName, "主字面即粗体")
+    }
+
+    /// 下载清单契约：主字面 +（开启粗体时）粗体字面，去重且 system 不下载
+    func testFontFamilyDownloadFacePlan() {
+        XCTAssertTrue(DisplayFontFamily.system.downloadFaceNames(includeBold: true).isEmpty)
+        for family in DisplayFontFamily.allCases where family != .system {
+            let plain = family.downloadFaceNames(includeBold: false)
+            XCTAssertEqual(plain, [family.fontName], "不含粗体时仅请求主字面")
+            let withBold = family.downloadFaceNames(includeBold: true)
+            XCTAssertEqual(Set(withBold).count, withBold.count, "字面清单不得重复")
+            if let boldFace = family.boldFontName, boldFace != family.fontName {
+                XCTAssertEqual(withBold, [family.fontName, boldFace])
+            } else {
+                XCTAssertEqual(withBold, [family.fontName], "无独立粗体字面时不应追加")
+            }
+        }
     }
 
     /// 苹方为 iOS 唯一恒内置中文家族（书法字体为系统按需下载，覆盖安装后会重置）
     func testPingFangAlwaysAvailable() {
         XCTAssertNotNil(UIFont(name: "PingFang SC", size: 17), "默认中文字体必须恒可用")
+    }
+
+    /// 在线集成：走 App 真实链路触发一次按需下载（默认用隶变-简，验证 PostScript 字面名契约端到端可用）。
+    /// 已下载设备上秒级命中本地并同样断言就绪；依赖网络命中 Apple 字体服务（与既有在线用例同约定）。
+    @MainActor
+    func testFontOnDemandDownloadThroughManager() async throws {
+        let family = DisplayFontFamily.libian
+        let face = family.fontName
+        if UIFont(name: face, size: 17) == nil {
+            DisplaySettingsManager.shared.ensureFontFamily(family, reason: "integration_test")
+            var settledReady = false
+            var settledUnavailable = false
+            for _ in 0..<180 {
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                switch DisplaySettingsManager.shared.fontAvailability[family] {
+                case .ready:        settledReady = true
+                case .unavailable:  settledUnavailable = true
+                default:            continue
+                }
+                break
+            }
+            XCTAssertTrue(settledReady, "隶变-简应完成下载并置为就绪（若 unavailable 表示网络/目录异常）")
+            XCTAssertFalse(settledUnavailable, "不应落入不可用终态")
+        }
+        XCTAssertNotNil(UIFont(name: face, size: 17), "隶变-简字面必须可用")
     }
 }
