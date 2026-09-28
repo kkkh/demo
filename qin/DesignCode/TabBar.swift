@@ -9310,6 +9310,24 @@ struct ProfileView: View {
         }
         .onAppear {
             refreshLogEntrySubtitle()
+            #if DEBUG
+            // 实机自测钩子（仅 DEBUG）：`devicectl device process launch <UDID> com.qinchao -uiTestOpenLogs`
+            // 自动打开日志页 + 心跳探针 + 风暴样本，验证「页面打开后主线程持续存活、风暴防线生效」
+            if ProcessInfo.processInfo.arguments.contains("-uiTestOpenLogs") {
+                LogManager.shared.info("log", "实机自测：自动打开日志页", context: [:])
+                showLogs = true
+                Task { @MainActor in
+                    for beat in 1...3 {
+                        try? await Task.sleep(nanoseconds: 4_000_000_000)
+                        LogManager.shared.info("log", "实机自测心跳 \(beat)/3", context: ["beat": "\(beat)"])
+                    }
+                    for index in 1...55 {
+                        LogManager.shared.debugLog("logTest", "自测风暴样本", context: ["index": "\(index)"])
+                    }
+                    LogManager.shared.info("log", "实机自测：风暴样本注入完成（55 条同内容）", context: [:])
+                }
+            }
+            #endif
         }
         .onChange(of: showLogs) { _, isPresented in
             // 日志页关闭后刷新入口状态快照
