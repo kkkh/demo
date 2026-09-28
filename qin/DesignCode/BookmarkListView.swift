@@ -42,6 +42,8 @@ struct BookmarkListView: View {
     @State private var showClearConfirm = false
     @State private var showDeleteSelectedConfirm = false
     @State private var checkingUpdates = false
+    /// 批量缓存基线（进度开始时的「可离线」篇数，用于结束横幅计算新增量）
+    @State private var precacheBaselineCachedCount: Int?
 
     // MARK: 诊断面板
 
@@ -77,6 +79,21 @@ struct BookmarkListView: View {
     /// 仅「最近收藏」排序且未搜索时按收藏时间分组（苹果 News 收藏列表口径）
     private var shouldGroupByTime: Bool {
         sortOrder == .recentlyBookmarked && !isSearching
+    }
+
+    /// 空态签名（状态流转日志：none 表示列表非空）
+    private var emptyStateSignature: String {
+        if bookmarkManager.bookmarks.isEmpty { return "noBookmarks" }
+        if visibleItems.isEmpty { return isSearching ? "noSearchHit" : "noFilterHit:\(filterScope.id)" }
+        return "none"
+    }
+
+    /// 日分组签名（分组重算日志：flat 表示当前排序不分组）
+    private var groupSectionSignature: String {
+        guard shouldGroupByTime else { return "flat" }
+        let sections = BookmarkManager.groupSections(visibleItems, now: now)
+        guard !sections.isEmpty else { return "empty" }
+        return sections.map { "\($0.group.rawValue):\($0.items.count)" }.joined(separator: "|")
     }
 
     // MARK: Body
@@ -130,6 +147,10 @@ struct BookmarkListView: View {
                 let impact = UIImpactFeedbackGenerator(style: .heavy)
                 impact.impactOccurred()
                 let keys = selectedKeys
+                LogManager.shared.info("favorite", "状态流转：批量取消收藏确认执行", context: [
+                    "count": "\(keys.count)", "visible": "\(visibleKeys.count)",
+                    "scope": filterScope.id, "sort": sortOrder.rawValue
+                ])
                 let removed = withAnimation(.easeInOut(duration: 0.3)) {
                     bookmarkManager.removeBookmarks(keys)
                 }
@@ -152,6 +173,7 @@ struct BookmarkListView: View {
                 "cached": "\(bookmarkManager.contentCachedCount)",
                 "sort": sortOrder.rawValue
             ])
+            logEmptyState(emptyStateSignature, trigger: "进入页面")
         }
         .onDisappear {
             searchDebounceTask?.cancel()
@@ -170,6 +192,28 @@ struct BookmarkListView: View {
                 exitBatchMode()
             }
             selectedKeys = selectedKeys.filter { bookmarkManager.isBookmarked($0) }
+        }
+        // MARK: 状态流转观测（空态 / 分组 / 计数 / 批量缓存）
+        .onChange(of: emptyStateSignature) { _, signature in
+            logEmptyState(signature, trigger: "状态变化")
+        }
+        .onChange(of: groupSectionSignature) { _, signature in
+            LogManager.shared.debugLog("favorite", "收藏日分组重算", context: [
+                "sections": signature, "sort": sortOrder.rawValue
+            ])
+        }
+        .onChange(of: unreadCount) { oldValue, newValue in
+            LogManager.shared.debugLog("favorite", "状态流转：未读计数变化", context: [
+                "from": "\(oldValue)", "to": "\(newValue)"
+            ])
+        }
+        .onChange(of: bookmarkManager.contentCachedCount) { oldValue, newValue in
+            LogManager.shared.debugLog("favorite", "状态流转：可离线计数变化", context: [
+                "from": "\(oldValue)", "to": "\(newValue)"
+            ])
+        }
+        .onChange(of: bookmarkManager.precacheProgress) { oldValue, newValue in
+            handlePrecacheTransition(old: oldValue, new: newValue)
         }
     }
 
@@ -962,7 +1006,10 @@ struct BookmarkListView: View {
             "title": item.title,
             "wasRead": "\(wasRead)",
             "cached": "\(item.contentCached)",
-            "articleId": item.articleId ?? "-"
+            "articleId": item.articleId ?? "-",
+            "scope": filterScope.id,
+            "sort": sortOrder.rawValue,
+            "visible": "\(visibleItems.count)"
         ])
         openedBookmark = item
     }
@@ -971,7 +1018,7 @@ struct BookmarkListView: View {
         let impact = UIImpactFeedbackGenerator(style: .rigid)
         impact.impactOccurred()
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            bookmarkManager.removeBookmark(item.readKey)
+            _ = bookmarkManager.removeBookmark(item.readKey)
         }
         selectedKeys.remove(item.readKey)
         LogManager.shared.info("favorite", "取消收藏（\(source)）", context: [
@@ -1094,6 +1141,38 @@ struct BookmarkListView: View {
             searchText = ""
         }
         LogManager.shared.info("favorite", "重置收藏筛选", context: [:])
+    }
+
+    /// 空态展示日志（状态流转直观可见：无收藏 / 搜索无果 / 筛选无果）
+    private func logEmptyState(_ signature: String, trigger: String) {
+        guard signature != "none" else { return }
+        LogManager.shared.info("favorite", "收藏空态展示", context: [
+            "kind": signature,
+            "total": "\(bookmarkManager.count)",
+            "scope": filterScope.id,
+            "keyword": searchText.trimmingCharacters(in: .whitespacesAndNewlines),
+            "trigger": trigger
+        ])
+    }
+
+    /// 批量缓存进度流转：开始记录基线 → 结束弹横幅反馈（状态直观可见）
+    private func handlePrecacheTransition(old: BookmarkManager.PrecacheProgress?,
+                                          new: BookmarkManager.PrecacheProgress?) {
+        if old == nil, let progress = new {
+            precacheBaselineCachedCount = bookmarkManager.contentCachedCount
+            LogManager.shared.info("favorite", "状态流转：批量缓存开始（页内反馈）", context: [
+                "total": "\(progress.total)", "cachedBefore": "\(bookmarkManager.contentCachedCount)"
+            ])
+        } else if new == nil, let baseline = precacheBaselineCachedCount {
+            precacheBaselineCachedCount = nil
+            let added = bookmarkManager.contentCachedCount - baseline
+            showBanner(added > 0 ? "批量缓存完成 · 新增 \(added) 篇可离线" : "批量缓存已结束",
+                       icon: "checkmark.icloud.fill",
+                       tone: added > 0 ? .success : .info)
+            LogManager.shared.info("favorite", "状态流转：批量缓存结束（页内反馈）", context: [
+                "added": "\(added)", "cachedTotal": "\(bookmarkManager.contentCachedCount)"
+            ])
+        }
     }
 
     // MARK: 辅助
