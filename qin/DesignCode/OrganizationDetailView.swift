@@ -2104,7 +2104,6 @@ struct OrganizationArticleDetailView: View {
     /// 微信长图分享载荷（非空 → 弹出长图分享菜单）
     @State private var weChatLongImagePayload: WeChatLongImagePayload?
     @State private var longImageError: String?
-    @State private var generatedLongImage: UIImage?
 
     /// 加载超时时间（秒）
     private let loadTimeout: TimeInterval = 6.0
@@ -3359,7 +3358,6 @@ struct OrganizationArticleDetailView: View {
     private func startLongImageGeneration() {
         isGeneratingLongImage = true
         longImageError = nil
-        generatedLongImage = nil
 
         LogManager.shared.info("longimage", "开始生成长图", context: [
             "articleId": article.articleId,
@@ -3405,7 +3403,6 @@ struct OrganizationArticleDetailView: View {
                 "lightHex": DisplaySettingsManager.articleBodyLightHexSnapshot().hex
             ])
             let renderedImage = renderer.render()
-            generatedLongImage = renderedImage
 
             guard let renderedImage else {
                 longImageError = "长图生成失败，请重试"
@@ -3518,6 +3515,15 @@ struct OrganizationArticleDetailView: View {
             // 分享扩展（微信等）读取大图较慢，且本回调在「用户选择动作」时即触发——
             // 绝不能立即删除（现场：微信「加载中 → 闪回 App」）；交由共享中心延迟 5 分钟清理
             SJZShareFileCenter.scheduleCleanup(fileURL)
+            if !completed {
+                // 分享未完成（系统扩展可能因体积 / 尺寸限制中止）：记录可判别数据 + 给出可操作替代路径
+                WeChatService.shared.showBanner("微信未完成分享，可改用「分享 → 长图分享到微信」", kind: .info)
+                LogManager.shared.warning("longimage", "长图分享未完成（系统扩展可能中止）", context: [
+                    "pixel": SJZImageIntegrity.pixelSizeText(of: image),
+                    "bytes": "\(jpegData.count)",
+                    "error": error?.localizedDescription ?? "none"
+                ])
+            }
             if let error = error {
                 LogManager.shared.error("longimage", "长图分享失败", context: [
                     "error": error.localizedDescription

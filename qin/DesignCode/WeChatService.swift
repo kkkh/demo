@@ -371,7 +371,7 @@ enum WeChatImageEncoder {
     /// 系统分享面板交付预算（2026-09-28 现场修复）：
     /// 分享扩展（微信等）内存上限远低于 App（约 120MB）——72MP 长图解码即 ~300MB，
     /// 扩展会被系统终止（表现为「微信加载中 → 闪回 App」），故交付前必须收敛到扩展可承受的规模
-    nonisolated static let systemShareMaxPixels: Double = 16_000_000   // ≈64MB 解码内存
+    nonisolated static let systemShareMaxPixels: Double = 12_000_000   // ≈48MB 解码内存（对齐微信扩展实际可承受规模）
     nonisolated static let systemShareMaxBytes = 10 * 1024 * 1024
 
     /// 首个满足像素预算的档位下标（纯函数，契约测试锚点）
