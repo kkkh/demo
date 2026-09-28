@@ -3211,7 +3211,7 @@ struct EnhancedNewsDetailView: View {
                     presentLongImageShare(image: renderedImage, title: title)
                 case .weChat:
                     // 微信图片消息（WXImageObject）：弹出场景菜单（好友 / 朋友圈 / 收藏）
-                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "long_image")
+                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "news_detail")
                 }
             }
         }
@@ -4303,7 +4303,7 @@ struct HonorDetailView: View {
                     presentLongImageShare(image: renderedImage, title: title)
                 case .weChat:
                     // 微信图片消息（WXImageObject）：弹出场景菜单（好友 / 朋友圈 / 收藏）
-                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "long_image")
+                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "honor_detail")
                 }
             }
         }
@@ -4922,7 +4922,7 @@ struct TeacherDetailView: View {
                     presentLongImageShare(image: renderedImage, title: title)
                 case .weChat:
                     // 微信图片消息（WXImageObject）：弹出场景菜单（好友 / 朋友圈 / 收藏）
-                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "long_image")
+                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "teacher_detail")
                 }
             }
         }
@@ -5471,7 +5471,7 @@ struct StoryDetailView: View {
                     presentLongImageShare(image: renderedImage, title: title)
                 case .weChat:
                     // 微信图片消息（WXImageObject）：弹出场景菜单（好友 / 朋友圈 / 收藏）
-                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "long_image")
+                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "story_detail")
                 }
             }
         }
@@ -6024,7 +6024,7 @@ struct ActivityDetailView: View {
                     presentLongImageShare(image: renderedImage, title: title)
                 case .weChat:
                     // 微信图片消息（WXImageObject）：弹出场景菜单（好友 / 朋友圈 / 收藏）
-                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "long_image")
+                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "activity_detail")
                 }
             }
         }
