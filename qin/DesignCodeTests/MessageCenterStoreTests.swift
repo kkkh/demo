@@ -1045,6 +1045,162 @@ final class ArticleLongImageLogicTests: XCTestCase {
                                  "位图字节不得越过预算上限（含取整余量）")
     }
 
+    // MARK: 插图方向契约与取证
+
+    /// 探针⑥：同一 UIKit 上下文中 `UIImage.draw` 与 `CGContext.draw` 的上下方向取证
+    /// （「长图里的图片颠倒」根因：CGImage 直接绘制在 y 向下的 UIKit 上下文是否翻转）
+    /// 注意：位图是 3x，取样必须按**像素**划分左右半区（0..w/2 与 w/2..w）
+    func testProbeImageDrawingOrientation() {
+        let source = UIGraphicsImageRenderer(size: CGSize(width: 100, height: 100)).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 100, height: 100))
+            UIColor.black.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 100, height: 25))   // 顶部黑带
+        }
+        let probeFormat = UIGraphicsImageRendererFormat()
+        probeFormat.scale = 1
+        probeFormat.opaque = true
+        probeFormat.preferredRange = .standard   // 4B/px，便于按 x*4 取样（默认可能 64bpp）
+        let probe = UIGraphicsImageRenderer(size: CGSize(width: 200, height: 100), format: probeFormat).image { _ in
+            source.draw(in: CGRect(x: 0, y: 0, width: 100, height: 100))            // 左半：UIImage.draw
+            if let cg = source.cgImage, let cgContext = UIGraphicsGetCurrentContext() {
+                cgContext.draw(cg, in: CGRect(x: 100, y: 0, width: 100, height: 100)) // 右半：CGContext.draw
+            }
+        }
+        guard let cg = probe.cgImage, let data = cg.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else {
+            print("[LONGIMGPROBE] drawOrientation probe=nil")
+            return
+        }
+        let rowBytes = cg.bytesPerRow
+        let length = CFDataGetLength(data)
+        func rowDarkRatio(_ y: Int, xStart: Int, width: Int) -> Double {
+            var dark = 0
+            var total = 0
+            for x in xStart..<(xStart + width) {
+                let index = y * rowBytes + x * 4
+                guard index + 3 < length else { continue }
+                total += 1
+                if bytes[index] < 64 { dark += 1 }
+            }
+            return total > 0 ? Double(dark) / Double(total) : 0
+        }
+        let half = cg.width / 2
+        let Inset = cg.width / 8
+        let columns = half / 2
+        let leftTop = rowDarkRatio(10, xStart: Inset, width: columns)
+        let leftBottom = rowDarkRatio(cg.height - 10, xStart: Inset, width: columns)
+        let rightTop = rowDarkRatio(10, xStart: half + Inset, width: columns)
+        let rightBottom = rowDarkRatio(cg.height - 10, xStart: half + Inset, width: columns)
+        print("[LONGIMGPROBE] drawOrientation UIImageDraw top=\(String(format: "%.2f", leftTop)) bottom=\(String(format: "%.2f", leftBottom)) | CGContextDraw top=\(String(format: "%.2f", rightTop)) bottom=\(String(format: "%.2f", rightBottom))")
+        XCTAssertGreaterThan(leftTop, 0.8, "UIImage.draw 黑带应在顶部（基准）")
+    }
+
+    /// 探针⑦：EXIF 方向（orientation=6，90°）在解码路径与绘制结果中的表现
+    func testProbeExifOrientationHandling() {
+        // 源像素：白底 + 顶部黑带，宽 400 高 300（未旋转）
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let source = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 300), format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 300))
+            UIColor.black.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 60))
+        }
+        guard let cgSource = source.cgImage else {
+            print("[LONGIMGPROBE] exifOrientation source=nil")
+            return
+        }
+        // 写入带 EXIF orientation=6（顺时针 90°）的 JPEG（像素不变、方向标记为 6）
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(output, "public.jpeg" as CFString, 1, nil) else {
+            print("[LONGIMGPROBE] exifOrientation destination=nil")
+            return
+        }
+        CGImageDestinationAddImage(destination, cgSource, [kCGImagePropertyOrientation: 6] as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else {
+            print("[LONGIMGPROBE] exifOrientation finalize=fail")
+            return
+        }
+        let data = output as Data
+        let metadataSize = ArticleLongImageLoader.pixelSize(of: data) ?? .zero
+        let decoded = ArticleLongImageRenderer.decodeThumbnail(data, maxPixel: 400)
+        print("[LONGIMGPROBE] exifOrientation metadata=\(Int(metadataSize.width))x\(Int(metadataSize.height)) decoded=\(decoded.map { "\($0.width)x\($0.height)" } ?? "nil")")
+        // 归一化后：像素应为 300x400（宽高互换）
+        XCTAssertEqual(Int(metadataSize.width), 300, "元数据像素尺寸必须按 EXIF 方向归一（宽高互换）")
+        XCTAssertEqual(Int(metadataSize.height), 400)
+    }
+
+    /// 回归（2026-09-28「插画颠倒」）：插图必须正立——素材「顶部黑带」必须出现在插图区域的上半部
+    func testEmbeddedImageIsNotVerticallyFlipped() {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let source = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 300), format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 300))
+            UIColor.black.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 60))   // 顶部 20% 黑带
+        }
+        guard let data = source.jpegData(compressionQuality: 0.9) else {
+            XCTFail("素材构造失败")
+            return
+        }
+        let asset = ArticleLongImageAsset(data: data, pixelSize: CGSize(width: 400, height: 300), alt: nil, sourceHost: "test.host")
+        let renderer = ArticleLongImageRenderer(
+            title: "插图方向契约",
+            metadata: "",
+            content: "第一段。\n第二段。\n第三段。",
+            images: [asset],
+            articleURL: "https://www.sxjzit.edu.cn/flip",
+            tag: "contract_flip"
+        )
+        guard let image = renderer.render(), let cg = image.cgImage,
+              let bitmap = cg.dataProvider?.data, let bytes = CFDataGetBytePtr(bitmap) else {
+            XCTFail("画布必须产出")
+            return
+        }
+        let rowBytes = cg.bytesPerRow
+        let length = CFDataGetLength(bitmap)
+        func blackRatio(_ y: Int) -> Double {
+            var dark = 0
+            var total = 0
+            for x in stride(from: 0, to: cg.width, by: 4) {
+                let index = y * rowBytes + x * 4
+                guard index + 3 < length else { continue }
+                total += 1
+                if bytes[index] < 64 { dark += 1 }
+            }
+            return total > 0 ? Double(dark) / Double(total) : 0
+        }
+        // 插图黑带是「整行大面积黑」（正文文字占比不会超过 60%）
+        let blackBandRows = stride(from: 0, to: cg.height, by: 3).filter { blackRatio($0) > 0.6 }
+        guard let bandTop = blackBandRows.first, let bandBottom = blackBandRows.last else {
+            XCTFail("应当能扫描到插图黑带（若无则插图未绘制）")
+            return
+        }
+        // 判定：素材是「顶部黑带 + 下方 80% 白底」——若正立，黑带下方必须有一整段白底（约 80% 插图高度）；
+        // 若上下翻转，黑带下方只有少量白底（插图尾部）随后即回到正文
+        let scale = CGFloat(cg.width) / ArticleLongImageRenderer.imageWidth
+        let expectedImageHeight = ArticleLongImageRenderer.contentWidth * 0.75 * scale   // 4:3 素材显示高度（像素）
+        var lightRun = 0
+        var y = bandBottom + 3
+        while y < cg.height, blackRatio(y) < 0.1 {
+            lightRun += 3
+            y += 3
+        }
+        // 行剖面（15px/行）：'.' 极浅 / '-' 浅杂 / '#' 大面积深色 —— 用于精确判读绘制实况
+        var profile = ""
+        for row in stride(from: 0, to: cg.height, by: 15) {
+            let ratio = blackRatio(row)
+            profile += ratio < 0.05 ? "." : (ratio < 0.6 ? "-" : "#")
+        }
+        print("[LONGIMGPROBE] embeddedOrientation bandTop=\(bandTop) bandBottom=\(bandBottom) canvasH=\(cg.height) scale=\(String(format: "%.2f", scale)) lightRunBelow=\(lightRun) expectedImageH=\(Int(expectedImageHeight))")
+        print("[LONGIMGPROBE] rowProfile(15px/row) \(profile)")
+        XCTAssertGreaterThan(CGFloat(lightRun), expectedImageHeight * 0.5,
+                             "黑带下方应有长段白底（插图正立）；不足说明插图被**上下翻转**")
+    }
+
     // MARK: 画布格式契约与取证
 
     /// 回归（2026-09-28 黑图根因②）：渲染画布必须是 **8 位/通道（32bpp）**——

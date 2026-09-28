@@ -171,6 +171,7 @@
 
 1. **画布自适应预算**（`ArticleLongImageRenderer.budget(forLogicalSize:availableBytes:)`，纯函数）：
    `scale = min(首选 3x, 内存预算, 像素高度 32,000)`；内存预算 = `min(160MB, max(64MB, os_proc_available_memory() × 0.35))`；极端超长内容允许低于质量下限（`reason=floor`）。
+   （上限在第三轮提升为 **288MB / 48,000px**，见附录 C.2）
    20 图文章的 486MB 画布 → 收敛至约 118MB（933×32,000px），且设备内存紧张时进一步收缩。
 2. **素材按需缩略解码**（`ArticleLongImageAsset` + `ArticleLongImageLoader` + `decodeThumbnail`）：
    素材以**压缩数据 + 元数据（ImageIO 头解析，EXIF 方向归一）**持有（单图 ~200KB），绘制时按目标像素用 `CGImageSourceCreateThumbnailAtIndex` 即时缩略解码（`autoreleasepool` 作用域内单张通过），峰值内存 = 画布 + 1 张图；加载并发 ≤3 且纳入全局图片闸（`SJZImageConcurrencyGate`）。
@@ -238,3 +239,30 @@
 | `longimage_black3_test.log` 内嵌探针⑤ | 画布格式三态：automatic=不定 / standard=32bpp / extended=64bpp |
 | `longimage_black3_test.log` 重图端到端 | `[LONGIMGPROBE] heavy px=1429x29357 scale=1.90 ms=720 blank=false`（24 图文章真机稳定产出） |
 | `longimage_black3_{build,test}.log` | 全量编译 0 error / 0 warning + 护栏通过 + 真机 **130/130**（含 20 例长图契约与探针） |
+
+---
+
+## 附录 C：第三轮（2026-09-28 深夜 · 用户复验）：插图颠倒 + 清晰度提升
+
+> 黑图问题已确认解决；复验发现两项新问题，均以真机取证后修复。
+
+### C.1 插图上下颠倒（绘制 API 语义错误）
+
+| 项 | 内容 |
+| --- | --- |
+| 现象 | 长图内所有插图上下颠倒 |
+| 取证 | 判据用例：素材「顶部黑带 + 80% 白底」绘入长图后打印**行剖面**——修复前黑带落在插图区域**底部**（`bandTop=1926 / bandBottom=2235`，其下白底仅 111pt 而非 ~416pt）；修复后黑带回到顶部（`bandTop=678 / bandBottom=987`，白底长段 1581px） |
+| 根因 | `drawImage` 用 `CGContext.draw(cgImage:in:)` 绘制：UIKit 上下文（y 向下）下该 API 会把 CGImage **上下翻转**（Quartz 的 y-up 语义与 UIKit 翻转 CTM 叠加） |
+| 修复 | 改用 `UIImage(cgImage:).draw(in:)`（UIKit 正确语义），几何仍为等比填充 + 居中裁切 |
+| 契约 | `testEmbeddedImageIsNotVerticallyFlipped`（行剖面 + 白底长段判定；修复前实测 FAIL、修复后 PASS） |
+| 附带取证 | 探针⑥（`UIImage.draw` vs `CGContext.draw` 同上下文对照）；探针⑦ EXIF 方向：带 orientation=6 的 JPEG → 元数据 300×400、解码 300×400（解码路径方向处理正确，排除 EXIF 因素） |
+
+### C.2 长图偏模糊（分辨率预算提升）
+
+| 项 | 内容 |
+| --- | --- |
+| 现象 | 图片多的文章长图观感偏软 |
+| 原因 | ① 画布倍率被内存预算压到 ~1.86x（首选 3x）；② 微信编码原 `maxFirstAttemptPixels = 40MP` 会把 72MP 画布**无谓跳档**到 0.75 |
+| 修复 | 画布预算上限提升：像素高度 32,000 → **48,000**、字节 160MB → **288MB（72MP）**（仍受「可用内存 × 35%」动态兜底 + 黑图校验降级阶梯保护）；编码首档预算 40MP → **72MP**（与画布上限对齐，不再无谓跳档） |
+| 效果 | 重图文章画布倍率 ~1.86 → **~2.5**（+34% 分辨率）；短文章仍保持 3x |
+| 证据 | `build/verify/longimage_black4_{build,test}.log`（全量编译 0/0 + 护栏 + 真机全绿） |
