@@ -544,6 +544,20 @@ final class NetworkMonitorLogicTests: XCTestCase {
         XCTAssertEqual(SJZNetworkMonitor.bannerCooldown, 300, accuracy: 0.001, "同异常必须有 5 分钟冷却")
     }
 
+    /// 契约（2026-09-28 现场：www2 9.8MB 大图慢请求被记为 WARNING）：
+    /// 媒体宿主 / 大负载的慢 = 正常观测（INFO）；小负载非媒体宿主慢 = 待处理真异常（WARNING）
+    func testSlowRequestSeverityClassification() {
+        XCTAssertTrue(SJZNetworkMonitor.isObservationalSlowRequest(host: "www2.sxjzit.edu.cn", bytes: 9_820_047),
+                      "镜像站大图慢属正常观测（现场样本：latencyMs=2083, bytes=9820047）")
+        XCTAssertTrue(SJZNetworkMonitor.isObservationalSlowRequest(host: "gwqietap.sxjzit.edu.cn", bytes: 2_000_000),
+                      "大负载（≥1MB）慢属正常观测，不打扰警告栏")
+        XCTAssertFalse(SJZNetworkMonitor.isObservationalSlowRequest(host: "gwqietap.sxjzit.edu.cn", bytes: 4_096),
+                       "小负载 API 慢才是真异常（WARNING）")
+        XCTAssertFalse(SJZNetworkMonitor.isObservationalSlowRequest(host: nil, bytes: 1_024),
+                       "无宿主的小负载慢按异常处理（fail-closed）")
+        XCTAssertEqual(SJZNetworkMonitor.bulkBytesThreshold, 1_000_000, "大负载阈值必须是 1MB 单点常量")
+    }
+
     // MARK: 今日流量日键
 
     func testTrafficDayKeyFormat() {
