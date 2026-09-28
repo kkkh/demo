@@ -22,7 +22,7 @@
 | 文档类型 | 合并设计文档（HLD 为主 + LLD 关键类与算法层） |
 | 系统阶段 | 褐地（既有系统逆向）且持续演进中 |
 | 受众 | 设计评审者 / 架构师 / iOS 工程师 / 接手维护者 |
-| 复杂度 | 重量级（系统级，48 文件 61,134 行，多分册） |
+| 复杂度 | 重量级（系统级，48 文件 61,229 行，多分册） |
 | 上游产物 | 逆向工程为主；`qin/.trae/documents/` 存有五个模块的工程规格书（校园日历 / 显示设置 / 使用帮助 / 消息中心 / 网络监测），属部分上游 |
 
 ## 文档导航
@@ -42,7 +42,7 @@
 - 是什么：山西晋中理工学院校园信息聚合 iOS App，纯 SwiftUI，唯一第三方为微信开放平台 SDK（2026-09-27 接入），无后端、无账号体系。
 - 数据从哪来：学校公开 API `https://gwqietap.sxjzit.edu.cn/mapi`（GET 只读）+ 开发者博客 `https://www.43322.cn/blog`（公告/隐私协议），失败时降级本地 JSON 缓存 → 静态兜底数据。
 - 最核心的特色：无服务端条件下，用官网指纹轮询自建了一套本属于服务端的本地推送体系（新闻/信箱/概况/党建四通道 + 收藏第五通道）与站内信消息中心；并以 `URLProtocol` 埋点自建全 App 网络遥测（链路/吞吐/延迟/诊断/测速）。
-- 规模（2026-09-28 `wc -l` 实测）：48 个 Swift 源文件共 61,134 行——主 target 46 文件 58,620 行 + 测试 3 文件 2,514 行；主视图集全在单文件 [TabBar.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/TabBar.swift)（12,859 行，60+ View）。单元测试 135 例（MessageCenterStore 系 90 + NetworkServiceDTO 系 22 + WeChatSDK 系 23）；2026-09-28 真机复测 135/135 通过（0 失败，日志 `qin/build/verify/longimage_share2_test.log`）。
+- 规模（2026-09-28 `wc -l` 实测）：48 个 Swift 源文件共 61,229 行——主 target 46 文件 58,696 行 + 测试 3 文件 2,533 行；主视图集全在单文件 [TabBar.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/TabBar.swift)（12,859 行，60+ View）。单元测试 136 例（MessageCenterStore 系 91 + NetworkServiceDTO 系 22 + WeChatSDK 系 23）；2026-09-28 真机复测 136/136 通过（0 失败，日志 `qin/build/verify/netmon_alert_test.log`）。
 - 日志：自研 `LogManager`，全工程 38 个日志域、1,127 处字面域埋点（`LogManager.shared` 调用点共 1,163 处），可在「我的 → 应用日志」查看；网络监测独占 `netmon` 域 47 处、显示设置独占 `display` 域 40 处、微信集成独占 `wechat` 域 66 处、长图生成独占 `longimage` 域 55 处。
 - 构建环境：Xcode 27.0（27A266a）+ iOS 26 SDK；真机「秦超的iPhone」（iPhone 13 Pro Max，UDID `00008110-000411A40EC1401E`）为唯一调试目标。
 

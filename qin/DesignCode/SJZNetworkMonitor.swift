@@ -207,6 +207,18 @@ enum AnomalyKind: String {
     }
 }
 
+/// 慢请求连续观测判定（纯函数输出；契约测试锚点）
+enum SlowStreakVerdict: String {
+    /// 未构成异常
+    case none
+    /// 单一**媒体宿主**（图片镜像 / CDN）慢：TTFB 天然偏高，仅观测不打横幅
+    case mediaObservation
+    /// **非媒体宿主**自身连续慢：该主机的服务异常
+    case hostService
+    /// **多个不同宿主**同时慢：链路级异常
+    case linkWide
+}
+
 // MARK: - 探测目标 / 测速 / 诊断结果
 
 enum ProbeTarget: String, CaseIterable, Codable {
@@ -431,6 +443,37 @@ final class SJZNetworkMonitor: ObservableObject {
     private var zeroTrafficStreakSeconds = 0
     private var heartbeatConsecutiveFailures = 0
     private var slowLatencyStreak = 0
+    /// 慢请求时间窗（仅窗口内的慢请求参与判定——跨小时累积会把正常的外部慢误判为持续异常）
+    private var slowRecords: [(date: Date, host: String)] = []
+    /// 慢请求判定窗口（秒）
+    nonisolated static let slowWindow: TimeInterval = 60
+    /// 高延迟横幅冷却（秒）：同一异常不重复打扰（冷却期内再次命中只留 INFO）
+    nonisolated static let bannerCooldown: TimeInterval = 300
+    /// 上次高延迟横幅时间
+    private var lastHighLatencyBannerTime = Date(timeIntervalSince1970: 0)
+    /// 媒体宿主慢观测日志节流时间
+    private var lastMediaObservationLogTime = Date(timeIntervalSince1970: 0)
+
+    /// 媒体宿主判定：图片镜像 / CDN 类宿主的大图 TTFB 天然偏高（实测 www2 3.99MB 图 ≈2.55s），
+    /// 单宿主慢属正常观测，不得升级为「链路异常」横幅
+    nonisolated static func isMediaHost(_ host: String) -> Bool {
+        let value = host.lowercased()
+        return value.hasPrefix("www2.") || value.contains("img") || value.contains("pic")
+            || value.contains("image") || value.contains("cdn")
+    }
+
+    /// 慢请求聚合判定（纯函数）：
+    /// ① ≥2 个不同宿主同时慢 → 链路级；② 非媒体宿主累计 ≥3 条 → 该主机服务异常；
+    /// ③ 仅单一媒体宿主慢 → 仅观测（不打横幅）
+    nonisolated static func classifySlowStreak(hosts: [String]) -> SlowStreakVerdict {
+        guard !hosts.isEmpty else { return .none }
+        let distinctHosts = Set(hosts.map { $0.lowercased() })
+        if distinctHosts.count >= 2 { return .linkWide }
+        let host = distinctHosts.first ?? ""
+        let enoughStreak = hosts.count >= 3
+        if isMediaHost(host) { return enoughStreak ? .mediaObservation : .none }
+        return enoughStreak ? .hostService : .none
+    }
     private var lastHeartbeatAggregateLogTime = Date(timeIntervalSince1970: 0)
     private var emaThroughput: Double = 0
     /// 分钟摘要缓冲
@@ -1008,24 +1051,57 @@ final class SJZNetworkMonitor: ObservableObject {
         }
     }
 
-    /// 业务慢请求连续 3 条 ≥1s → 高延迟异常横幅
+    /// 业务慢请求聚合（60s 时间窗 + 宿主归因 + 横幅冷却）：
+    /// 单宿主慢不再直接升级为横幅——媒体宿主（图片镜像）TTFB 天然偏高，属正常观测；
+    /// 仅「多宿主同时慢（链路级）」或「非媒体宿主自身连续慢（服务级）」才出异常横幅
     private func registerBusinessLatency(_ latency: Double, success: Bool, host: String?) {
+        let now = Date()
+        slowRecords.removeAll { now.timeIntervalSince($0.date) > Self.slowWindow }   // 跨小时累积会误报
         if success && latency >= 1000 {
-            slowLatencyStreak += 1
-            if slowLatencyStreak >= 3 && anomalyKind == nil {
+            slowRecords.append((now, host ?? "unknown"))
+            slowLatencyStreak = slowRecords.count
+            let verdict = Self.classifySlowStreak(hosts: slowRecords.map { $0.host })
+            switch verdict {
+            case .none:
+                break
+            case .mediaObservation:
+                // 单一媒体宿主慢：观测留痕（INFO，不打扰；慢主机归因与趋势里仍可见）
+                if now.timeIntervalSince(lastMediaObservationLogTime) >= Self.slowWindow {
+                    lastMediaObservationLogTime = now
+                    LogManager.shared.info("netmon", "慢主机观测（媒体宿主，不计链路异常）", context: [
+                        "host": host ?? "unknown",
+                        "latencyMs": String(format: "%.0f", latency),
+                        "streak": "\(slowRecords.count)"
+                    ])
+                }
+            case .hostService, .linkWide:
+                guard anomalyKind == nil else { break }
+                guard now.timeIntervalSince(lastHighLatencyBannerTime) >= Self.bannerCooldown else {
+                    LogManager.shared.info("netmon", "高延迟横幅冷却中（不重复打扰）", context: [
+                        "verdict": verdict.rawValue, "host": host ?? "unknown"
+                    ])
+                    break
+                }
                 anomalyKind = .highLatency
+                lastHighLatencyBannerTime = now
                 appendLinkEvent(.init(kind: .anomaly, status: "延迟偏高", interface: interfaceName,
-                                      reason: "连续 3 条请求首字节 ≥ 1s"))
+                                      reason: verdict == .linkWide
+                                          ? "多个宿主首字节同时 ≥ 1s（链路级）"
+                                          : "该主机连续 3 条请求首字节 ≥ 1s（服务级）"))
                 LogManager.shared.warning("netmon", "异常横幅出现：延迟持续偏高", context: [
-                    "host": host ?? "unknown", "streak": "\(slowLatencyStreak)"
+                    "host": host ?? "unknown",
+                    "streak": "\(slowRecords.count)",
+                    "verdict": verdict.rawValue,
+                    "hosts": "\(Set(slowRecords.map { $0.host }).count)"
                 ])
             }
         } else if success && latency < 500 {
-            if slowLatencyStreak > 0 {
+            if slowLatencyStreak > 0 || !slowRecords.isEmpty {
                 LogManager.shared.info("netmon", "延迟恢复，异常解除", context: [
                     "host": host ?? "unknown", "latencyMs": String(format: "%.0f", latency)
                 ])
                 slowLatencyStreak = 0
+                slowRecords.removeAll()
                 clearAnomalyIfResolved()
             }
         }
