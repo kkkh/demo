@@ -151,3 +151,61 @@
 ## 10. 结论
 
 「长图分享到微信」已按官方图片消息（`WXImageObject`）完整接入：编码上限、自动降档、缩略图、回执归因、日志埋点、6 处入口接线与 UI 融合均通过自动化与静态校验；UI 细节审计发现的 2 项缺陷（预览绘制开销、日志归因占位）已修复并被新增契约锁定。唯一外部受限项为 Associated Domains（账号类型限制），不影响发送侧能力，升级付费账号后按 README §3.4 四步即可补齐回执链路。
+
+---
+
+## 附录 A：长图生成「纯黑图」缺陷修复（2026-09-28 追加第二轮）
+
+> 现象：**图片较多的文章**生成长图时，有几率得到**纯黑无内容**的图片（微信与系统分享两条路径都会命中）。
+> 影响：黑图会被当作正常产物进入预览与分享（此前无任何校验）。
+
+### A.1 根因（代码级定位 + 全网资料佐证）
+
+| # | 根因 | 证据 |
+| --- | --- | --- |
+| 1 | **画布无界**：渲染器固定 `format.scale = 3` 且高度随内容（每图最高 ~833pt）线性增长——20 张图文章画布 = 750×18,000pt → **2250×54,000px ≈ 486MB** 位图；CoreGraphics 位图分配失败时 `UIGraphicsImageRenderer` **静默产出黑图**（Apple 论坛 thread/725130：「silently fail with a clear/black screen」；Apple Frameworks 工程师：绘制内存 ≈ 像素数 ×4） | 代码审计（原 `ArticleLongImageRenderer.render()`）+ Apple Developer Forums / 大图导出工程实践（mmap 方案综述：`CGContext(data:nil)` 即全量 RAM 分配） |
+| 2 | **全尺寸解码图常驻**：7 处文章页各自 `downloadImage -> UIImage` 并全部堆在 `loadedImages` 数组里等渲染——N 张 2000px+ 解码图（每张 12–48MB）叠加画布，进一步推高峰值内存 | 代码审计（原 7 处 `downloadImage` 与 `loadedImages` 持有） |
+| 3 | **零校验**：渲染后仅判断 `size.width > 0`，纯黑但尺寸合法的产物一路放行 | 代码审计（原 `guard renderedImage.size.width > 0`） |
+
+### A.2 修复（三层防线 + 完整日志）
+
+1. **画布自适应预算**（`ArticleLongImageRenderer.budget(forLogicalSize:availableBytes:)`，纯函数）：
+   `scale = min(首选 3x, 内存预算, 像素高度 32,000)`；内存预算 = `min(160MB, max(64MB, os_proc_available_memory() × 0.35))`；极端超长内容允许低于质量下限（`reason=floor`）。
+   20 图文章的 486MB 画布 → 收敛至约 118MB（933×32,000px），且设备内存紧张时进一步收缩。
+2. **素材按需缩略解码**（`ArticleLongImageAsset` + `ArticleLongImageLoader` + `decodeThumbnail`）：
+   素材以**压缩数据 + 元数据（ImageIO 头解析，EXIF 方向归一）**持有（单图 ~200KB），绘制时按目标像素用 `CGImageSourceCreateThumbnailAtIndex` 即时缩略解码（`autoreleasepool` 作用域内单张通过），峰值内存 = 画布 + 1 张图；加载并发 ≤3 且纳入全局图片闸（`SJZImageConcurrencyGate`）。
+   附：修复了原实现「按目标矩形拉伸」导致的**插图纵向压扁**（改为等比填充 + 居中裁切）。
+3. **产物校验 + 降级阶梯**（`isLikelyBlank` + ladder）：
+   渲染后重建 24×24 样本，像素极差 <8 判为纯色/黑图失效；失效则「降倍率（×0.6）→ 省略插图」逐级重试（省略插图时页脚追加可见说明），全数失败才返回 nil（页面展示错误态）。**绝不把黑图交给分享。**
+
+### A.3 日志埋点（域 `longimage`，42 处）
+
+| 阶段 | 日志 | 级别 |
+| --- | --- | --- |
+| 素材加载 | 长图素材加载完成（tag / 请求数 / 成功 / 失败 / 总字节 / 耗时）；素材就绪（索引 / 字节 / 像素 / host / 耗时）；地址无效 / 解析失败 / 下载失败 / 下载异常 / 下载取消 | INFO / DEBUG / WARNING |
+| 渲染 | 长图渲染开始（tag / 逻辑尺寸 / 倍率 / 像素 / 位图 MB / 可用内存 MB / 约束来源 / 图片数）；长图渲染完成（step / 像素 / 耗时 / degraded） | INFO |
+| 降级 | 未产出画布 / 校验未通过（含 step / 倍率 / 位图 MB / 可用内存 / next）；插图解码失败 | WARNING |
+| 失败 | 长图生成失败（全部降级尝试均未通过校验） | ERROR |
+| 分享 | JPEG 编码失败 / 临时文件写入失败 / 文件已保存 / 分享完成 / 分享失败 / 面板已呈现（7 处调用点统一） | WARNING / INFO / DEBUG |
+
+> print 残留清零：原新闻页 4 处 `print("[LongImage] …")` 全部迁移至 LogManager；长图相关日志（原散落 `organization` / `ui` 域）统一归入 `longimage` 域，按 `tag` 页面归因（news / honor / teacher / story / activity / organization_detail）。
+
+### A.4 新增契约测试（10 例）
+
+| 用例 | 断言要点 |
+| --- | --- |
+| `testBudgetKeepsPreferredScaleForNormalArticle` | 常规文章保持 3x；`reason=preferred`；字节 ≤ 上限 |
+| `testBudgetClampsForImageHeavyArticle` | 26,000pt 多图文章倍率必须下降，字节 ≤160MB、像素高 ≤32,000 |
+| `testBudgetShrinksWithLowAvailableMemory` | 可用内存 150MB 时显著收缩且受 64MB 下限兜底 |
+| `testBudgetFloorForExtremeContent` | 极端超长内容 `reason=floor`（内存优先） |
+| `testOrientedPixelSizeSwapsForQuarterTurn` | EXIF 5-8 交换宽高；1/3/4 不变 |
+| `testPixelSizeParsingFromJPEGData` | JPEG 头解析出真实尺寸；非图像数据返回 nil |
+| `testBlankDetectionCatchesSolidCanvases` | 纯黑 / 纯白判失效；白底文字画布不误判 |
+| `testRendererProducesValidImageWithAssets` | 素材驱动端到端渲染非黑图、逻辑 750pt、像素 ≥1x |
+| `testDegradedFooterNotesOmittedImages` | 降级页脚含「省略插图」；本就无图不追加 |
+| `testEncoderSkipsOversizedScaleLadder`（wechat 域） | 超 40MP 像素预算的编码档位必须跳过 |
+
+### A.5 证据
+
+- 全量编译：`qin/build/verify/longimage_fix_build.log`（`BUILD SUCCEEDED` + 护栏 0 缺口 + 0 error / 0 warning）
+- 真机测试：`qin/build/verify/longimage_fix_test.log`（含上述 10 例新增契约）
