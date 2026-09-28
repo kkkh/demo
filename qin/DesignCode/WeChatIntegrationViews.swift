@@ -395,7 +395,7 @@ struct WeChatLongImageShareMenu: View {
                 "kind": WeChatShareKind.longImage.logName,
                 "entry": payload.entry,
                 "title": payload.title,
-                "pixelSize": "\(Int(payload.image.size.width))x\(Int(payload.image.size.height))",
+                "pixelSize": SJZImageIntegrity.pixelSizeText(of: payload.image),
                 "preview": "\(Int(payload.previewImage.size.width))x\(Int(payload.previewImage.size.height))",
                 "availability": service.availability.rawValue
             ])
@@ -480,7 +480,7 @@ struct WeChatLongImageShareMenu: View {
             "scene": scene.logName,
             "entry": payload.entry,
             "title": payload.title,
-            "pixelSize": "\(Int(payload.image.size.width))x\(Int(payload.image.size.height))"
+            "pixelSize": SJZImageIntegrity.pixelSizeText(of: payload.image)
         ])
         Task {
             let sent = await service.shareImage(payload.image, title: payload.title, to: scene, entry: payload.entry)
