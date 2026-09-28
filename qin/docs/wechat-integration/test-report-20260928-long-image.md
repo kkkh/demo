@@ -266,3 +266,31 @@
 | 修复 | 画布预算上限提升：像素高度 32,000 → **48,000**、字节 160MB → **288MB（72MP）**（仍受「可用内存 × 35%」动态兜底 + 黑图校验降级阶梯保护）；编码首档预算 40MP → **72MP**（与画布上限对齐，不再无谓跳档） |
 | 效果 | 重图文章画布倍率 ~1.86 → **~2.5**（+34% 分辨率）；短文章仍保持 3x |
 | 证据 | `build/verify/longimage_black4_{build,test}.log`（全量编译 0/0 + 护栏 + 真机全绿） |
+
+---
+
+## 附录 D：第四轮（2026-09-28 深夜 · 用户复报）：系统分享 → 微信扩展「加载中 → 闪回 App」
+
+> 现象：部分文章（越大的越易触发）用「长图」+ **系统分享面板里的微信**分享时，微信显示「加载中」
+> 后快速闪回 App，分享失败。**两个根因叠加**，均已修复：
+
+### D.1 根因
+
+| # | 根因（代码级） | 机制 | 证据 |
+| --- | --- | --- | --- |
+| 1 | **临时文件被过早删除**：6 处 `presentLongImageShare` 在 `completionWithItemsHandler` 里「1 秒后删除」临时 JPEG | 该回调在**用户选择动作时即触发**（而非分享真正结束后）；微信分享扩展此时才开始读取/转存大文件——文件被删 → 扩展读取失败 → 退回宿主 App（「加载中 → 闪回」）；文件越大越慢 → 「有些文章」才复现 | 代码审计：6 处 `DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { removeItem }` |
+| 2 | **交付体积/像素超出扩展预算**：系统面板路径原样交付画布 JPEG（可达 72MP） | iOS 分享扩展内存上限远低于 App（约 120MB）；72MP 长图**解码即 ~300MB** → 扩展被系统终止（同款「闪回」） | 代码审计 + 画布上限 288MB（72MP）实测 |
+
+### D.2 修复
+
+1. **交付编码收敛到扩展预算**：新增 `WeChatImageEncoder.systemShareMaxPixels = 16MP`（≈64MB 解码内存）与 `systemShareMaxBytes = 10MB`；`encode(_:maxBytes:maxPixels:)` 在像素超限时**先整体一步降采样**再走质量阶梯（含纯色/黑图四级校验）；6 处系统分享路径统一改为该编码并新增「长图分享文件编码完成」日志（像素/质量/档位/字节）。
+2. **临时文件生命周期**：新增 `SJZShareFileCenter`——`completionWithItemsHandler` 里只**登记延迟清理**（5 分钟，远大于扩展读取/转存耗时），并顺带清理 10 分钟前的陈旧残留（避免堆积）；彻底移除「选动作后 1 秒即删」。
+
+### D.3 契约与证据
+
+| 用例 | 断言 |
+| --- | --- |
+| `testSystemShareEncodingRespectsExtensionBudget` | 10.8MP → 直出且 ≤16MP/≤10MB、产物非黑图；22.5MP → **入口先降采样**到 ≤16MP、档位 1.0 起步、≤10MB |
+| `testShareFileSurvivesCleanupScheduling` | 登记清理后文件必须仍然存在（防「立即删除」竞态回归） |
+
+- 真机证据：`build/verify/longimage_share_{build,test}.log`（探针输出 `[LONGIMGPROBE] systemShare …`）

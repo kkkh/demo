@@ -368,23 +368,50 @@ enum WeChatImageEncoder {
     /// 预算与画布上限对齐后，「画布内可渲染的图」不会再被无谓跳档（保清晰度），仅极端自制图才会触发跳过
     nonisolated static let maxFirstAttemptPixels: Double = 72_000_000
 
+    /// 系统分享面板交付预算（2026-09-28 现场修复）：
+    /// 分享扩展（微信等）内存上限远低于 App（约 120MB）——72MP 长图解码即 ~300MB，
+    /// 扩展会被系统终止（表现为「微信加载中 → 闪回 App」），故交付前必须收敛到扩展可承受的规模
+    nonisolated static let systemShareMaxPixels: Double = 16_000_000   // ≈64MB 解码内存
+    nonisolated static let systemShareMaxBytes = 10 * 1024 * 1024
+
     /// 首个满足像素预算的档位下标（纯函数，契约测试锚点）
-    nonisolated static func firstScaleIndex(pixelCount: Double) -> Int {
-        for (index, scale) in scales.enumerated() where pixelCount * Double(scale * scale) <= maxFirstAttemptPixels {
+    nonisolated static func firstScaleIndex(pixelCount: Double, budget: Double = WeChatImageEncoder.maxFirstAttemptPixels) -> Int {
+        for (index, scale) in scales.enumerated() where pixelCount * Double(scale * scale) <= budget {
             return index
         }
         return scales.count - 1
     }
 
-    static func encode(_ image: UIImage, maxBytes: Int = WeChatImageEncoder.maxImageBytes) -> Result? {
+    /// 编码长图（微信图片消息 / 系统分享面板共用）：
+    /// - `maxBytes`：字节上限（微信 10MB、系统分享同）
+    /// - `maxPixels`：像素上限（系统分享必须收敛到扩展内存预算内；微信侧与画布上限对齐）
+    static func encode(_ image: UIImage,
+                       maxBytes: Int = WeChatImageEncoder.maxImageBytes,
+                       maxPixels: Double = WeChatImageEncoder.maxFirstAttemptPixels) -> Result? {
         // 必须用**像素**尺寸：image.size 是点、随自适应倍率变化（用点会低估预算与降采样倍率）
         let sourcePixels = SJZImageIntegrity.pixelSize(of: image)
         let pixelCount = Double(sourcePixels.width * sourcePixels.height)
-        let startIndex = firstScaleIndex(pixelCount: pixelCount)
+        // 像素超预算：先整体一步降采样到预算内（比依赖档位跳过更省内存、且保证必然达标）
+        var baseImage = image
+        var basePixels = sourcePixels
+        if pixelCount > maxPixels {
+            let factor = CGFloat((maxPixels / pixelCount).squareRoot()) * 0.98
+            guard let scaled = downscaledToPixelScale(image, scale: factor) else { return nil }
+            baseImage = scaled
+            basePixels = SJZImageIntegrity.pixelSize(of: scaled)
+            LogManager.shared.info("wechat", "长图编码先降采样（像素预算）", context: [
+                "from": "\(Int(sourcePixels.width))x\(Int(sourcePixels.height))",
+                "to": "\(Int(basePixels.width))x\(Int(basePixels.height))",
+                "budget": "\(Int(maxPixels))",
+                "factor": String(format: "%.2f", factor)
+            ])
+        }
+        let baseCount = Double(basePixels.width * basePixels.height)
+        let startIndex = firstScaleIndex(pixelCount: baseCount, budget: maxPixels)
         if startIndex > 0 {
             LogManager.shared.info("wechat", "长图编码跳过大尺寸档位（像素预算）", context: [
-                "pixel": "\(Int(pixelCount))",
-                "budget": "\(Int(maxFirstAttemptPixels))",
+                "pixel": "\(Int(baseCount))",
+                "budget": "\(Int(maxPixels))",
                 "startScale": String(format: "%.2f", scales[startIndex])
             ])
         }
@@ -392,9 +419,9 @@ enum WeChatImageEncoder {
         for scale in scales[startIndex...] {
             let candidate: UIImage?
             if scale >= 1.0 {
-                candidate = image
+                candidate = baseImage
             } else {
-                candidate = downscaledToPixelScale(image, scale: scale)
+                candidate = downscaledToPixelScale(baseImage, scale: scale)
             }
             guard let candidate else { continue }
             // 候选图内容校验（黑图防线）：绘制失败会静默产出纯色图，且其 JPEG 极小、会骗过字节上限

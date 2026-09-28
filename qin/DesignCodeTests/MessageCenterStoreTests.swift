@@ -1045,6 +1045,59 @@ final class ArticleLongImageLogicTests: XCTestCase {
                                  "位图字节不得越过预算上限（含取整余量）")
     }
 
+    // MARK: 系统分享交付契约（2026-09-28 现场：微信扩展「加载中 → 闪回」）
+
+    /// 交付编码必须落在分享扩展预算内：≤16MP（≈64MB 解码内存）且 ≤10MB；
+    /// 超预算长图（如 22.5MP）必须先整体降采样，档位从 1.0 起步（不再靠档位跳过碰运气）
+    func testSystemShareEncodingRespectsExtensionBudget() {
+        // ① 预算内（10.8MP）：不触发入口降采样
+        let normal = noisyImage(width: 1200, height: 9000)
+        guard let normalResult = WeChatImageEncoder.encode(
+            normal,
+            maxBytes: WeChatImageEncoder.systemShareMaxBytes,
+            maxPixels: WeChatImageEncoder.systemShareMaxPixels
+        ) else {
+            XCTFail("预算内长图必须编码成功")
+            return
+        }
+        XCTAssertLessThanOrEqual(normalResult.data.count, WeChatImageEncoder.systemShareMaxBytes)
+        XCTAssertLessThanOrEqual(normalResult.pixelSize.width * normalResult.pixelSize.height,
+                                 WeChatImageEncoder.systemShareMaxPixels * 1.05)
+        if let decoded = UIImage(data: normalResult.data) {
+            XCTAssertFalse(SJZImageIntegrity.isLikelyBlank(decoded), "交付产物不得为纯色 / 黑图")
+        } else {
+            XCTFail("产物必须可解码")
+        }
+        // ② 超预算（22.5MP）：入口先整体降采样到预算内
+        let oversized = noisyImage(width: 1500, height: 15000)
+        guard let oversizedResult = WeChatImageEncoder.encode(
+            oversized,
+            maxBytes: WeChatImageEncoder.systemShareMaxBytes,
+            maxPixels: WeChatImageEncoder.systemShareMaxPixels
+        ) else {
+            XCTFail("超预算长图必须编码成功（先降采样）")
+            return
+        }
+        print("[LONGIMGPROBE] systemShare normal=\(Int(normalResult.pixelSize.width))x\(Int(normalResult.pixelSize.height))/\(normalResult.data.count)B oversized=\(Int(oversizedResult.pixelSize.width))x\(Int(oversizedResult.pixelSize.height))/\(oversizedResult.data.count)B scale=\(String(format: "%.2f", oversizedResult.scale))")
+        XCTAssertLessThanOrEqual(oversizedResult.pixelSize.width * oversizedResult.pixelSize.height,
+                                 WeChatImageEncoder.systemShareMaxPixels * 1.05, "必须先降采样到 16MP 预算内")
+        XCTAssertLessThanOrEqual(oversizedResult.data.count, WeChatImageEncoder.systemShareMaxBytes)
+        XCTAssertEqual(oversizedResult.scale, 1.0, accuracy: 0.001, "降采样已在入口完成，档位应从 1.0 起步")
+    }
+
+    /// 分享临时文件生命周期契约：安排清理后文件必须仍然存在（延迟 5 分钟，供扩展读取）——
+    /// 现场 bug：选动作回调里「1 秒即删」与扩展读取竞态 → 微信「加载中 → 闪回 App」
+    func testShareFileSurvivesCleanupScheduling() {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sxjzit_contract_\(UUID().uuidString.prefix(6)).jpg")
+        try? Data([0xFF, 0xD8, 0xFF, 0xD9]).write(to: url)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        SJZShareFileCenter.scheduleCleanup(url)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path),
+                      "安排清理后文件必须仍存在（分享扩展读取期）；立即删除会造成「加载中 → 闪回」竞态")
+        try? FileManager.default.removeItem(at: url)
+    }
+
     // MARK: 插图方向契约与取证
 
     /// 探针⑥：同一 UIKit 上下文中 `UIImage.draw` 与 `CGContext.draw` 的上下方向取证

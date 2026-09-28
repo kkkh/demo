@@ -3448,21 +3448,26 @@ struct OrganizationArticleDetailView: View {
             ])
             return
         }
-        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
-        var jpegData: Data?
-        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
-            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
-               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
-                jpegData = data
-                break
-            }
-        }
-        guard let jpegData else {
+        // 交付编码：分享扩展（微信等）内存与体积预算有限（约 120MB）——按「≤16MP / ≤10MB」编码，
+        // 否则扩展会被系统终止（2026-09-28 现场：微信「加载中 → 闪回 App」）；产物含纯色 / 黑图校验
+        guard let encoded = WeChatImageEncoder.encode(
+            image,
+            maxBytes: WeChatImageEncoder.systemShareMaxBytes,
+            maxPixels: WeChatImageEncoder.systemShareMaxPixels
+        ) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
+        let jpegData = encoded.data
+        LogManager.shared.info("longimage", "长图分享文件编码完成", context: [
+            "title": title,
+            "pixel": "\(Int(encoded.pixelSize.width))x\(Int(encoded.pixelSize.height))",
+            "quality": String(format: "%.2f", encoded.quality),
+            "scale": String(format: "%.2f", encoded.scale),
+            "bytes": "\(encoded.data.count)"
+        ])
 
         let safeTitle = title
             .replacingOccurrences(of: "/", with: "_")
@@ -3510,9 +3515,9 @@ struct OrganizationArticleDetailView: View {
         ]
 
         activityVC.completionWithItemsHandler = { [fileURL] _, completed, _, error in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                try? FileManager.default.removeItem(at: fileURL)
-            }
+            // 分享扩展（微信等）读取大图较慢，且本回调在「用户选择动作」时即触发——
+            // 绝不能立即删除（现场：微信「加载中 → 闪回 App」）；交由共享中心延迟 5 分钟清理
+            SJZShareFileCenter.scheduleCleanup(fileURL)
             if let error = error {
                 LogManager.shared.error("longimage", "长图分享失败", context: [
                     "error": error.localizedDescription
