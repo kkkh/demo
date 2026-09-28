@@ -159,12 +159,75 @@ struct WeChatShareMenu: View {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    // MARK: 场景选择
+    // MARK: 场景选择（共用组件：三场景磁贴，网页卡片与长图分享共用）
 
     private var sceneRow: some View {
+        WeChatSceneTiles(sendingScene: sendingScene, appeared: appeared) { scene in
+            send(scene)
+        }
+    }
+
+    /// 不可用状态（未配置 / 未安装 / 版本过低）：给出可操作提示，不隐藏入口
+    private var unavailableNotice: some View {
+        WeChatUnavailableNotice(appeared: appeared)
+    }
+
+    // MARK: 底注
+
+    private var footer: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "info.circle")
+                .displaySymbolFont(10)
+                .foregroundStyle(.tertiary)
+            Text("发送网页卡片：标题 + 摘要 + 链接（缩略图自动生成）")
+                .displayFont(11)
+                .foregroundStyle(.tertiary)
+            Spacer(minLength: 0)
+            if service.sdkVersion != "—" {
+                Text("SDK \(service.sdkVersion)")
+                    .displayFont(10)
+                    .foregroundStyle(.quaternary)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+    }
+
+    // MARK: 发送
+
+    private func send(_ scene: WeChatScene) {
+        guard sendingScene == nil else { return }
+        sendingScene = scene
+        LogManager.shared.info("wechat", "分享菜单选择场景", context: [
+            "scene": scene.logName,
+            "title": payload.clippedTitle,
+            "url": payload.urlString
+        ])
+        Task {
+            let sent = await service.share(payload, to: scene)
+            if sent {
+                // 系统随即切换到微信（本页被覆盖）：先收起菜单，返回时直接回到文章
+                dismiss()
+            } else {
+                sendingScene = nil
+            }
+        }
+    }
+}
+
+// MARK: - 场景磁贴（网页卡片与长图分享共用）
+
+/// 三场景磁贴（好友 / 朋友圈 / 收藏）：发送中显示进度遮罩，其余磁贴淡出禁用。
+/// 网页卡片（`WXWebpageObject`）与长图（`WXImageObject`）共用同一交互与动效。
+struct WeChatSceneTiles: View {
+    let sendingScene: WeChatScene?
+    let appeared: Bool
+    let onSend: (WeChatScene) -> Void
+
+    var body: some View {
         HStack(spacing: 0) {
             ForEach(WeChatScene.allCases) { scene in
-                sceneTile(scene)
+                tile(scene)
                 if scene != WeChatScene.allCases.last {
                     Spacer(minLength: 0)
                 }
@@ -176,11 +239,11 @@ struct WeChatShareMenu: View {
         .offset(y: appeared ? 0 : 10)
     }
 
-    private func sceneTile(_ scene: WeChatScene) -> some View {
+    private func tile(_ scene: WeChatScene) -> some View {
         let tint = sceneTint(scene)
         let isSending = sendingScene == scene
         return Button {
-            send(scene)
+            onSend(scene)
         } label: {
             VStack(spacing: 10) {
                 ZStack {
@@ -215,9 +278,16 @@ struct WeChatShareMenu: View {
         .scaleEffect(isSending ? 0.96 : 1)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isSending)
     }
+}
 
-    /// 不可用状态（未配置 / 未安装 / 版本过低）：给出可操作提示，不隐藏入口
-    private var unavailableNotice: some View {
+// MARK: - 不可用状态提示（网页卡片与长图分享共用）
+
+/// 不可用状态（未配置 / 未安装 / 版本过低）：给出可操作提示，不隐藏入口
+struct WeChatUnavailableNotice: View {
+    @ObservedObject private var service = WeChatService.shared
+    let appeared: Bool
+
+    var body: some View {
         VStack(spacing: 12) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "exclamationmark.circle.fill")
@@ -256,6 +326,114 @@ struct WeChatShareMenu: View {
         .padding(.vertical, 18)
         .opacity(appeared ? 1 : 0)
     }
+}
+
+// MARK: - 长图分享到微信（WXImageObject）
+
+/// 长图分享目标：系统分享面板（保存 / 其他 App）或微信图片消息（WXImageObject）
+enum LongImageDestination {
+    case system
+    case weChat
+}
+
+/// 长图分享载荷（长图分享面板的输入）
+struct WeChatLongImagePayload: Identifiable {
+    let id = UUID()
+    /// 已生成的文章长图（正文整图）
+    let image: UIImage
+    /// 文章标题（作为图片消息标题，≤512B 自动裁剪）
+    let title: String
+    /// 入口标识（日志归因，如 "news_detail" / "organization_detail"）
+    let entry: String
+}
+
+/// 微信长图分享菜单：把已生成的文章长图作为图片消息发送到微信
+/// （官方 WXImageObject；官方 iOS 手册的图片分享示例即使用 WXSceneTimeline，三场景均受支持）
+struct WeChatLongImageShareMenu: View {
+    let payload: WeChatLongImagePayload
+
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var service = WeChatService.shared
+    @State private var sendingScene: WeChatScene?
+    @State private var appeared = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider().opacity(0.4)
+            if service.availability.canOperate {
+                WeChatSceneTiles(sendingScene: sendingScene, appeared: appeared) { scene in
+                    send(scene)
+                }
+            } else {
+                WeChatUnavailableNotice(appeared: appeared)
+            }
+            footer
+        }
+        .padding(.bottom, 10)
+        .presentationDetents([.height(service.availability.canOperate ? 344 : 306)])
+        .presentationDragIndicator(.visible)
+        .onAppear {
+            service.refreshAvailability()
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                appeared = true
+            }
+            LogManager.shared.debugLog("wechat", "长图分享菜单展示", context: [
+                "kind": WeChatShareKind.longImage.logName,
+                "entry": payload.entry,
+                "title": payload.title,
+                "pixelSize": "\(Int(payload.image.size.width))x\(Int(payload.image.size.height))",
+                "availability": service.availability.rawValue
+            ])
+        }
+    }
+
+    // MARK: 头部（长图预览 + 尺寸）
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            preview
+            VStack(alignment: .leading, spacing: 5) {
+                Text(payload.title)
+                    .displayText(size: 14, weight: .semibold)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                HStack(spacing: 5) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .displaySymbolFont(9, weight: .semibold)
+                        .foregroundStyle(.tertiary)
+                    Text("长图 · \(Int(payload.image.size.width)) × \(Int(payload.image.size.height))")
+                        .displayFont(11)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 14)
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : -6)
+    }
+
+    /// 长图预览：等比填充并锚定顶部（展示长图头卡标题区）
+    private var preview: some View {
+        Image(uiImage: payload.image)
+            .resizable()
+            .scaledToFill()
+            .frame(width: 52, height: 52, alignment: .top)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(alignment: .bottomTrailing) {
+                Text("长图")
+                    .displayFont(8, weight: .semibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1.5)
+                    .background(Color.black.opacity(0.55), in: Capsule())
+                    .padding(3)
+            }
+    }
 
     // MARK: 底注
 
@@ -264,7 +442,7 @@ struct WeChatShareMenu: View {
             Image(systemName: "info.circle")
                 .displaySymbolFont(10)
                 .foregroundStyle(.tertiary)
-            Text("发送网页卡片：标题 + 摘要 + 链接（缩略图自动生成）")
+            Text("发送长图：正文整图作为图片消息发出，超 10MB 自动压缩")
                 .displayFont(11)
                 .foregroundStyle(.tertiary)
             Spacer(minLength: 0)
@@ -283,13 +461,15 @@ struct WeChatShareMenu: View {
     private func send(_ scene: WeChatScene) {
         guard sendingScene == nil else { return }
         sendingScene = scene
-        LogManager.shared.info("wechat", "分享菜单选择场景", context: [
+        LogManager.shared.info("wechat", "长图分享菜单选择场景", context: [
+            "kind": WeChatShareKind.longImage.logName,
             "scene": scene.logName,
-            "title": payload.clippedTitle,
-            "url": payload.urlString
+            "entry": payload.entry,
+            "title": payload.title,
+            "pixelSize": "\(Int(payload.image.size.width))x\(Int(payload.image.size.height))"
         ])
         Task {
-            let sent = await service.share(payload, to: scene)
+            let sent = await service.shareImage(payload.image, title: payload.title, to: scene, entry: payload.entry)
             if sent {
                 // 系统随即切换到微信（本页被覆盖）：先收起菜单，返回时直接回到文章
                 dismiss()

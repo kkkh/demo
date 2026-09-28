@@ -7,7 +7,9 @@
 //    WeChatMiniProgramID / LSApplicationQueriesSchemes（weixin / weixinULAPI / weixinURLParamsAPI）
 //  · 配置占位判定与 AppID 格式校验（占位 = 全链禁用，不发任何微信请求）
 //  · 官方字节级限制：标题 ≤512B、描述 ≤1024B（UTF-8 不切断多字节字符）
-//  · 缩略图契约：居中裁方 200×200、JPEG ≤32KB（硬上限 64KB）
+//  · 缩略图契约：居中裁方 200×200、JPEG ≤32KB（硬上限 64KB）；长图取图可锚定顶部
+//  · 长图分享契约（WXImageObject）：imageData ≤10MB（超限自动降档）、thumbData ≤32KB
+//  · 回执文案契约：网页卡片 / 长图分享的横幅与日志归因可区分
 //  · 场景枚举与官方 WXScene 数值对齐（会话 0 / 朋友圈 1 / 收藏 2）
 //  · 可用性状态机不变量、自检七步标题、横幅模型
 //
@@ -263,6 +265,54 @@ final class WeChatSDKTests: XCTestCase {
             )
             XCTAssertEqual(availability, service.availability, "可用性状态机须可重复求得同一状态")
         }
+    }
+
+    // MARK: - 长图分享契约（WXImageObject；官方 imageData ≤10MB / thumbData ≤32KB）
+
+    /// 长图编码器：产物必须落在官方上限内，返回像素尺寸可用于日志与 UI
+    func testLongImageEncoderKeepsOfficialLimit() {
+        let image = makeNoisyImage(width: 640, height: 2400)
+        let result = WeChatImageEncoder.encode(image)
+        XCTAssertNotNil(result, "长图编码必须成功（官方上限内）")
+        guard let result else { return }
+        XCTAssertEqual(WeChatImageEncoder.maxImageBytes, 10 * 1024 * 1024, "官方上限常量必须为 10MB")
+        XCTAssertLessThanOrEqual(result.data.count, WeChatImageEncoder.maxImageBytes, "imageData 必须 ≤ 官方 10MB 上限")
+        XCTAssertGreaterThan(result.pixelSize.width, 0)
+        XCTAssertGreaterThan(result.pixelSize.height, result.pixelSize.width, "长图应为纵向长图")
+    }
+
+    /// 超限时必须自动降档（降质 / 降采样），且仍满足给定上限
+    func testLongImageEncoderDownscalesWhenOverLimit() {
+        let image = makeNoisyImage(width: 1200, height: 4000)
+        let tightLimit = 120 * 1024
+        let result = WeChatImageEncoder.encode(image, maxBytes: tightLimit)
+        XCTAssertNotNil(result, "触发降档后仍应产出可用数据")
+        guard let result else { return }
+        XCTAssertLessThanOrEqual(result.data.count, tightLimit, "降档后必须满足上限")
+        XCTAssertTrue(result.adjusted, "应记录已降档：quality=\(result.quality) scale=\(result.scale)")
+    }
+
+    /// 长图缩略图：顶部取图 + 方形 200pt + ≤32KB（官方 thumbData 限制）
+    func testLongImageThumbnailContract() {
+        let image = makeNoisyImage(width: 900, height: 5400)
+        let thumb = WeChatThumbnailProvider.thumbData(from: image, alignment: .top)
+        XCTAssertNotNil(thumb, "长图缩略图必须生成成功")
+        guard let thumb else { return }
+        XCTAssertLessThanOrEqual(thumb.count, WeChatThumbnailProvider.maxThumbBytes, "thumbData 必须 ≤32KB")
+        let decoded = UIImage(data: thumb)
+        let side = WeChatThumbnailProvider.thumbSide
+        XCTAssertEqual(decoded?.size.width ?? 0, side, accuracy: 1, "缩略图应为 200pt 方形（顶部取图）")
+        XCTAssertEqual(decoded?.size.height ?? 0, side, accuracy: 1, "缩略图应为 200pt 方形（顶部取图）")
+    }
+
+    /// 回执文案契约：长图分享与网页卡片分享必须可区分（横幅与日志归因）
+    func testShareKindWordingContract() {
+        XCTAssertEqual(WeChatShareKind.webpage.successText(scene: .timeline), "已分享到朋友圈")
+        XCTAssertEqual(WeChatShareKind.longImage.successText(scene: .timeline), "长图已分享到朋友圈")
+        XCTAssertEqual(WeChatShareKind.webpage.cancelText, "已取消分享")
+        XCTAssertEqual(WeChatShareKind.longImage.cancelText, "已取消长图分享")
+        XCTAssertEqual(WeChatShareKind.longImage.noun, "长图分享")
+        XCTAssertEqual(WeChatShareKind.longImage.logName, "longImage")
     }
 
     // MARK: - 辅助

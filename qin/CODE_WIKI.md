@@ -8,8 +8,8 @@
 > **依赖**：唯一第三方为**微信开放平台 SDK**（官方 XCFramework 2.0.8，静态库，`-ObjC -all_load` 链接；2026-09-27 接入），其余 100% Apple 系统框架，无 SPM / CocoaPods
 > **持久化**：UserDefaults + 文件 JSON 缓存（`Documents/SXJZIT_Cache/`）+ Keychain + 硬编码静态兜底数据
 > **网络**：URLSession + async/await，仅 GET
-> **代码规模**：48 个 Swift 源文件（主 target 46 + 测试 3），**59,121 行**（主 target 57,377 + 测试 1,744；TabBar.swift 12,169、OrganizationDetailView.swift 5,317、SchoolProfileView.swift 3,511、PartySubjectView.swift 2,566、DisplaySettingsManager.swift 2,382、DisplaySettingsView.swift 2,227、OrganizationView.swift 2,183、SJZNetworkMonitor.swift 1,796、PrincipalMailboxView.swift 1,787、NetworkMonitorView.swift 1,609、NetworkService.swift 1,599、Models.swift 1,591、WeChatService.swift 1,095、WeChatIntegrationViews.swift 628——2026-09-27 wc -l 实测）+ 三个测试文件 **104 个单元用例**
-> **文档更新日期**：2026-09-27（头部统计刷新；覆盖 2026-09-26 夜三波改造：**网络监测扩建**（八能力/47 处 netmon 埋点）、**显示设置艺术级重构**（F1–F19/字体体系/灰度跨页/对比度自检）、中文字体按需下载与专注灰度 44 处挂载；以及 **2026-09-27 微信开放平台 SDK 集成**（分享/登录/小程序/自检全链，`wechat` 域 52 处埋点，2026-09-28 补齐党建分享入口））。真机复测：2026-09-27 构建 + 104/104 用例通过（日志 `build/verify/wechat_test_20260927b.log`）
+> **代码规模**：48 个 Swift 源文件（主 target 46 + 测试 3），**59,730 行**（主 target 57,925 + 测试 1,805；TabBar.swift 12,274、OrganizationDetailView.swift 5,338、SchoolProfileView.swift 3,511、PartySubjectView.swift 2,566、DisplaySettingsManager.swift 2,382、DisplaySettingsView.swift 2,227、OrganizationView.swift 2,183、SJZNetworkMonitor.swift 1,796、PrincipalMailboxView.swift 1,787、NetworkMonitorView.swift 1,609、NetworkService.swift 1,599、Models.swift 1,591、WeChatService.swift 1,095、WeChatIntegrationViews.swift 628——2026-09-27 wc -l 实测）+ 三个测试文件 **108 个单元用例**
+> **文档更新日期**：2026-09-27（头部统计刷新；覆盖 2026-09-26 夜三波改造：**网络监测扩建**（八能力/47 处 netmon 埋点）、**显示设置艺术级重构**（F1–F19/字体体系/灰度跨页/对比度自检）、中文字体按需下载与专注灰度 44 处挂载；以及 **2026-09-27 微信开放平台 SDK 集成**（分享/登录/小程序/自检全链，`wechat` 域 63 处埋点，2026-09-28 补齐党建分享入口））。真机复测：2026-09-27 构建 + 108/108 用例通过（日志 `build/verify/wechat_test_20260927b.log`）
 > **注意**：本文件为历史合并版，正文行号与模块细节基于 2026-09-24/25 快照（仅头部统计已于 2026-09-27 刷新）；**最新权威版本是 [`docs/code-wiki/`](docs/code-wiki/README.md) 分册（2026-09-27 基线，含 37 个日志域总表与全部新行号）**，冲突处以分册为准。
 
 ---

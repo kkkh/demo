@@ -2099,6 +2099,10 @@ struct OrganizationArticleDetailView: View {
 
     // 长图生成
     @State private var isGeneratingLongImage = false
+    /// 长图分享目标（系统分享面板 / 微信图片消息；由分享面板入口设置）
+    @State private var longImageDestination: LongImageDestination = .system
+    /// 微信长图分享载荷（非空 → 弹出长图分享菜单）
+    @State private var weChatLongImagePayload: WeChatLongImagePayload?
     @State private var longImageError: String?
     @State private var generatedLongImage: UIImage?
 
@@ -2227,14 +2231,25 @@ struct OrganizationArticleDetailView: View {
         }
         .confirmationDialog("选择分享格式", isPresented: $showSharePicker, titleVisibility: .visible) {
             Button("分享到微信") { showWeChatShare = true }
+            Button("长图分享到微信") {
+                longImageDestination = .weChat
+                startLongImageGeneration()
+            }
             Button("纯链接") { selectedShareFormat = .link }
             Button("Markdown文章") { selectedShareFormat = .markdown }
             Button("标题+正文文本") { selectedShareFormat = .fullText }
-            Button("长图") { startLongImageGeneration() }
+            Button("长图") {
+                longImageDestination = .system
+                startLongImageGeneration()
+            }
             Button("取消", role: .cancel) {}
         }
         .sheet(isPresented: $showWeChatShare) {
             WeChatShareMenu(payload: weChatSharePayload)
+                .sjzPresentationChrome()
+        }
+        .sheet(item: $weChatLongImagePayload) { payload in
+            WeChatLongImageShareMenu(payload: payload)
                 .sjzPresentationChrome()
         }
         .sheet(item: $selectedShareFormat) { format in
@@ -3416,7 +3431,13 @@ struct OrganizationArticleDetailView: View {
             // 等 confirmationDialog 关闭动画完成后再 present 分享面板
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 350_000_000)
-                presentLongImageShare(image: renderedImage, title: title)
+                switch longImageDestination {
+                case .system:
+                    presentLongImageShare(image: renderedImage, title: title)
+                case .weChat:
+                    // 微信图片消息（WXImageObject）：弹出场景菜单（好友 / 朋友圈 / 收藏）
+                    weChatLongImagePayload = WeChatLongImagePayload(image: renderedImage, title: title, entry: "long_image")
+                }
             }
         }
     }
