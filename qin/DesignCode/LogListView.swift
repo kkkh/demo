@@ -596,7 +596,7 @@ struct LogListView: View {
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
         .id(entry.id)
-        .modifier(SJZRevealOnce(key: "log.row.\(entry.id)", delay: Double(min(index, 12)) * 0.03))
+        .modifier(SJZRevealOnce(key: "log.row.\(entry.id)", delay: Double(min(index, 12)) * 0.03, logReveal: false))
         // 注意：swipeActions 必须位于入场动效修饰器外层——被 offset/opacity 包裹会导致滑动手势整体失效
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button {

@@ -418,6 +418,14 @@ final class LogManager: ObservableObject {
 
         let entry = LogEntry(level: level, module: module, message: message, context: context)
 
+        // 自反馈防线：同 module+message 1 秒内高频重复 → 折叠（防止「展示日志 → 写日志 → 再展示」递归风暴拖死主线程）
+        if shouldFold(entry) { return }
+
+        appendDirect(entry)
+    }
+
+    /// 直接追加条目（不做折叠判定；供折叠器自身留痕，避免递归）
+    private func appendDirect(_ entry: LogEntry) {
         // 在内存中追加（最新在前）
         entries.insert(entry, at: 0)
 
@@ -431,6 +439,50 @@ final class LogManager: ObservableObject {
         pendingBox.items.append(entry)
         pendingBox.lock.unlock()
         scheduleFlush()
+    }
+
+    // MARK: 日志风暴抑制（自反馈防线）
+
+    /// 同键 1 秒窗口内的记录上限（超出即折叠；契约测试锚点）
+    nonisolated static let stormFoldLimit = 50
+    private let stormWindow: TimeInterval = 1.0
+    private var stormKey: String?
+    private var stormWindowStart = Date.distantPast
+    private var stormCount = 0
+    private var stormFolded = 0
+
+    /// 是否应折叠该条日志（同键同窗口高频 → true）
+    private func shouldFold(_ entry: LogEntry) -> Bool {
+        let now = Date()
+        let key = entry.module + "|" + entry.message
+        if key != stormKey || now.timeIntervalSince(stormWindowStart) >= stormWindow {
+            // 窗口切换：结算上一窗口的折叠统计
+            settleStormIfNeeded()
+            stormKey = key
+            stormWindowStart = now
+            stormCount = 1
+            return false
+        }
+        stormCount += 1
+        if stormCount <= Self.stormFoldLimit { return false }
+        if stormCount == Self.stormFoldLimit + 1 {
+            appendDirect(LogEntry(level: .warning, module: "log", message: "日志风暴抑制：短时间内大量重复日志已折叠", context: [
+                "key": key, "limitPerSecond": "\(Self.stormFoldLimit)"
+            ]))
+        }
+        stormFolded += 1
+        return true
+    }
+
+    /// 结算上一窗口：输出折叠条数留痕
+    private func settleStormIfNeeded() {
+        guard stormFolded > 0 else { return }
+        let folded = stormFolded
+        let key = stormKey ?? "-"
+        stormFolded = 0
+        appendDirect(LogEntry(level: .info, module: "log", message: "日志风暴抑制结束：重复日志已折叠", context: [
+            "key": key, "folded": "\(folded)"
+        ]))
     }
 
     /// 便捷方法

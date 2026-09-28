@@ -428,6 +428,27 @@ final class LogManagerTests: XCTestCase {
         XCTAssertTrue(remaining.contains("M5"))
     }
 
+    // MARK: 自反馈风暴抑制（2026-09-28 现场卡死防线）
+
+    func testStormFoldSuppressesRepeatedIdenticalLogs() {
+        let manager = makeManager()
+        // 模拟「展示日志 → 写日志 → 再展示」自反馈：1 秒内同内容日志远超阈值
+        for _ in 0..<(LogManager.stormFoldLimit * 3) {
+            manager.info("storm", "重复日志")
+        }
+        XCTAssertEqual(messages(from: manager.entries).filter { $0 == "重复日志" }.count,
+                       LogManager.stormFoldLimit,
+                       "同内容日志应被折叠至窗口上限")
+        XCTAssertTrue(manager.entries.contains { $0.message.contains("日志风暴抑制") },
+                      "折叠应留痕告警")
+
+        // 换一条不同内容 → 结算上一窗口的折叠统计
+        manager.info("storm", "风暴结束后的新日志")
+        XCTAssertTrue(manager.entries.contains { $0.message.contains("日志风暴抑制结束") },
+                      "折叠结束应留痕统计")
+        XCTAssertTrue(messages(from: manager.entries).contains("风暴结束后的新日志"))
+    }
+
     // MARK: 模型辅助
 
     func testEntryHelpers() {
