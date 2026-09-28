@@ -222,7 +222,7 @@ struct LogListView: View {
         } message: {
             Text("仅删除当前筛选命中的日志，其余日志不受影响。")
         }
-        .biometricLockProtected(reason: "sensitive_logs")
+        .modifier(LogPageLockPolicy(reason: "sensitive_logs"))
         .onAppear {
             openedAt = Date()
             lastSeenTopID = logManager.entries.first?.id
@@ -308,12 +308,6 @@ struct LogListView: View {
                     .accessibilityLabel("今日异常 \(stats.issueToday) 条")
             }
             Spacer()
-            if let snapshot = storageSnapshot, snapshot.files > 0 {
-                Text(snapshot.sizeText)
-                    .displayFont(11)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityLabel("磁盘占用 \(snapshot.sizeText)，共 \(snapshot.files) 个日志文件")
-            }
             followToggle
         }
         .padding(.horizontal, 16).padding(.vertical, 9)
@@ -553,15 +547,6 @@ struct LogListView: View {
         } else {
             ScrollViewReader { proxy in
                 List {
-                    // 顶部哨兵：可见 = 用户位于顶部（跟随最新仅在此状态自动滚顶，翻阅历史时不被拽回）
-                    Color.clear
-                        .frame(height: 1)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .accessibilityHidden(true)
-                        .onAppear { isAtTop = true }
-                        .onDisappear { isAtTop = false }
                     ForEach(daySections) { section in
                         Section {
                             ForEach(Array(section.entries.enumerated()), id: \.element.id) { index, entry in
@@ -574,6 +559,14 @@ struct LogListView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                // 顶部判定（滚动几何，替代哨兵行）：contentOffset ≤ 60pt 视为「位于顶部」——
+                // 阈值含容差（sheet 呈现/布局早期会有小幅偏移抖动，12pt 曾误判导致开页即出现「N 条新日志」胶囊）；
+                // 跟随最新仅在此状态自动滚顶，翻阅历史（> 60pt）时新日志只累计悬浮胶囊
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    geometry.contentOffset.y <= 60
+                } action: { _, atTop in
+                    if isAtTop != atTop { isAtTop = atTop }
+                }
                 .onChange(of: logManager.entries.first?.id) { _, newTopID in
                     // 仅在「开启跟随 + 位于顶部」时自动滚顶；并做 0.25s 节流防动画排队抖动
                     guard followLatest, isAtTop, let newTopID else { return }
@@ -855,6 +848,12 @@ struct LogListView: View {
                 Label("清空全部日志…", systemImage: "trash")
             }
             .disabled(logManager.entries.isEmpty)
+            Divider()
+            Button {} label: {
+                Label(storageSnapshot.map { "磁盘占用 \($0.sizeText) · \($0.files) 个文件" } ?? "磁盘占用统计中…",
+                      systemImage: "internaldrive")
+            }
+            .disabled(true)
         } label: {
             Image(systemName: "ellipsis.circle")
                 .displaySymbolFont(16, weight: .medium)
@@ -953,6 +952,28 @@ struct LogListView: View {
                 "files": "\(snapshot.files)", "bytes": "\(snapshot.totalBytes)", "size": snapshot.sizeText
             ])
         }
+    }
+}
+
+// MARK: - 日志页生物锁策略
+
+/// 生产路径挂 `.biometricLockProtected`（敏感页上锁）；
+/// DEBUG 自测截图模式（启动参数 `-uiTestOpenLogs`）跳过上锁——避免系统 Face ID 弹窗遮挡取证画面。
+/// 仅影响 DEBUG 构建下的显式启动参数，Release 与正常 DEBUG 路径行为不变。
+private struct LogPageLockPolicy: ViewModifier {
+    let reason: String
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-uiTestOpenLogs") {
+            content
+        } else {
+            content.biometricLockProtected(reason: reason)
+        }
+        #else
+        content.biometricLockProtected(reason: reason)
+        #endif
     }
 }
 
