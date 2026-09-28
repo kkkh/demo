@@ -183,11 +183,12 @@ struct LogEntry: Identifiable, Codable, Equatable {
         return lines.joined(separator: "\n")
     }
 
-    /// JSON 对象（结构化导出）
+    /// JSON 对象（结构化导出；timestamp 为可读时间，timestampUnix 供脚本分析）
     var jsonObject: [String: Any] {
         var object: [String: Any] = [
             "id": id,
             "timestamp": fullDateTime,
+            "timestampUnix": timestamp.timeIntervalSince1970,
             "level": level.rawValue,
             "module": module,
             "message": message
@@ -344,6 +345,14 @@ final class LogManager: ObservableObject {
     }
     private let pendingBox = PendingBox()
 
+    /// 日文件读-改-写锁：统一保护「合并落盘 / 删除剔除 / 崩溃同步写入」三类操作，
+    /// 避免崩溃写入与防抖落盘并发交错导致条目丢失（2026-09-28 复核加固）
+    nonisolated static let logFileLock = NSLock()
+
+    /// 统计 / 模块聚合结果记忆化（键：首条 id + 总数）
+    private var statsCache: (key: String, value: LogStats)?
+    private var facetsCache: (key: String, value: [(module: String, count: Int)])?
+
     // MARK: 崩溃写入上下文（nonisolated 静态镜像：信号/异常回调线程直接可用）
 
     private struct CrashContext {
@@ -445,15 +454,43 @@ final class LogManager: ObservableObject {
 
     /// 同键 1 秒窗口内的记录上限（超出即折叠；契约测试锚点）
     nonisolated static let stormFoldLimit = 50
+    /// 全局 1 秒窗口内的记录上限（跨键防线：防「多键交替」型自反馈绕过同键折叠；契约测试锚点）
+    nonisolated static let globalStormLimit = 300
     private let stormWindow: TimeInterval = 1.0
     private var stormKey: String?
     private var stormWindowStart = Date.distantPast
     private var stormCount = 0
     private var stormFolded = 0
+    private var globalWindowStart = Date.distantPast
+    private var globalCount = 0
+    private var globalFolded = 0
+    private var globalMarkerWritten = false
 
-    /// 是否应折叠该条日志（同键同窗口高频 → true）
+    /// 是否应折叠该条日志（全局限流 → 同键同窗口高频 → true）
     private func shouldFold(_ entry: LogEntry) -> Bool {
         let now = Date()
+
+        // ① 全局速率防线（跨键）：任何日志风暴（含多键交替自反馈）都被限速
+        if now.timeIntervalSince(globalWindowStart) >= stormWindow {
+            settleGlobalIfNeeded()
+            globalWindowStart = now
+            globalCount = 0
+            globalFolded = 0
+            globalMarkerWritten = false
+        }
+        globalCount += 1
+        if globalCount > Self.globalStormLimit {
+            globalFolded += 1
+            if !globalMarkerWritten {
+                globalMarkerWritten = true
+                appendDirect(LogEntry(level: .warning, module: "log", message: "日志全局限流：日志产生速率异常已限速折叠", context: [
+                    "limitPerSecond": "\(Self.globalStormLimit)"
+                ]))
+            }
+            return true
+        }
+
+        // ② 同键防线：同 module+message 高频重复折叠
         let key = entry.module + "|" + entry.message
         if key != stormKey || now.timeIntervalSince(stormWindowStart) >= stormWindow {
             // 窗口切换：结算上一窗口的折叠统计
@@ -482,6 +519,16 @@ final class LogManager: ObservableObject {
         stormFolded = 0
         appendDirect(LogEntry(level: .info, module: "log", message: "日志风暴抑制结束：重复日志已折叠", context: [
             "key": key, "folded": "\(folded)"
+        ]))
+    }
+
+    /// 结算全局限流窗口：输出限速折叠条数
+    private func settleGlobalIfNeeded() {
+        guard globalFolded > 0 else { return }
+        let folded = globalFolded
+        globalFolded = 0
+        appendDirect(LogEntry(level: .info, module: "log", message: "日志全局限流结束：超速日志已折叠", context: [
+            "folded": "\(folded)", "limitPerSecond": "\(Self.globalStormLimit)"
         ]))
     }
 
@@ -551,14 +598,25 @@ final class LogManager: ObservableObject {
     }
 
     /// 模块聚合（筛选菜单数据源；按出现次数降序）
+    /// 结果按「首条 id + 总数」记忆化：视图一帧内多次取用不重复分组（日志洪峰期保持丝滑）
     func moduleFacets() -> [(module: String, count: Int)] {
-        Dictionary(grouping: entries, by: \.module)
+        let key = "\(entries.first?.id ?? "-")|\(entries.count)"
+        if let cache = facetsCache, cache.key == key { return cache.value }
+        var facets: [(module: String, count: Int)] = Dictionary(grouping: entries, by: \.module)
             .map { (module: $0.key, count: $0.value.count) }
-            .sorted { $0.count > $1.count || ($0.count == $1.count && $0.module < $1.module) }
+        facets.sort { lhs, rhs in
+            if lhs.count != rhs.count { return lhs.count > rhs.count }
+            return lhs.module < rhs.module
+        }
+        facetsCache = (key, facets)
+        return facets
     }
 
     /// 内存统计（总数 / 今日 / 今日异常 / 各级计数 / 最早最新）
+    /// 结果按「首条 id + 总数」记忆化（统计含逐条日历判定，记忆化后同帧多次取用仅算一次）
     func stats() -> LogStats {
+        let key = "\(entries.first?.id ?? "-")|\(entries.count)"
+        if let cache = statsCache, cache.key == key { return cache.value }
         let calendar = Calendar.current
         var counts: [LogLevel: Int] = [:]
         var today = 0
@@ -570,12 +628,14 @@ final class LogManager: ObservableObject {
                 if entry.level.isIssue { issueToday += 1 }
             }
         }
-        return LogStats(total: entries.count,
-                        today: today,
-                        issueToday: issueToday,
-                        counts: counts,
-                        oldest: entries.last?.timestamp,
-                        newest: entries.first?.timestamp)
+        let computed = LogStats(total: entries.count,
+                                today: today,
+                                issueToday: issueToday,
+                                counts: counts,
+                                oldest: entries.last?.timestamp,
+                                newest: entries.first?.timestamp)
+        statsCache = (key, computed)
+        return computed
     }
 
     /// 磁盘存储快照（文件数 / 占用字节 / 日键清单；目录扫描在后台线程）
@@ -607,6 +667,7 @@ final class LogManager: ObservableObject {
     func removeEntry(id: String) -> Bool {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return false }
         let removed = entries.remove(at: index)
+        discardPending(ids: [removed.id])
         purgeFromDisk([removed.dayKey: [removed.id]])
         log(level: .info, module: "log", message: "删除单条日志", context: [
             "targetLevel": removed.level.rawValue,
@@ -626,6 +687,7 @@ final class LogManager: ObservableObject {
         guard !targets.isEmpty else { return 0 }
         let ids = Set(targets.map(\.id))
         entries.removeAll { ids.contains($0.id) }
+        discardPending(ids: ids)
         purgeFromDisk(Dictionary(grouping: targets, by: \.dayKey).mapValues { Set($0.map(\.id)) })
         log(level: .info, module: "log", message: "清空日志（按条件）", context: [
             "removed": "\(targets.count)",
@@ -635,6 +697,15 @@ final class LogManager: ObservableObject {
             "dayKey": dayKey ?? "-"
         ])
         return targets.count
+    }
+
+    /// 从待落盘缓冲中剔除指定条目：
+    /// 防止「删除后 0.5s 防抖落盘又把该条写回磁盘」的复活竞态（2026-09-28 复核修复）。
+    private func discardPending(ids: Set<String>) {
+        guard !ids.isEmpty else { return }
+        pendingBox.lock.lock()
+        pendingBox.items.removeAll { ids.contains($0.id) }
+        pendingBox.lock.unlock()
     }
 
     /// 清空全部日志（内存 + 全部日文件；随后自身留一条痕迹日志）
@@ -796,6 +867,8 @@ final class LogManager: ObservableObject {
         let grouped = Dictionary(grouping: batch, by: \.dayKey)
         for (dayKey, newEntries) in grouped {
             let fileURL = dir.appendingPathComponent("log_\(dayKey).json")
+            logFileLock.lock()
+            defer { logFileLock.unlock() }
             var existing: [LogEntry] = []
             if let data = try? Data(contentsOf: fileURL) {
                 existing = decodeEntries(from: data).entries ?? []
@@ -824,6 +897,8 @@ final class LogManager: ObservableObject {
             var rewritten = 0
             for (dayKey, ids) in grouped {
                 let fileURL = dir.appendingPathComponent("log_\(dayKey).json")
+                LogManager.logFileLock.lock()
+                defer { LogManager.logFileLock.unlock() }
                 guard let data = try? Data(contentsOf: fileURL) else { continue }
                 let remaining = (LogManager.decodeEntries(from: data).entries ?? []).filter { !ids.contains($0.id) }
                 if remaining.isEmpty {
@@ -961,6 +1036,8 @@ final class LogManager: ObservableObject {
         let fileName = "log_\(entry.dayKey).json"
         let fileURL = context.dir.appendingPathComponent(fileName)
 
+        logFileLock.lock()
+        defer { logFileLock.unlock() }
         var existing: [LogEntry] = []
         if let data = try? Data(contentsOf: fileURL) {
             existing = decodeEntries(from: data).entries ?? []
