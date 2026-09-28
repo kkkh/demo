@@ -49,6 +49,7 @@
 		DC00009922D74F5700D209BE /* HelpContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00009A22D74F5700D209BE /* HelpContent.swift */; };
 		DC00009B00000000000001 /* MessageCenterStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00009C00000000000001 /* MessageCenterStoreTests.swift */; };
 		DC0000D1000000000000D001 /* BookmarkManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000D1000000000000D002 /* BookmarkManagerTests.swift */; };
+		DC0000E1000000000000E001 /* LogManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000E1000000000000E002 /* LogManagerTests.swift */; };
 		DC00009B22D74F5700D209BE /* HelpGuideStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00009C22D74F5700D209BE /* HelpGuideStore.swift */; };
 		DC00009D22D74F5700D209BE /* HelpGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00009E22D74F5700D209BE /* HelpGuideView.swift */; };
 		DC00009F22D74F5700D209BE /* CampusCalendarStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000A122D74F5700D209BE /* CampusCalendarStore.swift */; };
@@ -129,6 +130,7 @@
 		DC0000B5000000000000B005 /* DesignCode.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DesignCode.entitlements; sourceTree = "<group>"; };
 		DC0000C1000000000000C002 /* WeChatSDKTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatSDKTests.swift; sourceTree = "<group>"; };
 		DC0000D1000000000000D002 /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
+		DC0000E1000000000000E002 /* LogManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogManagerTests.swift; sourceTree = "<group>"; };
 		DC7A000422D74F5700D209B1 /* SJZNetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SJZNetworkMonitor.swift; sourceTree = "<group>"; };
 		DC7A000822D74F5700D209B1 /* NetworkMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitorView.swift; sourceTree = "<group>"; };
 		DC7A000C22D74F5700D209B1 /* PrincipalMailboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrincipalMailboxView.swift; sourceTree = "<group>"; };
@@ -257,6 +259,7 @@
 				DC00009C00000000000001 /* MessageCenterStoreTests.swift */,
 				DC0000C1000000000000C002 /* WeChatSDKTests.swift */,
 				DC0000D1000000000000D002 /* BookmarkManagerTests.swift */,
+				DC0000E1000000000000E002 /* LogManagerTests.swift */,
 			);
 			path = DesignCodeTests;
 			sourceTree = "<group>";
@@ -439,6 +442,7 @@
 				DC00009B00000000000001 /* MessageCenterStoreTests.swift in Sources */,
 				DC0000C1000000000000C001 /* WeChatSDKTests.swift in Sources */,
 				DC0000D1000000000000D001 /* BookmarkManagerTests.swift in Sources */,
+				DC0000E1000000000000E001 /* LogManagerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
