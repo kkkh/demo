@@ -1729,3 +1729,89 @@ final class SJZImageViewerGeometryTests: XCTestCase {
         XCTAssertEqual(SJZImageViewerGeometry.clampedScale(9.9), 5, accuracy: 0.001)
     }
 }
+
+// MARK: - 看图载荷与翻页契约（2026-09-29 修复「先显示第一张」+ 翻页增强）
+
+/// 覆盖：载荷工厂（非法 URL 跳过与落点索引重映射——「点第 N 张必须打开第 N 张」的纯函数保障）、
+/// 越界落点夹紧、翻页判定（位移阈值 / 甩动速度 / 首末页方向失效）、边缘阻尼。
+final class SJZImageViewerPagingTests: XCTestCase {
+
+    // MARK: 载荷工厂
+
+    func testPayloadMakeMapsTappedIndexAfterFiltering() {
+        let images = [
+            DataService.ArticleImage(url: "https://a.com/1.jpg", alt: "图一"),
+            DataService.ArticleImage(url: "", alt: "非法"),
+            DataService.ArticleImage(url: "https://a.com/2.jpg", alt: nil),
+            DataService.ArticleImage(url: "https://a.com/3.jpg", alt: "图三")
+        ]
+        // 点击第 4 条（过滤后会落到第 3 位）
+        let payload = SJZImageGalleryPayload.make(images: images, tappedIndex: 3, source: "grid")
+        XCTAssertNotNil(payload)
+        XCTAssertEqual(payload?.count, 3)
+        XCTAssertEqual(payload?.urls.map(\.lastPathComponent), ["1.jpg", "2.jpg", "3.jpg"])
+        XCTAssertEqual(payload?.alts, ["图一", "", "图三"])
+        XCTAssertEqual(payload?.clampedStartIndex, 2)
+
+        // 点击第 1 条 → 落点 0
+        let first = SJZImageGalleryPayload.make(images: images, tappedIndex: 0, source: "grid")
+        XCTAssertEqual(first?.clampedStartIndex, 0)
+    }
+
+    func testPayloadMakeReturnsNilWhenAllURLsInvalid() {
+        let images = [DataService.ArticleImage(url: "", alt: nil)]
+        XCTAssertNil(SJZImageGalleryPayload.make(images: images, tappedIndex: 0, source: "grid"))
+    }
+
+    func testPayloadSingleAndClampedStartIndex() {
+        let single = SJZImageGalleryPayload.single(url: URL(string: "https://a.com/x.jpg")!)
+        XCTAssertEqual(single.count, 1)
+        XCTAssertEqual(single.clampedStartIndex, 0)
+
+        let over = SJZImageGalleryPayload.make(
+            images: [DataService.ArticleImage(url: "https://a.com/1.jpg", alt: nil)],
+            tappedIndex: 99, source: "grid")
+        XCTAssertEqual(over?.clampedStartIndex, 0) // 越界落点回落到 0，绝不越界崩溃
+    }
+
+    // MARK: 翻页判定
+
+    func testPageTurnDecisionByDistance() {
+        // 容器 400 → 位移阈值 72pt
+        XCTAssertEqual(SJZImageViewerGeometry.pageTurnDecision(
+            translation: -80, velocity: 0, containerWidth: 400, canNext: true, canPrevious: true), .next)
+        XCTAssertEqual(SJZImageViewerGeometry.pageTurnDecision(
+            translation: 80, velocity: 0, containerWidth: 400, canNext: true, canPrevious: true), .previous)
+        // 未达位移阈值且无速度 → 不翻页
+        XCTAssertEqual(SJZImageViewerGeometry.pageTurnDecision(
+            translation: -30, velocity: 0, containerWidth: 400, canNext: true, canPrevious: true), .none)
+        // 方向无下一页 → 不翻页
+        XCTAssertEqual(SJZImageViewerGeometry.pageTurnDecision(
+            translation: -200, velocity: 0, containerWidth: 400, canNext: false, canPrevious: true), .none)
+        // 容器未测量 → 不翻页
+        XCTAssertEqual(SJZImageViewerGeometry.pageTurnDecision(
+            translation: -200, velocity: 0, containerWidth: 0, canNext: true, canPrevious: true), .none)
+    }
+
+    func testPageTurnDecisionByVelocity() {
+        // 位移很小但快甩（≥300pt/s）→ 翻页
+        XCTAssertEqual(SJZImageViewerGeometry.pageTurnDecision(
+            translation: -10, velocity: -500, containerWidth: 400, canNext: true, canPrevious: true), .next)
+        XCTAssertEqual(SJZImageViewerGeometry.pageTurnDecision(
+            translation: 10, velocity: 500, containerWidth: 400, canNext: true, canPrevious: true), .previous)
+        // 位移与速度均未达阈值 → 不翻页
+        XCTAssertEqual(SJZImageViewerGeometry.pageTurnDecision(
+            translation: -10, velocity: -200, containerWidth: 400, canNext: true, canPrevious: true), .none)
+    }
+
+    // MARK: 边缘阻尼
+
+    func testDampedPageOffsetAtEdges() {
+        // 末页继续左滑 → 阻尼
+        XCTAssertEqual(SJZImageViewerGeometry.dampedPageOffset(-100, canNext: false, canPrevious: true), -35, accuracy: 0.001)
+        // 首页继续右滑 → 阻尼
+        XCTAssertEqual(SJZImageViewerGeometry.dampedPageOffset(100, canNext: true, canPrevious: false), 35, accuracy: 0.001)
+        // 可翻方向 → 1:1 跟手
+        XCTAssertEqual(SJZImageViewerGeometry.dampedPageOffset(-100, canNext: true, canPrevious: true), -100, accuracy: 0.001)
+    }
+}

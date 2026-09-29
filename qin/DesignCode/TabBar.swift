@@ -2988,8 +2988,8 @@ struct EnhancedNewsDetailView: View {
     @State private var isLoadingDetail = true
     @State private var loadError: String?
     @State private var showWebView = false
-    @State private var showImageFullscreen = false
-    @State private var selectedImageIndex = 0
+    /// 看图载荷（item 式呈现：根治「先显示第一张」的陈旧快照 + 支持左右翻页）
+    @State private var imageViewerPayload: SJZImageGalleryPayload?
     @State private var contentAppear = false
     @State private var showSharePicker = false
     @State private var selectedShareFormat: ShareFormat?
@@ -3025,7 +3025,12 @@ struct EnhancedNewsDetailView: View {
                         case .success(let image):
                             image.resizable().scaledToFit()
                                 .frame(maxWidth: .infinity, maxHeight: 280)
-                                .onTapGesture { showImageFullscreen = true }
+                                .onTapGesture {
+                                    imageViewerPayload = SJZImageGalleryPayload.single(url: url, source: "header")
+                                    LogManager.shared.debugLog("imageViewer", "查看图片（头图）", context: [
+                                        "url": url.lastPathComponent
+                                    ])
+                                }
                         case .failure:
                             detailHeaderPlaceholder
                         case .empty:
@@ -3251,8 +3256,12 @@ struct EnhancedNewsDetailView: View {
                                             .frame(width: 160, height: 120)
                                             .clipShape(RoundedRectangle(cornerRadius: 14))
                                             .onTapGesture {
-                                                selectedImageIndex = idx
-                                                showImageFullscreen = true
+                                                imageViewerPayload = SJZImageGalleryPayload.make(
+                                                    images: images, tappedIndex: idx, source: "grid")
+                                                LogManager.shared.debugLog("imageViewer", "查看图片（图集网格）", context: [
+                                                    "index": "\(idx + 1)/\(images.count)",
+                                                    "url": img.url
+                                                ])
                                             }
                                         }
                                     }
@@ -3361,17 +3370,9 @@ struct EnhancedNewsDetailView: View {
         .sheet(isPresented: $webViewShowShare) {
             ShareSheet(items: [URL(string: news.originalArticleURL) as Any])
         }
-        .fullScreenCover(isPresented: $showImageFullscreen) {
-            Group {
-                if let images = fullDetail?.images, !images.isEmpty,
-                   selectedImageIndex < images.count,
-                   let url = URL(string: images[selectedImageIndex].url) {
-                    FullScreenImageView(url: url, title: news.title)
-                } else if let imgUrl = news.imageUrl, let url = URL(string: imgUrl) {
-                    FullScreenImageView(url: url, title: news.title)
-                }
-            }
-            .sjzPresentationChrome()
+        .fullScreenCover(item: $imageViewerPayload) { payload in
+            FullScreenImageView(payload: payload, fallbackTitle: news.title)
+                .sjzPresentationChrome()
         }
         .task {
             await loadDetail()
@@ -4050,6 +4051,50 @@ private struct PhaseProgressDots: View {
 
 // MARK: - 全屏图片查看
 
+/// 看图载荷（item 式呈现载体，2026-09-29）：根治「先显示第一张」的陈旧快照，
+/// 同时承载整组图片以支持左右翻页；`source` 供日志归因（grid / header / single）。
+struct SJZImageGalleryPayload: Identifiable {
+    let id = UUID()
+    let urls: [URL]
+    let alts: [String]
+    let startIndex: Int
+    let source: String
+
+    var count: Int { urls.count }
+    /// 落点索引（越界防护）
+    var clampedStartIndex: Int { min(max(startIndex, 0), max(count - 1, 0)) }
+
+    /// 单图载荷（头图 / 既有单图调用点）
+    static func single(url: URL, source: String = "single") -> SJZImageGalleryPayload {
+        SJZImageGalleryPayload(urls: [url], alts: [""], startIndex: 0, source: source)
+    }
+
+    /// 从文章图集构建：跳过非法 URL，并把「被点击项」映射到过滤后的落点索引
+    nonisolated static func make(images: [DataService.ArticleImage],
+                                 tappedIndex: Int,
+                                 source: String) -> SJZImageGalleryPayload? {
+        var urls: [URL] = []
+        var alts: [String] = []
+        var resolvedStart = 0
+        for (index, image) in images.enumerated() {
+            guard let url = URL(string: image.url) else { continue }
+            if index == tappedIndex { resolvedStart = urls.count }
+            urls.append(url)
+            alts.append(image.alt ?? "")
+        }
+        guard !urls.isEmpty else { return nil }
+        return SJZImageGalleryPayload(urls: urls, alts: alts,
+                                      startIndex: resolvedStart, source: source)
+    }
+}
+
+/// 翻页判定结果（纯函数输出，供手势与单元测试共用）
+enum SJZPageTurn: Equatable {
+    case next
+    case previous
+    case none
+}
+
 /// 全屏看图几何（纯函数，手势与单元测试共用；2026-09-29 「放大后滑动变黑」修复）
 enum SJZImageViewerGeometry {
     /// 适配显示尺寸（与 `.scaledToFit()` 同口径：等比缩放至完整放入容器）
@@ -4100,13 +4145,53 @@ enum SJZImageViewerGeometry {
     nonisolated static func clampedScale(_ raw: CGFloat, lowerBound: CGFloat = 1, upperBound: CGFloat = 5) -> CGFloat {
         Swift.min(Swift.max(raw, lowerBound), upperBound)
     }
+
+    /// 翻页判定（1x 横向拖动）：位移占比 ≥18% 或甩动速度 ≥300pt/s 触发；首/末页方向自动失效
+    nonisolated static func pageTurnDecision(translation: CGFloat, velocity: CGFloat,
+                                             containerWidth: CGFloat,
+                                             canNext: Bool, canPrevious: Bool) -> SJZPageTurn {
+        guard containerWidth > 0 else { return .none }
+        let distanceThreshold = containerWidth * 0.18
+        let decided: SJZPageTurn
+        if abs(translation) >= distanceThreshold {
+            decided = translation < 0 ? .next : .previous
+        } else if abs(velocity) >= 300 {
+            decided = velocity < 0 ? .next : .previous
+        } else {
+            decided = .none
+        }
+        switch decided {
+        case .next: return canNext ? .next : .none
+        case .previous: return canPrevious ? .previous : .none
+        case .none: return .none
+        }
+    }
+
+    /// 翻页跟手位移：首/末页越界方向阻尼 0.35（有阻力不失控），可翻方向 1:1 跟手
+    nonisolated static func dampedPageOffset(_ dx: CGFloat, canNext: Bool, canPrevious: Bool,
+                                             damping: CGFloat = 0.35) -> CGFloat {
+        if dx < 0 && !canNext { return dx * damping }
+        if dx > 0 && !canPrevious { return dx * damping }
+        return dx
+    }
 }
 
 struct FullScreenImageView: View {
-    let url: URL
-    let title: String
+    /// 看图载荷（URL 组 + 落点 + 归因；单图 = count 1）
+    private let payload: SJZImageGalleryPayload
+    /// 内容标题（导航标题；图片无 alt 时的兜底）
+    private let fallbackTitle: String
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    // MARK: 翻页状态（多图集启用；count == 1 时全程不参与手势）
+
+    /// 当前页索引（由载荷落点初始化，杜绝「先显示第一张」）
+    @State private var pageIndex: Int
+    /// 1x 横向跟手位移（翻页预览）
+    @State private var pageDragOffset: CGFloat = 0
+    /// 切页动画进行中（挡输入，防连翻）
+    @State private var isTurningPage = false
 
     // MARK: 缩放/平移状态（2026-09-29 重写：绝对位移法——offset = 基底 + 累计位移，根除反复累加）
 
@@ -4126,6 +4211,33 @@ struct FullScreenImageView: View {
     @State private var zoomHUDTask: Task<Void, Never>?
     /// 打开时刻（关闭日志的停留时长）
     @State private var openedAt = Date()
+
+    /// 单图入口（19 处既有调用点零改动）
+    init(url: URL, title: String) {
+        let single = SJZImageGalleryPayload.single(url: url)
+        self.payload = single
+        self.fallbackTitle = title
+        _pageIndex = State(initialValue: single.clampedStartIndex)
+    }
+
+    /// 载荷入口（文章图集：item 式呈现 + 左右翻页）
+    init(payload: SJZImageGalleryPayload, fallbackTitle: String) {
+        self.payload = payload
+        self.fallbackTitle = fallbackTitle
+        _pageIndex = State(initialValue: payload.clampedStartIndex)
+    }
+
+    // MARK: 当前页派生（含越界防护）
+
+    private var clampedPageIndex: Int { min(max(pageIndex, 0), max(payload.count - 1, 0)) }
+    private var currentURL: URL { payload.urls[clampedPageIndex] }
+    private var currentTitle: String {
+        let alt = payload.alts[clampedPageIndex]
+        return alt.isEmpty ? fallbackTitle : alt
+    }
+    private var canTurnPrevious: Bool { clampedPageIndex > 0 }
+    private var canTurnNext: Bool { clampedPageIndex < payload.count - 1 }
+    private var pageText: String { "\(clampedPageIndex + 1) / \(payload.count)" }
 
     @State private var loadedImage: UIImage?
     @State private var isLoading = true
@@ -4147,8 +4259,8 @@ struct FullScreenImageView: View {
                 if let image = loadedImage {
                     Image(uiImage: image).resizable().scaledToFit()
                         .scaleEffect(scale)
-                        .offset(offset)
-                        .accessibilityLabel("图片预览：\(title)")
+                        .offset(x: offset.width + pageDragOffset, y: offset.height)
+                        .accessibilityLabel("图片预览：\(currentTitle)")
                         .accessibilityValue(Self.zoomText(scale))
                         .accessibilityAdjustableAction { direction in
                             handleAccessibilityZoom(direction)
@@ -4199,11 +4311,16 @@ struct FullScreenImageView: View {
                 }
 
                 if showZoomHUD {
+                    // 倍率 HUD 居顶（与底部页码指示互不遮挡）
                     VStack {
-                        Spacer()
                         zoomHUD
+                        Spacer()
                     }
                     .allowsHitTesting(false)
+                }
+
+                if payload.count > 1 {
+                    pageIndicator
                 }
             }
             // 容器测量（iOS 18+ onGeometryChange）：边界夹紧与锚点换算依据；尺寸变化后重新夹紧防越界
@@ -4223,7 +4340,9 @@ struct FullScreenImageView: View {
             .onTapGesture(count: 1) {
                 handleSingleTap()
             }
-            .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
+            .accessibilityAction(named: "下一张") { turnPage(1, trigger: "accessibility") }
+            .accessibilityAction(named: "上一张") { turnPage(-1, trigger: "accessibility") }
+            .navigationTitle(currentTitle).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
@@ -4232,21 +4351,28 @@ struct FullScreenImageView: View {
                 }
             }
         }
-        .task {
-            await loadImage()
+        .task(id: currentURL) {
+            // URL 变化（翻页 / 防御性变更）→ 复位缩放并重载；根治「传错图仍停在屏上」
+            resetZoomForNewPage()
+            await loadImage(for: currentURL)
         }
         .onAppear {
             openedAt = Date()
             LogManager.shared.info("imageViewer", "全屏图打开", context: [
-                "url": url.lastPathComponent, "title": title
+                "url": currentURL.lastPathComponent,
+                "title": currentTitle,
+                "page": pageText,
+                "source": payload.source
             ])
         }
         .onDisappear {
             zoomHUDTask?.cancel()
             LogManager.shared.info("imageViewer", "全屏图关闭", context: [
-                "url": url.lastPathComponent,
+                "url": currentURL.lastPathComponent,
                 "stayMs": String(format: "%.0f", Date().timeIntervalSince(openedAt) * 1000),
                 "finalScale": Self.zoomText(scale),
+                "page": pageText,
+                "source": payload.source,
                 "fromCache": "\(isFromCache)"
             ])
         }
@@ -4285,41 +4411,174 @@ struct FullScreenImageView: View {
 
         let drag = DragGesture(minimumDistance: 2)
             .onChanged { value in
-                // 捏合进行中不响应拖动（避免双指手势争抢位移导致抖动）；1x 不可平移
-                guard scale > minZoomScale + 0.001, !isMagnifying else { return }
-                if !isDragging {
-                    isDragging = true
-                    dragBaseOffset = offset
-                }
-                // 绝对位移法：基底 + 手势累计位移（translation 本身即累计值，严禁逐帧累加）
-                let raw = CGSize(width: dragBaseOffset.width + value.translation.width,
-                                 height: dragBaseOffset.height + value.translation.height)
-                offset = SJZImageViewerGeometry.rubberBanded(raw, maxOffset: maxOffset(for: scale))
-            }
-            .onEnded { _ in
-                guard isDragging else { return }
-                isDragging = false
-                let limit = maxOffset(for: scale)
-                let settled = SJZImageViewerGeometry.clamped(offset, maxOffset: limit)
-                let overshoot = hypot(offset.width - settled.width, offset.height - settled.height)
-                let snappedBack = overshoot > 0.5
-                if snappedBack {
-                    withAnimation(reduceMotion ? nil : Animation.spring(response: 0.4, dampingFraction: 0.78)) {
-                        offset = settled
+                // 捏合进行中不响应拖动（避免双指手势争抢位移导致抖动）
+                guard !isMagnifying else { return }
+                let horizontalDominant = abs(value.translation.width) > abs(value.translation.height)
+                if scale > minZoomScale + 0.001 {
+                    // 放大态：平移（绝对位移法；translation 本身即累计值，严禁逐帧累加）
+                    if !isDragging {
+                        isDragging = true
+                        dragBaseOffset = offset
                     }
+                    let raw = CGSize(width: dragBaseOffset.width + value.translation.width,
+                                     height: dragBaseOffset.height + value.translation.height)
+                    offset = SJZImageViewerGeometry.rubberBanded(raw, maxOffset: maxOffset(for: scale))
+                    return
                 }
-                // 状态流转：拖动结束 / 越界回弹（边界夹紧后落点永远可见，杜绝「滑出屏幕只剩黑底」）
-                LogManager.shared.debugLog("imageViewer", snappedBack ? "拖动越界回弹" : "拖动结束", context: [
-                    "scale": Self.zoomText(scale),
-                    "offsetX": String(format: "%.0f", settled.width),
-                    "offsetY": String(format: "%.0f", settled.height),
-                    "limitX": String(format: "%.0f", limit.width),
-                    "limitY": String(format: "%.0f", limit.height),
-                    "overshoot": String(format: "%.0f", overshoot)
-                ])
+                // 1x：横向跟手翻页预览（多图集；首/末页越界方向阻尼）
+                guard payload.count > 1, !isTurningPage, horizontalDominant else { return }
+                isDragging = true
+                pageDragOffset = SJZImageViewerGeometry.dampedPageOffset(
+                    value.translation.width, canNext: canTurnNext, canPrevious: canTurnPrevious)
+            }
+            .onEnded { value in
+                let wasDragging = isDragging
+                isDragging = false
+                guard wasDragging else { return }
+                if scale > minZoomScale + 0.001 {
+                    settlePanDrag()
+                } else if payload.count > 1 {
+                    finishPageDrag(translation: value.translation.width, velocity: value.velocity.width)
+                }
             }
 
         return magnify.simultaneously(with: drag)
+    }
+
+    /// 平移落定：夹紧回边界 + 越界弹簧回弹 + 状态日志（放大态专用）
+    private func settlePanDrag() {
+        let limit = maxOffset(for: scale)
+        let settled = SJZImageViewerGeometry.clamped(offset, maxOffset: limit)
+        let overshoot = hypot(offset.width - settled.width, offset.height - settled.height)
+        let snappedBack = overshoot > 0.5
+        if snappedBack {
+            withAnimation(reduceMotion ? nil : Animation.spring(response: 0.4, dampingFraction: 0.78)) {
+                offset = settled
+            }
+        }
+        // 状态流转：拖动结束 / 越界回弹（边界夹紧后落点永远可见，杜绝「滑出屏幕只剩黑底」）
+        LogManager.shared.debugLog("imageViewer", snappedBack ? "拖动越界回弹" : "拖动结束", context: [
+            "scale": Self.zoomText(scale),
+            "offsetX": String(format: "%.0f", settled.width),
+            "offsetY": String(format: "%.0f", settled.height),
+            "limitX": String(format: "%.0f", limit.width),
+            "limitY": String(format: "%.0f", limit.height),
+            "overshoot": String(format: "%.0f", overshoot)
+        ])
+    }
+
+    // MARK: 翻页（多图集；1x 横滑跟手 → 过阈值切页 / 未过阈值弹回）
+
+    /// 翻页落定：判定切页或弹回（判定逻辑为纯函数，见 SJZImageViewerGeometry.pageTurnDecision）
+    private func finishPageDrag(translation: CGFloat, velocity: CGFloat) {
+        let decision = SJZImageViewerGeometry.pageTurnDecision(
+            translation: translation, velocity: velocity,
+            containerWidth: containerSize.width,
+            canNext: canTurnNext, canPrevious: canTurnPrevious)
+        switch decision {
+        case .next:
+            turnPage(1, trigger: "drag")
+        case .previous:
+            turnPage(-1, trigger: "drag")
+        case .none:
+            guard pageDragOffset != 0 else { return }
+            withAnimation(reduceMotion ? nil : Animation.spring(response: 0.32, dampingFraction: 0.86)) {
+                pageDragOffset = 0
+            }
+            LogManager.shared.debugLog("imageViewer", "翻页回弹未达阈值", context: [
+                "dx": String(format: "%.0f", translation),
+                "threshold": String(format: "%.0f", containerSize.width * 0.18)
+            ])
+        }
+    }
+
+    /// 执行翻页（+1 下一张 / -1 上一张）：跟手方向滑出 → 换页重载 → 反向滑入；含触觉、日志、相邻页预取
+    private func turnPage(_ delta: Int, trigger: String) {
+        guard !isTurningPage, payload.count > 1 else { return }
+        let target = clampedPageIndex + delta
+        guard payload.urls.indices.contains(target) else { return }
+        isTurningPage = true
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
+        let width = max(containerSize.width, 1)
+        let outOffset = delta > 0 ? -width : width
+        // 第一段：当前页按手势方向滑出（跟手衔接，无跳变）
+        withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.16)) {
+            pageDragOffset = outOffset
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: reduceMotion ? 1_000_000 : 170_000_000)
+            pageIndex = target
+            // 第二段：新页自反方向滑入（.task(id:) 已接管重载与缩放复位）
+            pageDragOffset = -outOffset
+            withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.2)) {
+                pageDragOffset = 0
+            }
+            LogManager.shared.info("imageViewer", "翻页", context: [
+                "page": "\(target + 1)/\(payload.count)",
+                "direction": delta > 0 ? "next" : "previous",
+                "trigger": trigger,
+                "source": payload.source
+            ])
+            prefetchAdjacentPages()
+            try? await Task.sleep(nanoseconds: reduceMotion ? 1_000_000 : 210_000_000)
+            isTurningPage = false
+        }
+    }
+
+    /// 切页后复位缩放/位移（新页从 1x 开始；不动 pageDragOffset，避免打断滑入动画）
+    private func resetZoomForNewPage() {
+        scale = minZoomScale
+        offset = .zero
+        dragBaseOffset = .zero
+        magnifyBaseScale = minZoomScale
+    }
+
+    /// 预取相邻页（±1；命中即跳过，经全局并发闸，静默失败）
+    private func prefetchAdjacentPages() {
+        guard payload.count > 1 else { return }
+        for index in [clampedPageIndex - 1, clampedPageIndex + 1] where payload.urls.indices.contains(index) {
+            let target = payload.urls[index]
+            Task { await prefetchImage(target) }
+        }
+    }
+
+    private func prefetchImage(_ target: URL) async {
+        let key = SJZDecodedImageCache.key(url: target, maxPixel: nil)
+        if SJZDecodedImageCache.shared.image(forKey: key) != nil { return }
+        if let cached = SJZImageKit.usableCachedResponse(for: SJZImageKit.makeRequest(url: target)),
+           let image = UIImage(data: cached.data) {
+            SJZDecodedImageCache.shared.store(image, forKey: key)
+            return
+        }
+        await SJZImageConcurrencyGate.shared.acquire()
+        defer { Task { await SJZImageConcurrencyGate.shared.release() } }
+        guard let (data, _) = try? await SJZImageKit.imageSession.data(for: SJZImageKit.makeRequest(url: target)),
+              let image = UIImage(data: data) else { return }
+        SJZDecodedImageCache.shared.store(image, forKey: key)
+        if SJZImageKit.shouldLogHit("viewer.prefetch:\(target.absoluteString)") {
+            LogManager.shared.debugLog("imageViewer", "相邻页预取完成", context: [
+                "url": target.lastPathComponent
+            ])
+        }
+    }
+
+    /// 页码指示（多图集常显；玻璃胶囊 + 数值过渡）
+    private var pageIndicator: some View {
+        VStack {
+            Spacer()
+            Text(pageText)
+                .displayFont(12, weight: .semibold, design: .rounded)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+                .padding(.bottom, 26)
+                .accessibilityLabel("第 \(clampedPageIndex + 1) 张，共 \(payload.count) 张")
+        }
+        .allowsHitTesting(false)
     }
 
     /// 当前倍率下的可平移范围（内容溢出容器部分的一半；未溢出轴为 0 → 该轴不可平移）
@@ -4357,9 +4616,9 @@ struct FullScreenImageView: View {
                   source: zoomingOut ? "双击复位" : "双击放大")
     }
 
-    /// 单击：仅在 1x 且无拖动/缩放进行中时关闭查看器（沿用既有语义，防误触）
+    /// 单击：仅在 1x 且无拖动/缩放/翻页进行中时关闭查看器（沿用既有语义，防误触）
     private func handleSingleTap() {
-        guard scale <= minZoomScale + 0.01, !isDragging, !isMagnifying else { return }
+        guard scale <= minZoomScale + 0.01, !isDragging, !isMagnifying, !isTurningPage else { return }
         LogManager.shared.debugLog("imageViewer", "单击关闭", context: ["scale": Self.zoomText(scale)])
         dismiss()
     }
@@ -4423,7 +4682,7 @@ struct FullScreenImageView: View {
             .padding(.horizontal, 12).padding(.vertical, 6)
             .background(.ultraThinMaterial, in: Capsule())
             .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
-            .padding(.bottom, 26)
+            .padding(.top, 12)
             .transition(.opacity.combined(with: .scale(scale: 0.9)))
             .accessibilityHidden(true)
     }
@@ -4447,24 +4706,25 @@ struct FullScreenImageView: View {
     }
 
     /// 统一加载通道：缓存优先（Referer 由协议层统一注入），带下载进度与命中统计
-    private func loadImage() async {
+    /// - Parameter target: 目标图片 URL（翻页/单图统一入口；URL 变化由 .task(id:) 触发重载）
+    private func loadImage(for target: URL) async {
         isLoading = true
         loadError = nil
         downloadProgress = nil
         isFromCache = false
 
         // 解码图内存缓存直出（orig 规格，零闪烁）
-        let memoryKey = SJZDecodedImageCache.key(url: url, maxPixel: nil)
+        let memoryKey = SJZDecodedImageCache.key(url: target, maxPixel: nil)
         if let cached = SJZDecodedImageCache.shared.image(forKey: memoryKey) {
             isFromCache = true
             finishLoad(image: cached)
             LogManager.shared.debugLog("imageCache", "全屏图片内存缓存直出，零闪烁", context: [
-                "url": url.lastPathComponent
+                "url": target.lastPathComponent
             ])
             return
         }
 
-        let request = SJZImageKit.makeRequest(url: url)
+        let request = SJZImageKit.makeRequest(url: target)
         let startTime = Date()
 
         // 缓存直读（原图不降采样，保证全屏清晰度；坏条目即时清理自愈）
@@ -4472,23 +4732,23 @@ struct FullScreenImageView: View {
             if let image = UIImage(data: cached.data) {
                 isFromCache = true
                 SJZDecodedImageCache.shared.store(image, forKey: memoryKey)
-                CacheModeManager.shared.recordImageHit(url: url.absoluteString)
+                CacheModeManager.shared.recordImageHit(url: target.absoluteString)
                 CacheModeManager.shared.recordSavedTraffic(bytes: Int64(cached.data.count))
                 finishLoad(image: image)
                 LogManager.shared.debugLog("imageCache", "全屏图片缓存命中，秒开", context: [
-                    "url": url.lastPathComponent,
+                    "url": target.lastPathComponent,
                     "size": ByteCountFormatter.string(fromByteCount: Int64(cached.data.count), countStyle: .file)
                 ])
                 return
             }
             // 解码失败不删缓存（防误删健康条目）：网络重下成功后新响应会覆盖重建该条目
             LogManager.shared.warning("imageCache", "全屏图片缓存数据不可用，回落网络加载", context: [
-                "url": url.lastPathComponent,
+                "url": target.lastPathComponent,
                 "action": "fallback(noRemove)"
             ])
         } else {
             LogManager.shared.debugLog("imageCache", "全屏图片开始下载", context: [
-                "url": url.lastPathComponent
+                "url": target.lastPathComponent
             ])
         }
 
@@ -4508,7 +4768,7 @@ struct FullScreenImageView: View {
                     loadError = "HTTP \(httpResponse.statusCode)"
                     isLoading = false
                     LogManager.shared.error("imageCache", "全屏图片 HTTP 错误", context: [
-                        "url": url.lastPathComponent, "status": "\(httpResponse.statusCode)"
+                        "url": target.lastPathComponent, "status": "\(httpResponse.statusCode)"
                     ])
                     return
                 }
@@ -4517,15 +4777,15 @@ struct FullScreenImageView: View {
                 loadError = "图片数据解码失败"
                 isLoading = false
                 LogManager.shared.warning("imageCache", "全屏图片解码失败", context: [
-                    "url": url.lastPathComponent, "dataSize": "\(data.count)"
+                    "url": target.lastPathComponent, "dataSize": "\(data.count)"
                 ])
                 return
             }
-            CacheModeManager.shared.recordImageMiss(url: url.absoluteString)
+            CacheModeManager.shared.recordImageMiss(url: target.absoluteString)
             SJZDecodedImageCache.shared.store(image, forKey: memoryKey)
             finishLoad(image: image)
             LogManager.shared.debugLog("imageCache", "全屏图片加载成功", context: [
-                "url": url.lastPathComponent,
+                "url": target.lastPathComponent,
                 "size": "\(Int(image.size.width))x\(Int(image.size.height))",
                 "elapsed": String(format: "%.0fms", Date().timeIntervalSince(startTime) * 1000)
             ])
@@ -4538,7 +4798,7 @@ struct FullScreenImageView: View {
             loadError = error.localizedDescription
             isLoading = false
             LogManager.shared.error("imageCache", "全屏图片加载失败", context: [
-                "url": url.lastPathComponent, "error": error.localizedDescription
+                "url": target.lastPathComponent, "error": error.localizedDescription
             ])
         }
     }
@@ -4697,8 +4957,8 @@ struct WebView: UIViewRepresentable {
 
 struct HonorDetailView: View {
     let honor: Honor
-    @State private var showFullscreen = false
-    @State private var selectedImageIndex = 0
+    /// 看图载荷（item 式呈现：根治「先显示第一张」的陈旧快照 + 支持左右翻页）
+    @State private var imageViewerPayload: SJZImageGalleryPayload?
     @State private var contentAppear = false
     @State private var fullDetail: DataService.ArticleFullDetail?
     @State private var isLoadingDetail = true
@@ -4725,7 +4985,12 @@ struct HonorDetailView: View {
                         case .success(let image):
                             image.resizable().scaledToFit()
                                 .frame(maxWidth: .infinity, maxHeight: 320)
-                                .onTapGesture { showFullscreen = true }
+                                .onTapGesture {
+                                    imageViewerPayload = SJZImageGalleryPayload.single(url: url, source: "header")
+                                    LogManager.shared.debugLog("imageViewer", "查看图片（头图）", context: [
+                                        "url": url.lastPathComponent
+                                    ])
+                                }
                         case .failure:
                             honorDetailHeader
                         default:
@@ -4862,8 +5127,12 @@ struct HonorDetailView: View {
                                             .frame(width: 160, height: 120)
                                             .clipShape(RoundedRectangle(cornerRadius: 14))
                                             .onTapGesture {
-                                                selectedImageIndex = idx
-                                                showFullscreen = true
+                                                imageViewerPayload = SJZImageGalleryPayload.make(
+                                                    images: images, tappedIndex: idx, source: "grid")
+                                                LogManager.shared.debugLog("imageViewer", "查看图片（图集网格）", context: [
+                                                    "index": "\(idx + 1)/\(images.count)",
+                                                    "url": img.url
+                                                ])
                                             }
                                         }
                                     }
@@ -4961,17 +5230,9 @@ struct HonorDetailView: View {
         .task {
             await loadDetail()
         }
-        .fullScreenCover(isPresented: $showFullscreen) {
-            Group {
-                if let images = fullDetail?.images, !images.isEmpty,
-                   selectedImageIndex < images.count,
-                   let url = URL(string: images[selectedImageIndex].url) {
-                    FullScreenImageView(url: url, title: honor.title)
-                } else if let imgUrl = honor.imageUrl, let url = URL(string: imgUrl) {
-                    FullScreenImageView(url: url, title: honor.title)
-                }
-            }
-            .sjzPresentationChrome()
+        .fullScreenCover(item: $imageViewerPayload) { payload in
+            FullScreenImageView(payload: payload, fallbackTitle: honor.title)
+                .sjzPresentationChrome()
         }
     }
 
@@ -5342,8 +5603,8 @@ struct SceneryDetailView: View {
 
 struct TeacherDetailView: View {
     let teacher: TeacherProfile
-    @State private var showFullscreen = false
-    @State private var selectedImageIndex = 0
+    /// 看图载荷（item 式呈现：根治「先显示第一张」的陈旧快照 + 支持左右翻页）
+    @State private var imageViewerPayload: SJZImageGalleryPayload?
     @State private var contentAppear = false
     @State private var fullDetail: DataService.ArticleFullDetail?
     @State private var isLoadingDetail = true
@@ -5370,7 +5631,12 @@ struct TeacherDetailView: View {
                         case .success(let img):
                             img.resizable().scaledToFit()
                                 .frame(maxWidth: .infinity, maxHeight: 340)
-                                .onTapGesture { showFullscreen = true }
+                                .onTapGesture {
+                                    imageViewerPayload = SJZImageGalleryPayload.single(url: url, source: "header")
+                                    LogManager.shared.debugLog("imageViewer", "查看图片（头图）", context: [
+                                        "url": url.lastPathComponent
+                                    ])
+                                }
                         case .failure:
                             teacherDetailPlaceholder
                         default:
@@ -5496,8 +5762,12 @@ struct TeacherDetailView: View {
                                             .frame(width: 160, height: 120)
                                             .clipShape(RoundedRectangle(cornerRadius: 14))
                                             .onTapGesture {
-                                                selectedImageIndex = idx
-                                                showFullscreen = true
+                                                imageViewerPayload = SJZImageGalleryPayload.make(
+                                                    images: images, tappedIndex: idx, source: "grid")
+                                                LogManager.shared.debugLog("imageViewer", "查看图片（图集网格）", context: [
+                                                    "index": "\(idx + 1)/\(images.count)",
+                                                    "url": img.url
+                                                ])
                                             }
                                         }
                                     }
@@ -5595,17 +5865,9 @@ struct TeacherDetailView: View {
         .task {
             await loadDetail()
         }
-        .fullScreenCover(isPresented: $showFullscreen) {
-            Group {
-                if let images = fullDetail?.images, !images.isEmpty,
-                   selectedImageIndex < images.count,
-                   let url = URL(string: images[selectedImageIndex].url) {
-                    FullScreenImageView(url: url, title: teacher.title)
-                } else if let imgUrl = teacher.imageUrl, let url = URL(string: imgUrl) {
-                    FullScreenImageView(url: url, title: teacher.title)
-                }
-            }
-            .sjzPresentationChrome()
+        .fullScreenCover(item: $imageViewerPayload) { payload in
+            FullScreenImageView(payload: payload, fallbackTitle: teacher.title)
+                .sjzPresentationChrome()
         }
     }
 
@@ -5903,8 +6165,8 @@ struct TeacherDetailView: View {
 
 struct StoryDetailView: View {
     let story: StudentStory
-    @State private var showFullscreen = false
-    @State private var selectedImageIndex = 0
+    /// 看图载荷（item 式呈现：根治「先显示第一张」的陈旧快照 + 支持左右翻页）
+    @State private var imageViewerPayload: SJZImageGalleryPayload?
     @State private var contentAppear = false
     @State private var fullDetail: DataService.ArticleFullDetail?
     @State private var isLoadingDetail = true
@@ -5931,7 +6193,12 @@ struct StoryDetailView: View {
                         case .success(let img):
                             img.resizable().scaledToFit()
                                 .frame(maxWidth: .infinity, maxHeight: 340)
-                                .onTapGesture { showFullscreen = true }
+                                .onTapGesture {
+                                    imageViewerPayload = SJZImageGalleryPayload.single(url: url, source: "header")
+                                    LogManager.shared.debugLog("imageViewer", "查看图片（头图）", context: [
+                                        "url": url.lastPathComponent
+                                    ])
+                                }
                         case .failure:
                             storyDetailPlaceholder
                         default:
@@ -6060,8 +6327,12 @@ struct StoryDetailView: View {
                                             .frame(width: 160, height: 120)
                                             .clipShape(RoundedRectangle(cornerRadius: 14))
                                             .onTapGesture {
-                                                selectedImageIndex = idx
-                                                showFullscreen = true
+                                                imageViewerPayload = SJZImageGalleryPayload.make(
+                                                    images: images, tappedIndex: idx, source: "grid")
+                                                LogManager.shared.debugLog("imageViewer", "查看图片（图集网格）", context: [
+                                                    "index": "\(idx + 1)/\(images.count)",
+                                                    "url": img.url
+                                                ])
                                             }
                                         }
                                     }
@@ -6159,17 +6430,9 @@ struct StoryDetailView: View {
         .task {
             await loadDetail()
         }
-        .fullScreenCover(isPresented: $showFullscreen) {
-            Group {
-                if let images = fullDetail?.images, !images.isEmpty,
-                   selectedImageIndex < images.count,
-                   let url = URL(string: images[selectedImageIndex].url) {
-                    FullScreenImageView(url: url, title: story.title)
-                } else if let imgUrl = story.imageUrl, let url = URL(string: imgUrl) {
-                    FullScreenImageView(url: url, title: story.title)
-                }
-            }
-            .sjzPresentationChrome()
+        .fullScreenCover(item: $imageViewerPayload) { payload in
+            FullScreenImageView(payload: payload, fallbackTitle: story.title)
+                .sjzPresentationChrome()
         }
     }
 
@@ -6467,8 +6730,8 @@ struct StoryDetailView: View {
 
 struct ActivityDetailView: View {
     let activity: CampusActivity
-    @State private var showFullscreen = false
-    @State private var selectedImageIndex = 0
+    /// 看图载荷（item 式呈现：根治「先显示第一张」的陈旧快照 + 支持左右翻页）
+    @State private var imageViewerPayload: SJZImageGalleryPayload?
     @State private var contentAppear = false
     @State private var fullDetail: DataService.ArticleFullDetail?
     @State private var isLoadingDetail = true
@@ -6495,7 +6758,12 @@ struct ActivityDetailView: View {
                         case .success(let img):
                             img.resizable().scaledToFit()
                                 .frame(maxWidth: .infinity, maxHeight: 340)
-                                .onTapGesture { showFullscreen = true }
+                                .onTapGesture {
+                                    imageViewerPayload = SJZImageGalleryPayload.single(url: url, source: "header")
+                                    LogManager.shared.debugLog("imageViewer", "查看图片（头图）", context: [
+                                        "url": url.lastPathComponent
+                                    ])
+                                }
                         case .failure:
                             activityDetailPlaceholder
                         default:
@@ -6628,8 +6896,12 @@ struct ActivityDetailView: View {
                                             .frame(width: 160, height: 120)
                                             .clipShape(RoundedRectangle(cornerRadius: 14))
                                             .onTapGesture {
-                                                selectedImageIndex = idx
-                                                showFullscreen = true
+                                                imageViewerPayload = SJZImageGalleryPayload.make(
+                                                    images: images, tappedIndex: idx, source: "grid")
+                                                LogManager.shared.debugLog("imageViewer", "查看图片（图集网格）", context: [
+                                                    "index": "\(idx + 1)/\(images.count)",
+                                                    "url": img.url
+                                                ])
                                             }
                                         }
                                     }
@@ -6727,17 +6999,9 @@ struct ActivityDetailView: View {
         .task {
             await loadDetail()
         }
-        .fullScreenCover(isPresented: $showFullscreen) {
-            Group {
-                if let images = fullDetail?.images, !images.isEmpty,
-                   selectedImageIndex < images.count,
-                   let url = URL(string: images[selectedImageIndex].url) {
-                    FullScreenImageView(url: url, title: activity.title)
-                } else if let imgUrl = activity.imageUrl, let url = URL(string: imgUrl) {
-                    FullScreenImageView(url: url, title: activity.title)
-                }
-            }
-            .sjzPresentationChrome()
+        .fullScreenCover(item: $imageViewerPayload) { payload in
+            FullScreenImageView(payload: payload, fallbackTitle: activity.title)
+                .sjzPresentationChrome()
         }
     }
 
@@ -11370,8 +11634,8 @@ struct ZSWArticleDetailView: View {
     @State private var fullDetail: DataService.ArticleFullDetail?
     @State private var isLoading = true
     @State private var loadError: String?
-    @State private var showImageFullscreen = false
-    @State private var selectedImageIndex = 0
+    /// 看图载荷（item 式呈现：根治「先显示第一张」的陈旧快照 + 支持左右翻页）
+    @State private var imageViewerPayload: SJZImageGalleryPayload?
     @ObservedObject private var cacheManager = CacheModeManager.shared
     @ObservedObject private var displaySettings = DisplaySettingsManager.shared
     // 画廊计数（E1/F3）：已成功加载的图片索引集合，驱动确定型进度条
@@ -11388,7 +11652,12 @@ struct ZSWArticleDetailView: View {
                         case .success(let img):
                             img.resizable().scaledToFit()
                                 .frame(maxWidth: .infinity, maxHeight: 280)
-                                .onTapGesture { showImageFullscreen = true }
+                                .onTapGesture {
+                                    imageViewerPayload = SJZImageGalleryPayload.single(url: url, source: "header")
+                                    LogManager.shared.debugLog("imageViewer", "查看图片（头图）", context: [
+                                        "url": url.lastPathComponent
+                                    ])
+                                }
                         default:
                             if let hex = SJZAverageColorCache.colorHex(for: url) {
                                 // 二次访问：以平均色瞬时占位（blur-up 本地化），消除白闪
@@ -11525,8 +11794,12 @@ struct ZSWArticleDetailView: View {
                                                         .frame(width: 100, height: 100)
                                                         .clipShape(RoundedRectangle(cornerRadius: 10))
                                                         .onTapGesture {
-                                                            selectedImageIndex = idx
-                                                            showImageFullscreen = true
+                                                            imageViewerPayload = SJZImageGalleryPayload.make(
+                                                                images: detail.images, tappedIndex: idx, source: "grid")
+                                                            LogManager.shared.debugLog("imageViewer", "查看图片（图集网格）", context: [
+                                                                "index": "\(idx + 1)/\(detail.images.count)",
+                                                                "url": img.url
+                                                            ])
                                                         }
                                                 case .failure:
                                                     RoundedRectangle(cornerRadius: 10)
@@ -11567,19 +11840,9 @@ struct ZSWArticleDetailView: View {
         // 拆分为独立属性，降低超大视图表达式的类型检查复杂度
         .overlay(alignment: .top) { zswTopProgressBar }
         .navigationTitle("文章详情").navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(isPresented: $showImageFullscreen) {
-            Group {
-                if let detail = fullDetail, !detail.images.isEmpty,
-                   selectedImageIndex < detail.images.count {
-                    let img = detail.images[selectedImageIndex]
-                    if let url = URL(string: img.url) {
-                        FullScreenImageView(url: url, title: img.alt ?? detail.title)
-                    }
-                } else if let imgUrl = article.imageUrl, let url = URL(string: imgUrl) {
-                    FullScreenImageView(url: url, title: article.title)
-                }
-            }
-            .sjzPresentationChrome()
+        .fullScreenCover(item: $imageViewerPayload) { payload in
+            FullScreenImageView(payload: payload, fallbackTitle: fullDetail?.title ?? article.title)
+                .sjzPresentationChrome()
         }
         .task {
             await loadDetail()
