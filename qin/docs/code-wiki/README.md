@@ -59,7 +59,7 @@
 | 学校 API 仅 GET、无版本号 | 客户端只能容错解码，不做协议协商 | [Data-backed] |
 | 第三方依赖极少 | 图片加载、遥测、日志、字体下载均自研或直用系统框架；唯一第三方为微信开放平台 SDK（官方 XCFramework，仅用于分享/登录/小程序） | [Data-backed] |
 | 真实设备为唯一调试目标 | 模拟器结果不作为验收依据（ProMotion、Keychain、字体下载均在真机验证） | [Data-backed] |
-| 无远端 CI 与发布流水线 | 构建/测试均在本机执行；Git 已于 2026-09-27 重建（origin=GitHub `kkkh/Garden-iOS`、gitee 镜像 `oai/garden-ios`），改动走 `git commit` 可 diff/回滚，历史备份目录保留 | [Data-backed] |
+| 无远端 CI 与发布流水线 | 构建/测试均在本机执行；Git 已于 2026-09-27 重建，三远端同步：origin=GitHub `kkkh/Garden-iOS`、gitee=`oai/garden-ios`（SSH）、cnb=腾讯 CNB `43322/Garden-iOS`（HTTPS+访问令牌，凭据存 macOS Keychain；2026-09-29 接入）；改动走 `git commit` 可 diff/回滚 | [Data-backed] |
 
 ## 隐含需求溯源（无上游 PRD）
 
