@@ -1103,10 +1103,16 @@ struct CampusCalendarDetailView: View {
                     .contextMenu {
                         Button {
                             saveImage(at: index)
-                        } label: { Label("保存图片", systemImage: "square.and.arrow.down") }
+                        } label: {
+                            Label("保存图片", systemImage: "square.and.arrow.down")
+                                .displayLabelFont(17)
+                        }
                         Button {
                             shareImage(at: index)
-                        } label: { Label("分享…", systemImage: "square.and.arrow.up") }
+                        } label: {
+                            Label("分享…", systemImage: "square.and.arrow.up")
+                                .displayLabelFont(17)
+                        }
                         Button {
                             fullScreenItem = CalendarFullScreenImage(
                                 url: url,
@@ -1114,7 +1120,10 @@ struct CampusCalendarDetailView: View {
                             LogManager.shared.info("campusCalendar", "全屏图片查看（长按菜单）", context: [
                                 "articleId": article.id ?? "(无)", "index": "\(index)"
                             ])
-                        } label: { Label("查看大图", systemImage: "arrow.up.left.and.arrow.down.right") }
+                        } label: {
+                            Label("查看大图", systemImage: "arrow.up.left.and.arrow.down.right")
+                                .displayLabelFont(17)
+                        }
                     }
                     .accessibilityLabel("校历图片 \(index + 1)/\(imageURLs.count)")
                     .accessibilityHint("轻点全屏查看，长按可保存或分享")

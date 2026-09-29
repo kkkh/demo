@@ -102,6 +102,7 @@ struct CacheModeSettingsView: View {
         Section {
             Toggle(isOn: $cacheManager.imageFreeModeEnabled) {
                 Label("无图模式", systemImage: "photo.on.rectangle.angled")
+                    .displayLabelFont(17)
             }
             .tint(Color.sjzTeal)
 
@@ -142,9 +143,10 @@ struct CacheModeSettingsView: View {
             )
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
         } header: {
-            Text("无图模式")
+            Text("无图模式").displayFont(13, weight: .semibold)
         } footer: {
             Text("无图模式优先于缓存模式生效：图片请求完全不起网络。")
+                .displayFont(13)
         }
     }
 
@@ -186,12 +188,14 @@ struct CacheModeSettingsView: View {
             }
             .padding(.vertical, 8)
         } header: {
-            Text("缓存模式")
+            Text("缓存模式").displayFont(13, weight: .semibold)
         } footer: {
             if cacheManager.isCacheEnabled {
                 Text("当前为缓存模式，已浏览的内容将自动缓存到本地，再次访问秒开呈现，同时节省流量。")
+                    .displayFont(13)
             } else {
                 Text("当前为即时刷新模式，每次浏览都实时加载最新数据，确保内容始终最新。")
+                    .displayFont(13)
             }
         }
     }
@@ -246,7 +250,7 @@ struct CacheModeSettingsView: View {
             }
             .padding(.vertical, 12)
         } header: {
-            Text("实时概览")
+            Text("实时概览").displayFont(13, weight: .semibold)
         }
     }
 
@@ -307,9 +311,10 @@ struct CacheModeSettingsView: View {
             }
             .padding(.vertical, 8)
         } header: {
-            Text("详细统计")
+            Text("详细统计").displayFont(13, weight: .semibold)
         } footer: {
             Text("数据自会话开始累计。命中率 = 缓存命中次数 ÷ 总请求次数。")
+                .displayFont(13)
         }
     }
 
@@ -394,7 +399,7 @@ struct CacheModeSettingsView: View {
             }
             .padding(.vertical, 4)
         } header: {
-            Text("流量节省")
+            Text("流量节省").displayFont(13, weight: .semibold)
         }
     }
 
@@ -407,6 +412,7 @@ struct CacheModeSettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Label("图片缓存占用", systemImage: "internaldrive.fill")
+                        .displayLabelFont(17)
                         .foregroundColor(.primary)
                     Spacer()
                     Text(ByteCountFormatter.string(fromByteCount: Int64(usage), countStyle: .file))
@@ -434,9 +440,10 @@ struct CacheModeSettingsView: View {
             }
             .padding(.vertical, 6)
         } header: {
-            Text("图片缓存中心")
+            Text("图片缓存中心").displayFont(13, weight: .semibold)
         } footer: {
             Text("图片缓存加速滚动浏览与文章图片的二次加载。清理后图片将重新下载；系统存储紧张时 iOS 也可能自动清理。")
+                .displayFont(13)
         }
     }
 
@@ -449,6 +456,7 @@ struct CacheModeSettingsView: View {
             } label: {
                 HStack {
                     Label("重置统计数据", systemImage: "arrow.counterclockwise")
+                        .displayLabelFont(17)
                         .foregroundColor(.primary)
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -462,6 +470,7 @@ struct CacheModeSettingsView: View {
             } label: {
                 HStack {
                     Label("清空全部缓存", systemImage: "trash")
+                        .displayLabelFont(17)
                         .foregroundColor(.red)
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -481,14 +490,16 @@ struct CacheModeSettingsView: View {
                 HStack {
                     Spacer()
                     Label("恢复默认", systemImage: "arrow.uturn.backward")
+                        .displayLabelFont(17)
                         .foregroundColor(.secondary)
                     Spacer()
                 }
             }
         } header: {
-            Text("管理")
+            Text("管理").displayFont(13, weight: .semibold)
         } footer: {
             Text("重置统计数据不会清除已缓存内容；清空缓存将清除所有文章详情缓存并重置统计。")
+                .displayFont(13)
         }
     }
 }

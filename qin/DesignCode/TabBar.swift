@@ -350,6 +350,7 @@ struct MainTabView: View {
                                 showPartySubjectSheet = false
                                 LogManager.shared.debugLog("party", "党建专题通知页已关闭", context: [:])
                             }
+                            .displayFont(17)
                         }
                     }
             }
@@ -2423,11 +2424,21 @@ struct ArticleLongImageRenderer {
     static let imageWidth: CGFloat = 750
     static let paddingH: CGFloat = 28
     static let contentWidth: CGFloat = imageWidth - paddingH * 2
-    static let titleFont = UIFont.systemFont(ofSize: 28, weight: .bold)
-    static let metaFont = UIFont.systemFont(ofSize: 14)
-    static let bodyFont = UIFont.systemFont(ofSize: 17)
-    static let footerFont = UIFont.systemFont(ofSize: 12)
-    static let lineSpacing: CGFloat = 8
+    /// 长图字体统一走显示设置工厂（家族 + 档位缩放 + 粗体）——2026-09-29 全局覆盖：
+    /// 长图产物与 App 内排版一致，不再固定系统字体（UserDefaults 快照直读，兼容后台渲染上下文）
+    static func uiFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+        let snapshot = DisplaySettingsManager.typographySnapshot()
+        return DisplayUIFontFactory.uiFont(size: size, weight: weight, scale: snapshot.scale,
+                                           family: snapshot.family, bold: snapshot.bold)
+    }
+    static var titleFont: UIFont { uiFont(size: 28, weight: .bold) }
+    static var metaFont: UIFont { uiFont(size: 14) }
+    static var bodyFont: UIFont { uiFont(size: 17) }
+    static var footerFont: UIFont { uiFont(size: 12) }
+    static var brandFont: UIFont { uiFont(size: 11, weight: .medium) }
+    static var altFont: UIFont { uiFont(size: 11) }
+    /// 正文行距：8pt × 显示设置行距系数（联动「行距」档；快照直读）
+    static var lineSpacing: CGFloat { 8 * CGFloat(DisplaySettingsManager.typographySnapshot().lineSpacingFactor) }
     /// 插图最大显示高度（相对内容宽度）：超过则等比填充裁切（不再纵向压扁）
     static let imageHeightCapRatio: CGFloat = 1.2
 
@@ -2615,7 +2626,7 @@ struct ArticleLongImageRenderer {
 
         // 顶部品牌标识
         let brandAttr: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 11, weight: .medium),
+            .font: Self.brandFont,
             .foregroundColor: UIColor(white: 0.5, alpha: 1)
         ]
         let brandStr = "山西晋中理工学院 APP"
@@ -2654,7 +2665,8 @@ struct ArticleLongImageRenderer {
         let bodyAttr: [NSAttributedString.Key: Any] = [
             .font: Self.bodyFont,
             .foregroundColor: Self.resolvedBodyUIColor(),
-            .paragraphStyle: bodyParagraphStyle
+            .paragraphStyle: bodyParagraphStyle,
+            .kern: DisplaySettingsManager.typographySnapshot().letterSpacing
         ]
 
         let drawAssets = includeImages ? images : []
@@ -2719,7 +2731,7 @@ struct ArticleLongImageRenderer {
 
         // 品牌标识
         let brandStr = "山西晋中理工学院 APP"
-        let brandAttr: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 11, weight: .medium)]
+        let brandAttr: [NSAttributedString.Key: Any] = [.font: Self.brandFont]
         h += (brandStr as NSString).size(withAttributes: brandAttr).height + 16
 
         // 标题
@@ -2740,7 +2752,8 @@ struct ArticleLongImageRenderer {
         bodyParagraphStyle.lineSpacing = Self.lineSpacing
         let bodyAttr: [NSAttributedString.Key: Any] = [
             .font: Self.bodyFont,
-            .paragraphStyle: bodyParagraphStyle
+            .paragraphStyle: bodyParagraphStyle,
+            .kern: DisplaySettingsManager.typographySnapshot().letterSpacing
         ]
 
         let layoutAssets = includeImages ? images : []
@@ -2811,7 +2824,7 @@ struct ArticleLongImageRenderer {
         // 图片描述
         if let alt = asset.alt, !alt.isEmpty {
             let altAttr: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 11),
+                .font: Self.altFont,
                 .foregroundColor: UIColor(white: 0.5, alpha: 1)
             ]
             totalHeight += 6 + drawMultilineText(
@@ -4139,7 +4152,9 @@ struct FullScreenImageView: View {
             .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }.foregroundStyle(.white)
+                    Button("完成") { dismiss() }
+                        .displayFont(17)
+                        .foregroundStyle(.white)
                 }
             }
         }
@@ -7199,6 +7214,7 @@ struct NewsListView: View {
                 if isSearching && !query.isEmpty {
                     // 搜索时高亮匹配关键词
                     highlightedTitle(item.title, query: query)
+                        .displayFont(14, weight: .medium)
                         .lineLimit(2)
                 } else {
                     Text(item.title)
@@ -7241,6 +7257,8 @@ struct NewsListView: View {
         let lowerQuery = query.lowercased()
         var result = AttributedString("")
         var searchRange = lowercased.startIndex..<lowercased.endIndex
+        // 高亮片段字体联动显示设置（快照直读：AttributedString 直写字体，护栏不可见；2026-09-29）
+        let typography = DisplaySettingsManager.typographySnapshot()
 
         while let range = lowercased.range(of: lowerQuery, range: searchRange) {
             let before = String(text[searchRange.lowerBound..<range.lowerBound])
@@ -7252,7 +7270,9 @@ struct NewsListView: View {
             let match = String(text[range])
             var matchAttr = AttributedString(match)
             matchAttr.foregroundColor = Color.sjzAccent
-            matchAttr.font = .system(size: 14, weight: .bold)
+            matchAttr.font = DisplayFontFactory.font(size: 14, weight: .bold,
+                                                     scale: typography.scale,
+                                                     family: typography.family, bold: typography.bold)
             result.append(matchAttr)
             searchRange = range.upperBound..<lowercased.endIndex
         }
@@ -7264,7 +7284,7 @@ struct NewsListView: View {
             result.append(remainingAttr)
         }
 
-        result.font = .system(size: 14, weight: .medium)
+        // 基础字体由调用点 displayFont 提供；此处高亮片段走粗体（两者均随显示设置联动）
         return Text(result)
     }
 
@@ -8951,11 +8971,13 @@ struct FacilityDetailView: View {
                     copyFullText()
                 } label: {
                     Label("复制全文", systemImage: "doc.on.doc")
+                        .displayLabelFont(17)
                 }
                 Button {
                     replayEntrance()
                 } label: {
                     Label("重播入场动画", systemImage: "arrow.counterclockwise")
+                        .displayLabelFont(17)
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -9605,6 +9627,7 @@ private struct AboutEntryCell: View {
             .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
+        .displayFont(15)
         .buttonStyle(FacilityPressStyle(scale: 0.98))
         .simultaneousGesture(
             TapGesture().onEnded {
@@ -9710,6 +9733,7 @@ struct AboutView: View {
                             copyProfile()
                         } label: {
                             Label("复制学校档案", systemImage: "doc.on.doc")
+                                .displayLabelFont(17)
                         }
                     } label: {
                         Image(systemName: "doc.on.doc")
@@ -9720,6 +9744,7 @@ struct AboutView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
+                        .displayFont(17)
                 }
             }
             .overlay(alignment: .bottom) { toastOverlay }
@@ -9954,6 +9979,7 @@ struct SettingsView: View {
                         DisplaySettingsView()
                     } label: {
                         Label("显示设置", systemImage: "paintbrush.pointed.fill")
+                            .displayLabelFont(15)
                     }
                     HStack {
                         Text("外观 · 字号 · 主题色")
@@ -9987,9 +10013,10 @@ struct SettingsView: View {
                         }
                     }
                 } header: {
-                    Text("显示设置")
+                    Text("显示设置").displayFont(13, weight: .semibold)
                 } footer: {
                     Text("外观模式、主题色、文字排版、屏幕亮度、自动锁定与辅助功能。")
+                        .displayFont(13)
                 }
 
                 // MARK: 应用图标
@@ -9999,6 +10026,7 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Label("应用图标", systemImage: "app.badge")
+                                .displayLabelFont(15)
                             Spacer()
                             Text(appIconManager.currentDisplayName)
                                 .displayFont(13)
@@ -10006,9 +10034,10 @@ struct SettingsView: View {
                         }
                     }
                 } header: {
-                    Text("应用图标")
+                    Text("应用图标").displayFont(13, weight: .semibold)
                 } footer: {
                     Text("在经典主图标与多套专属配色之间一键切换，主屏幕、聚焦搜索与系统设置同步生效。")
+                        .displayFont(13)
                 }
 
                 // MARK: 首页管理
@@ -10017,6 +10046,7 @@ struct SettingsView: View {
                         HomeModuleSettingsView()
                     } label: {
                         Label("首页模块管理", systemImage: "square.grid.2x2.fill")
+                            .displayLabelFont(15)
                     }
                     HStack {
                         Text("当前显示模块")
@@ -10027,9 +10057,10 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("首页管理")
+                    Text("首页管理").displayFont(13, weight: .semibold)
                 } footer: {
                     Text("按需显示或隐藏首页内容模块，并可自定义排列顺序。")
+                        .displayFont(13)
                 }
 
                 // MARK: 微信集成
@@ -10053,9 +10084,10 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("微信集成")
+                    Text("微信集成").displayFont(13, weight: .semibold)
                 } footer: {
                     Text("将文章分享到微信好友 / 朋友圈 / 收藏，支持微信登录授权与小程序跳转；状态总览与 Universal Link 自检见子页。")
+                        .displayFont(13)
                 }
 
                 // MARK: 安全中心
@@ -10064,6 +10096,7 @@ struct SettingsView: View {
                         BiometricSettingsView()
                     } label: {
                         Label("Face ID 解锁", systemImage: "faceid")
+                            .displayLabelFont(15)
                     }
                     HStack {
                         Text("冷启动 · 后台返回 · 敏感页面")
@@ -10074,9 +10107,10 @@ struct SettingsView: View {
                             .foregroundStyle(biometricManager.isEnabled ? Color.sjzGreen : .secondary)
                     }
                 } header: {
-                    Text("安全中心")
+                    Text("安全中心").displayFont(13, weight: .semibold)
                 } footer: {
                     Text("启用后面容 / 指纹验证将自动保护应用，锁定策略与降级机制可自定义。")
+                        .displayFont(13)
                 }
 
                 // MARK: 学校官网更新通知
@@ -10088,6 +10122,7 @@ struct SettingsView: View {
                                 // 已请求过但被拒绝：只能引导去系统设置
                                 HStack {
                                     Label("通知权限已拒绝", systemImage: "bell.slash.fill")
+                                        .displayLabelFont(15)
                                         .foregroundStyle(.orange)
                                     Spacer()
                                     Button("前往系统设置") {
@@ -10105,6 +10140,7 @@ struct SettingsView: View {
                                 // 首次：弹出系统授权弹窗
                                 HStack {
                                     Label("通知权限未开启", systemImage: "bell.slash.fill")
+                                        .displayLabelFont(15)
                                         .foregroundStyle(.orange)
                                     Spacer()
                                     if isRequestingPermission {
@@ -10133,6 +10169,7 @@ struct SettingsView: View {
                         // 已授权：显示开关
                         Toggle(isOn: $notificationManager.isEnabled.animation()) {
                             Label("学校官网更新通知", systemImage: "bell.badge.fill")
+                                .displayLabelFont(15)
                         }
                         .onChange(of: notificationManager.isEnabled) { _, newValue in
                             if newValue {
@@ -10147,6 +10184,7 @@ struct SettingsView: View {
                         NotificationTestView()
                     } label: {
                         Label("通知测试", systemImage: "bell.and.waves.left.and.right.fill")
+                            .displayLabelFont(15)
                     }
                     HStack {
                         Text("权限 · 送达 · 横幅 · 点击跳转 · 角标")
@@ -10165,6 +10203,7 @@ struct SettingsView: View {
                             Text("1 小时").tag(60)
                             Text("2 小时").tag(120)
                         }
+                        .displayFont(15)
 
                         // 状态信息
                         HStack {
@@ -10199,20 +10238,24 @@ struct SettingsView: View {
                             HStack {
                                 Spacer()
                                 Label("立即检查更新", systemImage: "arrow.clockwise")
+                                    .displayFont(15)
                                 Spacer()
                             }
                         }
                         .disabled(notificationManager.isChecking)
                     }
                 } header: {
-                    Text("官网上新通知")
+                    Text("官网上新通知").displayFont(13, weight: .semibold)
                 } footer: {
                     if notificationManager.isAuthorized && notificationManager.isEnabled {
                         Text("App 将每隔\(pollingIntervalText)自动检查学校官网新闻更新，发现新文章时推送通知。每次最多推送 5 条。")
+                            .displayFont(13)
                     } else if notificationManager.isAuthorized {
                         Text("开启上方开关，App 将自动检查学校官网新闻更新并推送通知。")
+                            .displayFont(13)
                     } else {
                         Text("点击「开启通知」将弹出系统授权弹窗，允许后即可接收更新推送。")
+                            .displayFont(13)
                     }
                 }
 
@@ -10239,9 +10282,10 @@ struct SettingsView: View {
                         .disabled(readManager.unreadCount(in: data.allNews) == 0)
                     }
                 } header: {
-                    Text("文章管理")
+                    Text("文章管理").displayFont(13, weight: .semibold)
                 } footer: {
                     Text("进入文章详情自动标记已读，一键清空所有未读标记。")
+                        .displayFont(13)
                 }
 
                 // MARK: 收藏设置
@@ -10249,11 +10293,13 @@ struct SettingsView: View {
                     // 收藏同步缓存开关
                     Toggle(isOn: $bookmarkManager.autoCacheContent) {
                         Label("收藏时自动缓存正文", systemImage: "arrow.down.doc.fill")
+                            .displayLabelFont(15)
                     }
 
                     // 收藏上限
                     HStack {
                         Label("收藏上限", systemImage: "tray.full.fill")
+                            .displayLabelFont(15)
                         Spacer()
                         Picker("", selection: $bookmarkManager.maxCount) {
                             Text("100 条").tag(100)
@@ -10262,11 +10308,13 @@ struct SettingsView: View {
                             Text("1000 条").tag(1000)
                         }
                         .pickerStyle(.menu)
+                        .displayFont(15)
                     }
 
                     // 收藏推送开关
                     Toggle(isOn: $bookmarkManager.pushOnUpdate) {
                         Label("收藏文章更新推送", systemImage: "bell.badge.fill")
+                            .displayLabelFont(15)
                     }
 
                     // 收藏统计
@@ -10287,19 +10335,22 @@ struct SettingsView: View {
                             HStack {
                                 Spacer()
                                 Label("清空全部收藏", systemImage: "trash")
+                                    .displayLabelFont(15)
                                     .foregroundStyle(.red)
                                 Spacer()
                             }
                         }
                     }
                 } header: {
-                    Text("收藏设置")
+                    Text("收藏设置").displayFont(13, weight: .semibold)
                 } footer: {
                     if bookmarkManager.autoCacheContent {
                         Text("开启后，收藏文章时将自动缓存正文与图片，支持离线阅读。")
+                            .displayFont(13)
                     }
                     if bookmarkManager.pushOnUpdate {
                         Text("收藏的文章在官网原文更新时，将推送通知提醒。")
+                            .displayFont(13)
                     }
                 }
 
@@ -10309,6 +10360,7 @@ struct SettingsView: View {
                         NetworkMonitorView()
                     } label: {
                         Label("网络监测", systemImage: "network")
+                            .displayLabelFont(15)
                     }
                     HStack {
                         Text("链路状态")
@@ -10367,9 +10419,10 @@ struct SettingsView: View {
                         stopNetworkEntryTimer()
                     }
                 } header: {
-                    Text("网络调试")
+                    Text("网络调试").displayFont(13, weight: .semibold)
                 } footer: {
                     Text("实时吞吐、响应延迟、会话统计、带宽测速与健康诊断；数据仅在本机内存中聚合，不上传。")
+                        .displayFont(13)
                 }
 
                 // MARK: 缓存模式
@@ -10378,6 +10431,7 @@ struct SettingsView: View {
                         CacheModeSettingsView()
                     } label: {
                         Label("缓存模式", systemImage: "tray.full.fill")
+                            .displayLabelFont(15)
                     }
                     HStack {
                         Text("当前模式")
@@ -10409,12 +10463,14 @@ struct SettingsView: View {
                             .foregroundStyle(Color.sjzOrange)
                     }
                 } header: {
-                    Text("缓存模式")
+                    Text("缓存模式").displayFont(13, weight: .semibold)
                 } footer: {
                     if cacheModeManager.isCacheEnabled {
                         Text("缓存模式已开启，已浏览内容将被自动缓存，再次访问秒开呈现，有效节省流量。")
+                            .displayFont(13)
                     } else {
                         Text("即时刷新模式，每次浏览实时加载最新内容。切换至缓存模式可获得更流畅的浏览体验。")
+                            .displayFont(13)
                     }
                 }
 
@@ -10424,6 +10480,7 @@ struct SettingsView: View {
                         LogSettingsView()
                     } label: {
                         Label("应用日志", systemImage: "terminal.fill")
+                            .displayLabelFont(15)
                     }
                     HStack {
                         Text("今日日志")
@@ -10442,31 +10499,48 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("应用日志")
+                    Text("应用日志").displayFont(13, weight: .semibold)
                 } footer: {
                     Text("日志仅存储在本地，不会自动上传。超过 \(logManager.retentionDays) 天的旧日志将自动清理，保留天数与容量上限可在日志设置中调整。")
+                        .displayFont(13)
                 }
 
                 // MARK: 数据管理
-                Section("数据管理") {
+                Section {
                     Button("清空缓存并恢复预置数据", role: .destructive) {
                         showClearAlert = true
                     }
+                    .displayFont(15)
+                } header: {
+                    Text("数据管理").displayFont(13, weight: .semibold)
                 }
 
                 // MARK: 数据概览
-                Section("数据概览") {
+                Section {
                     LabeledContent("新闻资讯", value: "\(data.news.count) 条")
+                        .displayFont(15)
                     LabeledContent("学校荣誉", value: "\(data.honors.count) 条")
+                        .displayFont(15)
                     LabeledContent("院系设置", value: "\(data.departments.count) 个")
+                        .displayFont(15)
                     LabeledContent("校园视频", value: "\(data.videos.count) 个")
+                        .displayFont(15)
                     LabeledContent("学生故事", value: "\(data.studentStories.count) 个")
+                        .displayFont(15)
                     LabeledContent("教师风采", value: "\(data.teacherProfiles.count) 个")
+                        .displayFont(15)
                     LabeledContent("校园风光", value: "\(data.campusSceneries.count) 个")
+                        .displayFont(15)
                     LabeledContent("校园活动", value: "\(data.campusActivities.count) 个")
+                        .displayFont(15)
                     LabeledContent("Banner", value: "\(data.banners.count) 个")
+                        .displayFont(15)
                     LabeledContent("友情链接", value: "\(data.footerLinks.count) 个")
+                        .displayFont(15)
                     LabeledContent("社交平台", value: "\(data.socialPlatforms.count) 个")
+                        .displayFont(15)
+                } header: {
+                    Text("数据概览").displayFont(13, weight: .semibold)
                 }
 
                 // MARK: 隐私与协议
@@ -10477,6 +10551,7 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Label("隐私与协议", systemImage: "lock.shield.fill")
+                                .displayLabelFont(15)
                                 .foregroundColor(.primary)
                             Spacer()
                             Image(systemName: "chevron.right")
@@ -10486,27 +10561,31 @@ struct SettingsView: View {
                     }
                     .contentShape(Rectangle())
                 } header: {
-                    Text("隐私与协议")
+                    Text("隐私与协议").displayFont(13, weight: .semibold)
                 } footer: {
                     Text("查看用户协议与隐私政策，了解您的权利与我们的承诺。")
+                        .displayFont(13)
                 }
 
                 // MARK: 关于
-                Section("关于") {
+                Section {
                     HStack {
-                        Text("学校名称")
-                        Spacer(); Text(SchoolInfo.name).foregroundStyle(.secondary)
+                        Text("学校名称").displayFont(15)
+                        Spacer(); Text(SchoolInfo.name).displayFont(15).foregroundStyle(.secondary)
                     }
                     HStack {
-                        Text("学校官网")
+                        Text("学校官网").displayFont(15)
                         Spacer()
                         Link("www.sxjzit.edu.cn", destination: URL(string: SchoolInfo.website)!)
+                            .displayFont(15)
                     }
                     HStack {
-                        Text("招生电话")
+                        Text("招生电话").displayFont(15)
                         Spacer()
-                        Text(data.recruitPhones.first ?? SchoolInfo.phone).foregroundStyle(.secondary)
+                        Text(data.recruitPhones.first ?? SchoolInfo.phone).displayFont(15).foregroundStyle(.secondary)
                     }
+                } header: {
+                    Text("关于").displayFont(13, weight: .semibold)
                 }
             }
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
@@ -10531,6 +10610,7 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
+                        .displayFont(17)
                 }
             }
             .alert("确认清空缓存？", isPresented: $showClearAlert) {
@@ -10660,6 +10740,7 @@ struct ZSWHomeView: View {
                             Link(destination: url) {
                                 recruitCard(item: item)
                             }
+                            .displayFont(13)
                             .buttonStyle(.plain)
                         } else {
                             // 专业介绍：导航到APP内专业介绍列表页
@@ -12669,6 +12750,7 @@ struct SpecialtyMajorDetailView: View {
                 Button("关闭") {
                     dismiss()
                 }
+                .displayFont(17)
             }
         }
     }

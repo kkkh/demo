@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-显示设置覆盖护栏（构建期强制，2026-09-27 全链审计固化）
+显示设置覆盖护栏（构建期强制，2026-09-27 全链审计固化；2026-09-29 四规则升级）
 
 规则一（排版链）：DesignCode/*.swift 中不允许出现绕过显示设置的原始字体写法。
     必须使用：displayFont / displayText / displaySymbolFont / displayLabelFont / DisplayFontFactory.font
     （字形图标用 displaySymbolFont、Label 用 displayLabelFont、正文段落用 displayText）
-    例外：Scripts/display_coverage_allowlist.txt 中登记的「文件|匹配片段 # 理由」
+    例外：Scripts/display_coverage_allowlist.txt 中登记的「font:文件|匹配片段 # 理由」
 
 规则二（弹出层）：每个 .sheet / .fullScreenCover 内容必须挂载 .sjzPresentationChrome()
     （外观模式 + 专注灰度跨 presentation 注入；系统分享面板 ShareSheet 自带豁免）
+
+规则三（UIKit / AttributedString 直连字体）：不允许 .font = .system / .systemFont( / UIFont(name: 等直写，
+    必须走 DisplayFontFactory（UIKit）或 DisplayUIFontFactory；
+    例外：「uikit:文件|匹配片段 # 理由」（工厂本体必须直写系统字体，属唯一合法出口）
+
+规则四（裸文本零容忍）：语句级审计（display_baretext_audit.py）发现的「未接显示排版链」文本构造
+    即中断构建。存量已于 2026-09-29 全量归零 —— 此后新增文本必须即时接链；
+    例外：「baretext:文件|匹配片段 # 理由」
 
 失败即中断构建，并打印修复指引。新增功能必须接入显示设置链，禁止悄悄绕过。
 """
@@ -23,10 +31,14 @@ SOURCE_DIR = os.path.join(SRCROOT, 'DesignCode')
 ALLOWLIST_PATH = os.path.join(SRCROOT, 'Scripts', 'display_coverage_allowlist.txt')
 
 FONT_CHAIN = re.compile(r'displayFont|displayText|displaySymbolFont|displayLabelFont|DisplayFontFactory|resolvedFont')
+UIKIT_DIRECT = re.compile(r'\.font\s*=\s*\.system|\.systemFont\(|\.boldSystemFont\(|\.italicSystemFont\(|UIFont\(name:')
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import display_baretext_audit as baretext_audit  # noqa: E402  （规则四复用语句级审计）
 
 
 def load_allowlist():
-    allow_font, allow_presentation = [], []
+    allow_font, allow_presentation, allow_uikit, allow_baretext = [], [], [], []
     if os.path.exists(ALLOWLIST_PATH):
         for raw in open(ALLOWLIST_PATH, encoding='utf-8'):
             line = raw.strip()
@@ -38,7 +50,11 @@ def load_allowlist():
                 allow_font.append(body[len('font:'):].strip())
             elif body.startswith('presentation:'):
                 allow_presentation.append(body[len('presentation:'):].strip())
-    return allow_font, allow_presentation
+            elif body.startswith('uikit:'):
+                allow_uikit.append(body[len('uikit:'):].strip())
+            elif body.startswith('baretext:'):
+                allow_baretext.append(body[len('baretext:'):].strip())
+    return allow_font, allow_presentation, allow_uikit, allow_baretext
 
 
 def is_comment(line):
@@ -46,14 +62,25 @@ def is_comment(line):
     return s.startswith('//') or s.startswith('///') or s.startswith('*')
 
 
+def rule_matches(file_name, rule, needle):
+    fname, _, frag = rule.partition('|')
+    return fname.strip() == file_name and frag.strip() and frag.strip() in needle
+
+
 def font_allowed_for(file_name, line, allow_font):
     if FONT_CHAIN.search(line):
         return True
-    for rule in allow_font:
-        fname, _, frag = rule.partition('|')
-        if fname.strip() == file_name and frag.strip() and frag.strip() in line:
-            return True
-    return False
+    return any(rule_matches(file_name, r, line) for r in allow_font)
+
+
+def uikit_allowed_for(file_name, line, allow_uikit):
+    if FONT_CHAIN.search(line):
+        return True
+    return any(rule_matches(file_name, r, line) for r in allow_uikit)
+
+
+def baretext_allowed_for(file_name, hit, allow_baretext):
+    return any(rule_matches(file_name, r, hit['text']) for r in allow_baretext)
 
 
 def presentation_allowed_for(file_name, line_no, window, allow_presentation):
@@ -62,15 +89,11 @@ def presentation_allowed_for(file_name, line_no, window, allow_presentation):
     # 系统分享面板：UIActivityViewController 包装，属系统 UI，自带豁免
     if 'ShareSheet(' in window:
         return True
-    for rule in allow_presentation:
-        fname, _, frag = rule.partition('|')
-        if fname.strip() == file_name and frag.strip() and frag.strip() in window:
-            return True
-    return False
+    return any(rule_matches(file_name, r, window) for r in allow_presentation)
 
 
 def main():
-    allow_font, allow_presentation = load_allowlist()
+    allow_font, allow_presentation, allow_uikit, allow_baretext = load_allowlist()
     violations = []
 
     for path in sorted(glob.glob(os.path.join(SOURCE_DIR, '*.swift'))):
@@ -85,6 +108,12 @@ def main():
                     f'[排版链缺口] {name}:{i + 1}\n    {line.strip()[:110]}\n'
                     f'    → 请改用 displayFont / displayText / displaySymbolFont / displayLabelFont / DisplayFontFactory.font'
                 )
+            # 规则三：UIKit / AttributedString 直连字体
+            if UIKIT_DIRECT.search(line) and not uikit_allowed_for(name, line, allow_uikit):
+                violations.append(
+                    f'[UIKit 直连字体] {name}:{i + 1}\n    {line.strip()[:110]}\n'
+                    f'    → 请改用 DisplayFontFactory.font（UIKit）或 DisplayUIFontFactory.uiFont（含家族/档位/粗体联动）'
+                )
             # 规则二：弹出层呈现链
             m = re.search(r'\.(sheet|fullScreenCover)\(', line)
             if m:
@@ -95,6 +124,15 @@ def main():
                         f'[弹出层缺口] {name}:{i + 1} .{m.group(1)}(...)\n'
                         f'    → 内容根必须挂载 .sjzPresentationChrome()（外观模式 + 专注灰度；系统分享面板 ShareSheet 自带豁免）'
                     )
+        # 规则四：裸文本零容忍（语句级审计：构造自身/祖先容器/调用点均无 display 链）
+        hits, _nav = baretext_audit.audit_file(path)
+        for h in hits:
+            if baretext_allowed_for(name, h, allow_baretext):
+                continue
+            violations.append(
+                f'[裸文本缺口] {name}:{h["line"]} [{h["kind"]}] {h["text"]}\n'
+                f'    → 该文本固定使用系统字体、不随显示设置变化；请挂 displayText / displayFont / displayLabelFont / displaySymbolFont'
+            )
 
     if violations:
         print('')
@@ -108,7 +146,7 @@ def main():
         print('-' * 72)
         return 1
 
-    print('✅ 显示设置覆盖护栏通过：排版链 0 缺口、弹出层呈现链 0 缺口')
+    print('✅ 显示设置覆盖护栏通过：排版链 0 缺口、弹出层呈现链 0 缺口、UIKit 直连 0 缺口、裸文本 0 缺口')
     return 0
 
 

@@ -628,9 +628,10 @@ struct WeChatIntegrationView: View {
                 }
             }
         } header: {
-            Text("状态总览")
+            Text("状态总览").displayFont(13, weight: .semibold)
         } footer: {
             Text(service.availability.userHint)
+                .displayFont(13)
         }
     }
 
@@ -665,9 +666,10 @@ struct WeChatIntegrationView: View {
             .displayLabelFont(14)
             .disabled(!service.isWeChatInstalled)
         } header: {
-            Text("分享能力")
+            Text("分享能力").displayFont(13, weight: .semibold)
         } footer: {
             Text("分享回执（成功 / 取消 / 失败）会在返回本 App 后以横幅提示，并写入日志（wechat 域）。")
+                .displayFont(13)
         }
     }
 
@@ -720,9 +722,10 @@ struct WeChatIntegrationView: View {
                 .foregroundStyle(.secondary)
             }
         } header: {
-            Text("Universal Link 自检")
+            Text("Universal Link 自检").displayFont(13, weight: .semibold)
         } footer: {
             Text("自检需已配置真实 AppID 与 Universal Link。第 5 步会短暂拉起微信，请按提示返回本 App；自检期间 SDK 自动切换为详细日志（wechat 域）。")
+                .displayFont(13)
         }
     }
 
@@ -750,9 +753,10 @@ struct WeChatIntegrationView: View {
                 }
             }
         } header: {
-            Text("微信登录")
+            Text("微信登录").displayFont(13, weight: .semibold)
         } footer: {
             Text("官方流程：客户端获取授权码（code）→ 服务端用 AppSecret 换取 access_token 与用户信息。客户端不存储任何微信用户隐私数据。")
+                .displayFont(13)
         }
     }
 
@@ -775,9 +779,10 @@ struct WeChatIntegrationView: View {
                     .foregroundStyle(.secondary)
             }
         } header: {
-            Text("小程序")
+            Text("小程序").displayFont(13, weight: .semibold)
         } footer: {
             Text("需在微信开放平台关联小程序，并拿到小程序原始 ID（gh_ 开头）。未配置时不发起任何请求。")
+                .displayFont(13)
         }
     }
 
@@ -801,9 +806,10 @@ struct WeChatIntegrationView: View {
                 }
             }
         } header: {
-            Text("接入配置指引")
+            Text("接入配置指引").displayFont(13, weight: .semibold)
         } footer: {
             Text("配置仅需改动一处：构建设置（Debug 与 Release 各一份），Info.plist 与 entitlements 自动注入。")
+                .displayFont(13)
         }
     }
 

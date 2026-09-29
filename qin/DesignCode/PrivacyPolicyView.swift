@@ -179,6 +179,7 @@ struct PrivacyDocumentView: View {
                     LogManager.shared.info("privacy", "关闭隐私文档页", context: ["type": documentType.rawValue])
                     dismiss()
                 }
+                .displayFont(17)
             }
         }
         .background(GradientBackground())

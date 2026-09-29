@@ -473,6 +473,33 @@ enum DisplayFontFamily: String, CaseIterable, Identifiable {
         }
     }
 
+    /// CSS（WebKit）家族名：CSS 按「家族名」匹配，PostScript 字面名在 WebKit 不保证命中
+    /// （2026-09-29 真机反馈修复：WebView 正文此前永远默认，根因即只给了字面名）
+    var cssFamilyName: String {
+        switch self {
+        case .system:  return "PingFang SC"
+        case .songti:  return "Songti SC"
+        case .kaiti:   return "Kaiti SC"
+        case .yuanti:  return "Yuanti SC"
+        case .xingkai: return "Xingkai SC"
+        case .libian:  return "Libian SC"
+        case .weibei:  return "Weibei SC"
+        }
+    }
+
+    /// CSS 本地化家族名（中文名候选：部分渲染栈以本地化名注册）
+    var cssLocalizedFamilyName: String {
+        switch self {
+        case .system:  return "苹方-简"
+        case .songti:  return "宋体-简"
+        case .kaiti:   return "楷体-简"
+        case .yuanti:  return "圆体-简"
+        case .xingkai: return "行楷-简"
+        case .libian:  return "隶变-简"
+        case .weibei:  return "魏碑-简"
+        }
+    }
+
     /// 按需下载字面清单（主字面 + 需要时的粗体字面；去重；system 不需要下载）
     func downloadFaceNames(includeBold: Bool) -> [String] {
         guard self != .system else { return [] }
@@ -548,12 +575,13 @@ final class DisplaySettingsManager: ObservableObject {
     /// 外观模式复用既有键，保证与历史设置/App 其它读取点完全联动
     static let appearanceKey = "colorSchemePreference"
     private static let accentKey      = "displayAccentStyle"
-    private static let fontSizeKey    = "displayFontSizeTier"
-    private static let boldKey        = "displayBoldText"
-    private static let systemFontKey  = "displayUseSystemFont"
-    private static let fontFamilyKey  = "displayFontFamily"
-    private static let lineSpacingKey = "displayLineSpacing"
-    private static let trackingKey    = "displayLetterSpacing"
+    /// 以下六键为非隔离排版快照函数直读（UserDefaults 线程安全；2026-09-29 全局覆盖）
+    nonisolated private static let fontSizeKey    = "displayFontSizeTier"
+    nonisolated private static let boldKey        = "displayBoldText"
+    nonisolated private static let systemFontKey  = "displayUseSystemFont"
+    nonisolated private static let fontFamilyKey  = "displayFontFamily"
+    nonisolated private static let lineSpacingKey = "displayLineSpacing"
+    nonisolated private static let trackingKey    = "displayLetterSpacing"
     private static let buttonShapeKey = "displayButtonShapes"
     private static let brightnessKey  = "displayBrightness"
     private static let autoBrightKey  = "displayAutoBrightness"
@@ -585,7 +613,11 @@ final class DisplaySettingsManager: ObservableObject {
 
     /// 字体大小档位
     @Published var fontSizeTier: DisplayFontSizeTier {
-        didSet { persist(fontSizeTier.rawValue, forKey: Self.fontSizeKey); log("font_size_tier", fontSizeTier.rawValue) }
+        didSet {
+            persist(fontSizeTier.rawValue, forKey: Self.fontSizeKey)
+            log("font_size_tier", fontSizeTier.rawValue)
+            applySystemChromeAppearance(reason: "font_size_tier")
+        }
     }
 
     /// 粗体文本（开启且使用自定义家族时顺带预热该家族的真实粗体字面——系统中文字体粗体字面独立于常规字面）
@@ -596,17 +628,26 @@ final class DisplaySettingsManager: ObservableObject {
             if boldTextEnabled && !useSystemFont && fontFamily != .system {
                 ensureFontFamily(fontFamily, reason: "bold_toggle")
             }
+            applySystemChromeAppearance(reason: "bold_text")
         }
     }
 
     /// 使用系统字体（关闭后使用所选字体家族）
     @Published var useSystemFont: Bool {
-        didSet { persist(useSystemFont, forKey: Self.systemFontKey); log("use_system_font", "\(useSystemFont)") }
+        didSet {
+            persist(useSystemFont, forKey: Self.systemFontKey)
+            log("use_system_font", "\(useSystemFont)")
+            applySystemChromeAppearance(reason: "use_system_font")
+        }
     }
 
     /// 字体家族（仅当关闭「使用系统字体」时作用于排版）
     @Published var fontFamily: DisplayFontFamily {
-        didSet { persist(fontFamily.rawValue, forKey: Self.fontFamilyKey); log("font_family", fontFamily.rawValue) }
+        didSet {
+            persist(fontFamily.rawValue, forKey: Self.fontFamilyKey)
+            log("font_family", fontFamily.rawValue)
+            applySystemChromeAppearance(reason: "font_family")
+        }
     }
 
     /// 行距系数（0.9 ~ 1.5）
@@ -794,7 +835,9 @@ final class DisplaySettingsManager: ObservableObject {
     /// 各字体家族可用状态（system 恒 ready；下载中以 finally 状态为准）
     @Published private(set) var fontAvailability: [DisplayFontFamily: DisplayFontAvailability] = [:]
     /// 排版修订号：字体下载完成 +1，驱动全局 display* 文本重算并应用新字体
-    @Published private(set) var typographyRevision = 0
+    @Published private(set) var typographyRevision = 0 {
+        didSet { applySystemChromeAppearance(reason: "typography_revision") }
+    }
     /// 在途下载集合（防重入）
     private var inFlightFontDownloads = Set<String>()
     /// 每次下载尝试的令牌：超时与迟到回调只作用于同一次尝试，杜绝误伤重试中的新下载（2026-09-27 完美性审查加固）
@@ -867,6 +910,8 @@ final class DisplaySettingsManager: ObservableObject {
         if !useSystemFont && fontFamily != .system {
             ensureFontFamily(fontFamily, reason: "startup_preheat")
         }
+        // 系统渲染面（导航栏/标签栏）字体接管：启动即建立 appearance 代理，后续新建的栏继承设置字体
+        applySystemChromeAppearance(reason: "startup")
         LogManager.shared.info("display", "显示设置初始化完成", context: [
             "appearance": appearanceMode.rawValue,
             "theme": themeStyle.rawValue,
@@ -1009,20 +1054,20 @@ final class DisplaySettingsManager: ObservableObject {
 
     // MARK: - 文章 WebView 排版注入（机构子站原文页 CSS，与 SwiftUI 排版链同口径）
 
-    /// WebView 正文 CSS 字体栈：随「字体家族 / 粗体文本」联动。
-    /// 系统书法字体下载后为设备级注册，WebKit 可直接按 PostScript 字面名引用；未下载/系统家族时回退系统栈。
+    /// WebView 正文 CSS 字体栈：家族名优先（CSS 规范匹配口径）+ 字面名/本地化名候选 + 系统栈兜底。
+    /// 2026-09-29 真机反馈修复：此前仅注入 PostScript 字面名，WebKit 未命中 → 正文永远默认字体。
+    /// 粗体不再靠切换字面（改由 font-weight !important 承担），避免破坏家族匹配。
     var articleCSSFontFamily: String {
         guard !useSystemFont, fontFamily != .system else {
             return "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif"
         }
-        let preferredBoldFace = boldTextEnabled ? fontFamily.boldFontName : nil
-        let face: String
-        if let preferredBoldFace, UIFont(name: preferredBoldFace, size: 17) != nil {
-            face = preferredBoldFace
-        } else {
-            face = fontFamily.fontName
-        }
-        return "'\(face)', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
+        let f = fontFamily
+        return "'\(f.cssFamilyName)', '\(f.fontName)', '\(f.cssLocalizedFamilyName)', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
+    }
+
+    /// 当前 WebView 排版探针家族名（document.fonts.check 用；与 articleCSSFontFamily 首候选一致）
+    var articleCSSCurrentFamilyName: String {
+        (!useSystemFont && fontFamily != .system) ? fontFamily.cssFamilyName : "PingFang SC"
     }
 
     /// WebView 正文基准字号（px）= 16 × 档位系数（与 SwiftUI 正文 `.displayText(size: 16)` 同口径）
@@ -1037,16 +1082,29 @@ final class DisplaySettingsManager: ObservableObject {
     /// WebView 正文粗细：开启「粗体文本」时 700，否则 400
     var articleCSSFontWeight: Int { boldTextEnabled ? 700 : 400 }
 
-    /// WebView 排版一行式 CSS 片段（两处模板共用，便于日志取证）
+    /// WebView 排版一行式 CSS 属性表（每项 !important：压过官网原文 CMS 自带内联样式；
+    /// 2026-09-29 真机反馈强化——正文此前"永远默认"即因继承规则败给内联样式）
     var articleCSSTypographyDeclaration: String {
         String(
-            format: "font-family: %@; font-size: %.1fpx; line-height: %.2f; letter-spacing: %.2fpx; font-weight: %d;",
+            format: "font-family: %@ !important; font-size: %.1fpx !important; line-height: %.2f !important; letter-spacing: %.2fpx !important; font-weight: %d !important;",
             articleCSSFontFamily,
             articleCSSFontSize,
             articleCSSLineHeight,
             articleCSSLetterSpacing,
             articleCSSFontWeight
         )
+    }
+
+    /// WebView 排版规则块（body 及全部后代，置入 style#sjz-typography）：
+    /// 官网原文的字体多写在元素内联 style / <font> 上，继承不敌直接声明——必须后代全选 + !important
+    var articleCSSTypographyRuleBlock: String {
+        "body, body * { \(articleCSSTypographyDeclaration) }"
+    }
+
+    /// WebView 排版实时重注入载荷（含修订号注释：字体下载完成后 revision 变化 → 载荷变化 →
+    /// `updateUIView` 触发重注入并强制重绘，新字面即时生效；2026-09-29 实时更新链）
+    var articleCSSLiveInjectionPayload: String {
+        "\(articleCSSTypographyRuleBlock) /* r\(typographyRevision) */"
     }
 
     /// WebView 排版注入日志上下文字典（两处模板共用，完整埋点）
@@ -1703,6 +1761,215 @@ enum DisplayFontFactory {
             let resolvedWeight: Font.Weight = bold ? .bold : weight
             return .custom(family.fontName, size: resolvedSize).weight(resolvedWeight)
         }
+    }
+}
+
+// MARK: - UIKit 字体工厂（系统渲染面专用）
+
+/// UIKit 字体工厂：与 `DisplayFontFactory` 同源策略（PostScript 字面名 + 档位缩放 + 粗体字面优先/回退），
+/// 供 **UIKit 绘制的系统渲染面** 使用——`UINavigationBar` 标题与 `UITabBar` 标签由系统绘制，
+/// SwiftUI 的 `display*` 修饰器物理上无法触及（2026-09-29 全局接管；系统弹窗遵循 HIG 保持系统样式）。
+enum DisplayUIFontFactory {
+    static func uiFont(
+        size: CGFloat,
+        weight: UIFont.Weight = .regular,
+        scale: CGFloat,
+        family: DisplayFontFamily,
+        bold: Bool
+    ) -> UIFont {
+        let resolved = size * scale
+        switch family {
+        case .system:
+            return .systemFont(ofSize: resolved, weight: bold ? .bold : weight)
+        default:
+            if bold, let boldFace = family.boldFontName, let face = UIFont(name: boldFace, size: resolved) {
+                return face
+            }
+            guard let base = UIFont(name: family.fontName, size: resolved) else {
+                // 家族未就绪/字面名不可用：回退系统字体（与 SwiftUI 工厂一致）
+                return .systemFont(ofSize: resolved, weight: bold ? .bold : weight)
+            }
+            let wantsBold = bold || weight.rawValue >= UIFont.Weight.semibold.rawValue
+            if wantsBold, let descriptor = base.fontDescriptor.withSymbolicTraits(.traitBold) {
+                return UIFont(descriptor: descriptor, size: resolved)
+            }
+            return base
+        }
+    }
+}
+
+// MARK: - 排版快照（后台渲染上下文专用）
+
+extension DisplaySettingsManager {
+    /// 排版快照：从 UserDefaults 直读当前显示设置（供长图等后台渲染上下文使用，
+    /// 避免跨 actor 访问 @MainActor 单例；与 `articleBodyLightHexSnapshot` 同范式）。
+    struct TypographySnapshot {
+        let family: DisplayFontFamily
+        let scale: CGFloat
+        let bold: Bool
+        let lineSpacingFactor: Double
+        let letterSpacing: Double
+    }
+
+    nonisolated static func typographySnapshot() -> TypographySnapshot {
+        let d = UserDefaults.standard
+        let useSystem = d.object(forKey: Self.systemFontKey) != nil ? d.bool(forKey: Self.systemFontKey) : true
+        let family: DisplayFontFamily = useSystem
+            ? .system
+            : DisplayFontFamily.normalized(rawValue: d.string(forKey: Self.fontFamilyKey) ?? "")
+        let tier = DisplayFontSizeTier(rawValue: d.string(forKey: Self.fontSizeKey) ?? "") ?? .medium
+        let bold = d.object(forKey: Self.boldKey) != nil ? d.bool(forKey: Self.boldKey) : false
+        let lineSpacing = d.object(forKey: Self.lineSpacingKey) != nil ? d.double(forKey: Self.lineSpacingKey) : 1.0
+        let letterSpacing = d.object(forKey: Self.trackingKey) != nil ? d.double(forKey: Self.trackingKey) : 0
+        return TypographySnapshot(
+            family: family,
+            scale: tier.scale,
+            bold: bold,
+            lineSpacingFactor: lineSpacing,
+            letterSpacing: letterSpacing
+        )
+    }
+}
+
+// MARK: - 系统渲染面全局接管（导航栏 / 标签栏）
+
+extension DisplaySettingsManager {
+    /// 签名门控：家族/档位/粗体三要素未变化时跳过重刷（防启动期重复调用刷屏）
+    private static var lastChromeSignature: String = ""
+
+    /// 全局接管 UIKit 绘制面的字体（导航栏标题 62 处 + Tab 标签 5 枚，一处生效）：
+    /// ① appearance 代理——覆盖之后新建的栏；② 场景内既有栏实例——复制现外观后仅重写字体属性
+    /// （不动背景/材质，规避视觉回归）；③ 延迟补刷——SwiftUI 会在屏幕更新周期重设栏外观，变更后
+    /// 0.35s/1.2s 各补一次（幂等，仅改字体）。系统弹窗（alert/确认框）由系统渲染，遵循 HIG 不接管。
+    func applySystemChromeAppearance(reason: String) {
+        let scale = fontSizeTier.scale
+        let family = useSystemFont ? .system : fontFamily
+        let bold = boldTextEnabled
+
+        // 先解析字体、再生成签名（2026-09-29 真机日志驱动修复）：
+        // 字体资产「按需下载」期间工厂会回退系统字体，下载完成后回退字体 → 目标字体；
+        // 旧的「家族|档位|粗体」签名对这种就绪态变化不敏感，会把下载完成后的重刷误判为
+        // 「无变化」而跳过，导致导航栏/标签栏停留在系统字体。签名纳入解析后字体名/字号即可感知。
+        let titleFont = DisplayUIFontFactory.uiFont(size: 17, weight: .semibold, scale: scale, family: family, bold: bold)
+        let largeFont = DisplayUIFontFactory.uiFont(size: 34, weight: .bold, scale: scale, family: family, bold: bold)
+        let itemFont = DisplayUIFontFactory.uiFont(size: 10, weight: .medium, scale: scale, family: family, bold: bold)
+        let signature = "\(family.rawValue)|\(String(format: "%.2f", scale))|\(bold)"
+            + "|\(titleFont.fontName)@\(titleFont.pointSize)|\(largeFont.fontName)|\(itemFont.fontName)"
+        guard signature != Self.lastChromeSignature || reason == "startup" else {
+            LogManager.shared.debugLog("display", "系统渲染面字体无变化，跳过重刷", context: ["reason": reason])
+            return
+        }
+        Self.lastChromeSignature = signature
+
+        Self.applyChromeToProxies(titleFont: titleFont, largeFont: largeFont, itemFont: itemFont)
+        let counts = Self.applyChromeToExistingBars(titleFont: titleFont, largeFont: largeFont, itemFont: itemFont)
+
+        LogManager.shared.info("display", "系统渲染面字体接管已刷新", context: [
+            "reason": reason,
+            "family": family.rawValue,
+            "scale": String(format: "%.2f", scale),
+            "bold": "\(bold)",
+            "navBars": "\(counts.nav)",
+            "tabBars": "\(counts.tab)",
+            "titleFont": titleFont.fontName,
+            "titleSize": String(format: "%.1f", titleFont.pointSize),
+            "mechanism": "UINavigationBarAppearance/UITabBarAppearance + 既有实例就地刷新"
+        ])
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            let pass1 = Self.applyChromeToExistingBars(titleFont: titleFont, largeFont: largeFont, itemFont: itemFont)
+            try? await Task.sleep(nanoseconds: 850_000_000)
+            let pass2 = Self.applyChromeToExistingBars(titleFont: titleFont, largeFont: largeFont, itemFont: itemFont)
+            LogManager.shared.debugLog("display", "系统渲染面字体延迟补刷完成", context: [
+                "reason": reason,
+                "pass1Nav": "\(pass1.nav)",
+                "pass2Nav": "\(pass2.nav)",
+                "pass2Tab": "\(pass2.tab)"
+            ])
+        }
+    }
+
+    /// appearance 代理：对之后新建的栏生效（背景配置取系统默认材质，仅重写字体属性）
+    private static func applyChromeToProxies(titleFont: UIFont, largeFont: UIFont, itemFont: UIFont) {
+        let nav = UINavigationBarAppearance()
+        nav.configureWithDefaultBackground()
+        nav.titleTextAttributes = [.font: titleFont]
+        nav.largeTitleTextAttributes = [.font: largeFont]
+        let navProxy = UINavigationBar.appearance()
+        navProxy.standardAppearance = nav
+        navProxy.compactAppearance = nav
+        navProxy.scrollEdgeAppearance = nav
+        navProxy.compactScrollEdgeAppearance = nav
+
+        let tab = UITabBarAppearance()
+        tab.configureWithDefaultBackground()
+        for layout in [tab.stackedLayoutAppearance, tab.inlineLayoutAppearance, tab.compactInlineLayoutAppearance] {
+            layout.normal.titleTextAttributes = [.font: itemFont]
+            layout.selected.titleTextAttributes = [.font: itemFont]
+        }
+        let tabProxy = UITabBar.appearance()
+        tabProxy.standardAppearance = tab
+        tabProxy.scrollEdgeAppearance = tab
+    }
+
+    /// 既有栏实例就地刷新：复制现外观（保留一切非字体配置）后仅重写字体属性
+    @discardableResult
+    private static func applyChromeToExistingBars(
+        titleFont: UIFont,
+        largeFont: UIFont,
+        itemFont: UIFont
+    ) -> (nav: Int, tab: Int) {
+        var navCount = 0
+        var tabCount = 0
+
+        func refreshNavigationBar(_ bar: UINavigationBar) {
+            let standard = bar.standardAppearance.copy()
+            standard.titleTextAttributes = [.font: titleFont]
+            standard.largeTitleTextAttributes = [.font: largeFont]
+            bar.standardAppearance = standard
+
+            let compact = (bar.compactAppearance ?? bar.standardAppearance).copy()
+            compact.titleTextAttributes = [.font: titleFont]
+            compact.largeTitleTextAttributes = [.font: largeFont]
+            bar.compactAppearance = compact
+
+            let scroll = (bar.scrollEdgeAppearance ?? bar.standardAppearance).copy()
+            scroll.titleTextAttributes = [.font: titleFont]
+            scroll.largeTitleTextAttributes = [.font: largeFont]
+            bar.scrollEdgeAppearance = scroll
+
+            let compactScroll = (bar.compactScrollEdgeAppearance ?? bar.standardAppearance).copy()
+            compactScroll.titleTextAttributes = [.font: titleFont]
+            compactScroll.largeTitleTextAttributes = [.font: largeFont]
+            bar.compactScrollEdgeAppearance = compactScroll
+            navCount += 1
+        }
+
+        func refreshTabBar(_ bar: UITabBar) {
+            let appearance = bar.standardAppearance.copy()
+            for layout in [appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance, appearance.compactInlineLayoutAppearance] {
+                layout.normal.titleTextAttributes = [.font: itemFont]
+                layout.selected.titleTextAttributes = [.font: itemFont]
+            }
+            bar.standardAppearance = appearance
+            bar.scrollEdgeAppearance = appearance
+            tabCount += 1
+        }
+
+        func walk(_ controller: UIViewController?) {
+            guard let controller else { return }
+            if let nav = controller as? UINavigationController { refreshNavigationBar(nav.navigationBar) }
+            if let tab = controller as? UITabBarController { refreshTabBar(tab.tabBar) }
+            controller.children.forEach { walk($0) }
+            walk(controller.presentedViewController)
+        }
+
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows { walk(window.rootViewController) }
+        }
+        return (navCount, tabCount)
     }
 }
 
