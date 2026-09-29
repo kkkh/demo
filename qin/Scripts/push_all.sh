@@ -53,14 +53,14 @@ TARGETS=()
 if [ -n "$ONLY" ]; then
   case "$ALLOWED" in
     *" $ONLY "*) TARGETS=("$ONLY") ;;
-    *) echo "✗ 未知远端：$ONLY（可选：origin / gitee / cnb）" >&2; exit 2 ;;
+    *) echo "✗ 未知远端：${ONLY}（可选：origin / gitee / cnb）" >&2; exit 2 ;;
   esac
 else
   TARGETS=("${REMOTES[@]}")
 fi
 
 echo "════════ 三远端一键推送 ════════"
-echo "分支：$BRANCH ｜ tags：$([ "$PUSH_TAGS" -eq 1 ] && echo 推送 || echo 跳过) ｜ 模式：$([ "$DRY" -eq 1 ] && echo 演练 || echo 实际推送)"
+echo "分支：${BRANCH} ｜ tags：$([ "$PUSH_TAGS" -eq 1 ] && echo 推送 || echo 跳过) ｜ 模式：$([ "$DRY" -eq 1 ] && echo 演练 || echo 实际推送)"
 echo "本地 HEAD：$(git rev-parse --short HEAD)  $(git log -1 --format=%s 2>/dev/null | cut -c1-64)"
 echo ""
 
@@ -96,7 +96,7 @@ for R in "${TARGETS[@]}"; do
       fi
     fi
     SHA="$(git ls-remote "$R" "refs/heads/$BRANCH" | awk '{print substr($1,1,8)}')"
-    echo "  ✓ [$R] 完成（远端 @ $SHA）"
+    echo "  ✓ [${R}] 完成（远端 @ ${SHA}）"
   else
     echo "  ✗ [$R] 推送失败"
     FAILED+=("$R")
