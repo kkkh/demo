@@ -36,6 +36,8 @@ struct DeepLinkPayload: Codable, Equatable {
     var mailboxTitle: String?
     var schoolProfile: Bool?
     var partySubject: Bool?
+    /// 收藏更新通道目的地归因（2026-09-29）：payload 自描述 + launch 侧按 kind 兜底双保险
+    var isBookmarkUpdate: Bool?
 
     /// 转换成 NotificationManager.handleNotificationTap 可识别的 userInfo 字典
     var asUserInfo: [AnyHashable: Any] {
@@ -51,6 +53,7 @@ struct DeepLinkPayload: Codable, Equatable {
         }
         if schoolProfile == true { info["schoolProfileDeepLink"] = true }
         if partySubject == true { info["partySubjectDeepLink"] = true }
+        if isBookmarkUpdate == true { info["isBookmarkUpdate"] = true }
         return info
     }
 
@@ -630,6 +633,17 @@ final class MessageCenterStore: ObservableObject {
 
     // MARK: 深链投递
 
+    /// 投递 userInfo 归因（纯函数，测试共用）：收藏更新通道的 payload 只携带 articleId，
+    /// 目的地 kind 按消息自身补齐——否则 handleNotificationTap 会按 news-{articleId} 走新闻通道标已读，
+    /// 收藏更新条目无法命中（系统通知路径由 BookmarkManager 手工塞入同键；本兜底同时修复历史已落盘消息）。
+    static func deliveryUserInfo(for item: MessageItem) -> [AnyHashable: Any] {
+        var info = item.deepLink?.asUserInfo ?? [:]
+        if item.kind == .bookmarkUpdate {
+            info["isBookmarkUpdate"] = true
+        }
+        return info
+    }
+
     /// 点击消息统一入口：先请求关闭消息中心（让出 sheet 动画），再走既有通知深链分发
     func launch(item: MessageItem) {
         launchTask?.cancel()
@@ -641,7 +655,7 @@ final class MessageCenterStore: ObservableObject {
             ])
             return
         }
-        let userInfo = deepLink.asUserInfo
+        let userInfo = Self.deliveryUserInfo(for: item)
         LogManager.shared.info("messageCenter", "消息点击 → 深链投递", context: [
             "id": item.id,
             "kind": item.kind.rawValue,
