@@ -1593,3 +1593,139 @@ final class ArticleLongImageLogicTests: XCTestCase {
         }
     }
 }
+
+// MARK: - 全屏看图几何契约（2026-09-29 「放大后滑动变黑」修复）
+
+/// 覆盖：适配尺寸（scaledToFit 同口径）、可平移范围、边界夹紧、橡皮筋阻尼、
+/// 锚点缩放不变量，以及祟疾回归——拖动位移必须为「基底 + 最新累计位移」。
+/// 旧实现把累计位移逐帧累加（offset += translation）→ 平方级放大 → 一次滑动即把图片甩出屏幕（只剩黑底）。
+final class SJZImageViewerGeometryTests: XCTestCase {
+
+    // MARK: 适配尺寸
+
+    func testFittedSizeLandscapeImageFillsWidth() {
+        let fitted = SJZImageViewerGeometry.fittedSize(
+            imageSize: CGSize(width: 1600, height: 900),
+            containerSize: CGSize(width: 400, height: 800))
+        XCTAssertEqual(fitted.width, 400, accuracy: 0.001)
+        XCTAssertEqual(fitted.height, 225, accuracy: 0.001)
+    }
+
+    func testFittedSizePortraitImageFillsHeight() {
+        let fitted = SJZImageViewerGeometry.fittedSize(
+            imageSize: CGSize(width: 800, height: 2000),
+            containerSize: CGSize(width: 400, height: 800))
+        XCTAssertEqual(fitted.height, 800, accuracy: 0.001)
+        XCTAssertEqual(fitted.width, 320, accuracy: 0.001)
+    }
+
+    func testFittedSizeDegenerateInputsAreZero() {
+        XCTAssertEqual(SJZImageViewerGeometry.fittedSize(
+            imageSize: .zero, containerSize: CGSize(width: 400, height: 800)), .zero)
+        XCTAssertEqual(SJZImageViewerGeometry.fittedSize(
+            imageSize: CGSize(width: 100, height: 100), containerSize: .zero), .zero)
+    }
+
+    // MARK: 可平移范围
+
+    func testMaxOffsetZeroWhenNotZoomed() {
+        // 适配后宽高都不溢出 → 1x 不可平移（与照片 App 一致）
+        let limit = SJZImageViewerGeometry.maxOffset(
+            displaySize: CGSize(width: 400, height: 225),
+            scale: 1,
+            containerSize: CGSize(width: 400, height: 800))
+        XCTAssertEqual(limit.width, 0, accuracy: 0.001)
+        XCTAssertEqual(limit.height, 0, accuracy: 0.001)
+    }
+
+    func testMaxOffsetGrowsWithScale() {
+        let limit = SJZImageViewerGeometry.maxOffset(
+            displaySize: CGSize(width: 400, height: 225),
+            scale: 2,
+            containerSize: CGSize(width: 400, height: 800))
+        XCTAssertEqual(limit.width, 200, accuracy: 0.001)   // (400×2−400)/2
+        XCTAssertEqual(limit.height, 0, accuracy: 0.001)    // (225×2−800)/2 < 0 → 0
+    }
+
+    // MARK: 夹紧 / 橡皮筋
+
+    func testClampedBothAxes() {
+        let settled = SJZImageViewerGeometry.clamped(
+            CGSize(width: 500, height: -900),
+            maxOffset: CGSize(width: 200, height: 300))
+        XCTAssertEqual(settled.width, 200, accuracy: 0.001)
+        XCTAssertEqual(settled.height, -300, accuracy: 0.001)
+    }
+
+    func testRubberBandDampsOnlyBeyondLimit() {
+        let within = SJZImageViewerGeometry.rubberBanded(
+            CGSize(width: 100, height: -120), maxOffset: CGSize(width: 150, height: 150))
+        XCTAssertEqual(within.width, 100, accuracy: 0.001)
+        XCTAssertEqual(within.height, -120, accuracy: 0.001)
+        let beyond = SJZImageViewerGeometry.rubberBanded(
+            CGSize(width: 200, height: -250), maxOffset: CGSize(width: 150, height: 150))
+        XCTAssertEqual(beyond.width, 150 + 50 * 0.35, accuracy: 0.001)
+        XCTAssertEqual(beyond.height, -(150 + 100 * 0.35), accuracy: 0.001)
+    }
+
+    // MARK: 祟疾回归：绝对位移法
+
+    func testDragOffsetIsAbsoluteNotAccumulated() {
+        let limit = CGSize(width: 120, height: 120)
+        let base = CGSize.zero
+        // 第 1 帧：累计位移 100（未越界，原样跟随）
+        let frame1 = SJZImageViewerGeometry.rubberBanded(
+            CGSize(width: base.width + 100, height: base.height + 100), maxOffset: limit)
+        XCTAssertEqual(frame1.width, 100, accuracy: 0.001)
+        XCTAssertEqual(frame1.height, 100, accuracy: 0.001)
+        // 第 2 帧：累计位移 200（越界 → 阻尼压缩，保持有界，绝不平方级放大）
+        let frame2 = SJZImageViewerGeometry.rubberBanded(
+            CGSize(width: base.width + 200, height: base.height + 200), maxOffset: limit)
+        XCTAssertEqual(frame2.width, 120 + 80 * 0.35, accuracy: 0.001)
+        // 第 3 帧：手指停住（位移不再变化）→ 结果幂等（旧实现此时仍会持续累加膨胀）
+        let frame3 = SJZImageViewerGeometry.rubberBanded(
+            CGSize(width: base.width + 200, height: base.height + 200), maxOffset: limit)
+        XCTAssertEqual(frame3.width, frame2.width, accuracy: 0.001)
+        // 松手落点：夹紧回边界（图片必然可见）
+        let settled = SJZImageViewerGeometry.clamped(frame2, maxOffset: limit)
+        XCTAssertEqual(settled.width, 120, accuracy: 0.001)
+    }
+
+    // MARK: 锚点缩放不变量
+
+    func testAnchoredOffsetKeepsAnchorFixed() {
+        let container = CGSize(width: 400, height: 800)
+        let anchor = CGPoint(x: 120, y: 300)
+        let offset = CGSize(width: 30, height: -60)
+        let oldScale: CGFloat = 1.5
+        let newScale: CGFloat = 3.2
+        let newOffset = SJZImageViewerGeometry.anchoredOffset(
+            anchor: anchor, containerSize: container, offset: offset, oldScale: oldScale, newScale: newScale)
+        // 锚点下的内容点在缩放前后必须落在同一屏幕位置（不漂移）
+        let center = CGPoint(x: container.width / 2, y: container.height / 2)
+        let contentPoint = CGPoint(x: (anchor.x - center.x - offset.width) / oldScale,
+                                   y: (anchor.y - center.y - offset.height) / oldScale)
+        let screenPoint = CGPoint(x: center.x + newOffset.width + contentPoint.x * newScale,
+                                  y: center.y + newOffset.height + contentPoint.y * newScale)
+        XCTAssertEqual(screenPoint.x, anchor.x, accuracy: 0.001)
+        XCTAssertEqual(screenPoint.y, anchor.y, accuracy: 0.001)
+    }
+
+    func testAnchoredOffsetAtCenterScalesOffsetProportionally() {
+        let newOffset = SJZImageViewerGeometry.anchoredOffset(
+            anchor: CGPoint(x: 200, y: 400),
+            containerSize: CGSize(width: 400, height: 800),
+            offset: CGSize(width: 10, height: 20),
+            oldScale: 1, newScale: 2)
+        XCTAssertEqual(newOffset.width, 20, accuracy: 0.001)
+        XCTAssertEqual(newOffset.height, 40, accuracy: 0.001)
+    }
+
+    // MARK: 倍率夹紧
+
+    func testClampedScaleBounds() {
+        XCTAssertEqual(SJZImageViewerGeometry.clampedScale(0.4), 1, accuracy: 0.001)
+        XCTAssertEqual(SJZImageViewerGeometry.clampedScale(3.3), 3.3, accuracy: 0.001)
+        XCTAssertEqual(SJZImageViewerGeometry.clampedScale(9.9), 5, accuracy: 0.001)
+    }
+}
