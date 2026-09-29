@@ -51,6 +51,14 @@ struct BookmarkListView: View {
     @State private var diagnosePressCount = 0
     @State private var storageSnapshot: BookmarkStorageSnapshot?
 
+    // MARK: 离线中心（正文缓存管理）
+
+    @State private var showOfflineCenter = false
+    @State private var showClearContentConfirm = false
+    @State private var showKeepLatestConfirm = false
+    /// 离线正文清理结果（面板关闭后以横幅延迟反馈，避免信息被 sheet 遮挡）
+    @State private var offlineCleared: (count: Int, bytes: Int)?
+
     // MARK: 时间鲜活（「x 分钟前收藏」）与停留时长
 
     @State private var now = Date()
@@ -61,6 +69,11 @@ struct BookmarkListView: View {
 
     private var unreadCount: Int {
         bookmarkManager.unreadCount(readKeys: readManager.snapshot)
+    }
+
+    /// 批量缓存可用性（菜单三态与离线中心共用同一判定源，数据口径与任务启动完全一致）
+    private var precacheAvailability: (candidates: Int, withoutArticleId: Int, cached: Int) {
+        bookmarkManager.precacheAvailability
     }
 
     private var isSearching: Bool {
@@ -164,6 +177,11 @@ struct BookmarkListView: View {
         }
         .sheet(isPresented: $showDiagnosePanel) {
             diagnosePanel.sjzPresentationChrome()
+        }
+        .sheet(isPresented: $showOfflineCenter) {
+            offlineCenterPanel
+                .sjzPresentationChrome()
+                .onDisappear { handleOfflineCenterDismiss() }
         }
         .onAppear {
             openedAt = Date()
@@ -522,7 +540,7 @@ struct BookmarkListView: View {
                           systemImage: readManager.isRead(item.readKey) ? "circle" : "circle.fill")
                         .displayLabelFont(17)
                 }
-                if !item.contentCached, item.articleId != nil {
+                if !item.hasCachedContent, item.articleId != nil {
                     Button {
                         cacheSingle(item)
                     } label: {
@@ -641,7 +659,7 @@ struct BookmarkListView: View {
                 .lineLimit(1)
             if item.hasPendingUpdate {
                 miniChip(icon: "arrow.triangle.2.circlepath", text: "内容有更新", color: Color.sjzOrange)
-            } else if item.contentCached {
+            } else if item.hasCachedContent {
                 miniChip(icon: "checkmark.icloud.fill", text: "可离线", color: Color.sjzGreen)
             } else if bookmarkManager.autoCacheContent, item.articleId != nil {
                 miniChip(icon: "icloud.slash", text: "未缓存", color: .secondary)
@@ -898,13 +916,16 @@ struct BookmarkListView: View {
 
     private var moreMenu: some View {
         Menu {
+            precacheMenuEntry
             Button {
-                bookmarkManager.precacheAllContent()
+                showOfflineCenter = true
+                LogManager.shared.debugLog("favorite", "离线中心入口点击", context: [
+                    "cached": "\(bookmarkManager.contentCachedCount)", "total": "\(bookmarkManager.count)"
+                ])
             } label: {
-                Label("缓存全部正文（离线预热）", systemImage: "arrow.down.doc.fill")
+                Label("离线中心（正文缓存管理）", systemImage: "icloud.and.arrow.down")
                     .displayLabelFont(17)
             }
-            .disabled(bookmarkManager.precacheCandidates.isEmpty)
             Button {
                 showDiagnosePanel = true
                 LogManager.shared.debugLog("favorite", "打开收藏诊断面板（菜单入口）", context: [:])
@@ -925,6 +946,45 @@ struct BookmarkListView: View {
                 .foregroundStyle(Color.sjzAccent)
         }
         .accessibilityLabel("更多操作")
+    }
+
+    /// 「缓存全部正文」菜单项三态（判定源与批量缓存任务一致，状态永远可解释、永不灰置）：
+    /// 有候选 → 可点并显示待缓存篇数（执行预热）；无候选但有离线正文 → 状态行（区分自动缓存开关）
+    /// 且可点直达离线中心管理；无候选也无离线正文 → 说明原因（无 articleId / 暂无收藏）。
+    @ViewBuilder
+    private var precacheMenuEntry: some View {
+        let availability = precacheAvailability
+        if availability.candidates > 0 {
+            Button {
+                bookmarkManager.precacheAllContent()
+            } label: {
+                Label("缓存全部正文（\(availability.candidates) 篇待缓存）", systemImage: "arrow.down.doc.fill")
+                    .displayLabelFont(17)
+            }
+            .disabled(bookmarkManager.precacheProgress != nil)
+        } else if availability.cached > 0 {
+            // 已全部可离线：信息行同时是「离线中心」直达入口（永不灰置，状态可管理）
+            Button {
+                showOfflineCenter = true
+                LogManager.shared.debugLog("favorite", "离线中心入口点击（已全缓存态）", context: [
+                    "cached": "\(availability.cached)", "autoCache": "\(bookmarkManager.autoCacheContent)"
+                ])
+            } label: {
+                Label(
+                    bookmarkManager.autoCacheContent
+                        ? "全部正文已可离线（自动缓存已开启）"
+                        : "全部正文已可离线 · \(availability.cached) 篇",
+                    systemImage: "checkmark.icloud.fill"
+                )
+                .displayLabelFont(17)
+            }
+        } else if availability.withoutArticleId > 0 {
+            Label("暂无可缓存正文的文章", systemImage: "info.circle")
+                .displayLabelFont(17)
+        } else {
+            Label("暂无收藏", systemImage: "bookmark")
+                .displayLabelFont(17)
+        }
     }
 
     // MARK: 诊断面板（长按标题图标 5 次 / 更多菜单进入）
@@ -1005,6 +1065,226 @@ struct BookmarkListView: View {
             .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: 离线中心（正文缓存管理）
+
+    /// 离线中心面板：占用统计 · 批量缓存（含进度/取消）· 清理全部正文 · 仅保留最近 10 篇
+    private var offlineCenterPanel: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    offlineStatsCard
+
+                    if let progress = bookmarkManager.precacheProgress {
+                        offlineProgressRow(progress)
+                    }
+
+                    let availability = precacheAvailability
+                    if availability.candidates > 0 {
+                        offlineAction(icon: "arrow.down.doc.fill",
+                                      title: "缓存全部未缓存正文",
+                                      detail: "\(availability.candidates) 篇待缓存",
+                                      tint: Color.sjzGreen,
+                                      disabled: bookmarkManager.precacheProgress != nil) {
+                            bookmarkManager.precacheAllContent()
+                        }
+                    } else {
+                        offlineInfoRow(icon: availability.cached > 0 ? "checkmark.icloud.fill" : "info.circle",
+                                       text: availability.cached > 0 ? "全部正文已可离线" : "暂无可缓存正文的文章")
+                    }
+
+                    if availability.cached > 0 {
+                        offlineAction(icon: "trash",
+                                      title: "清理离线正文",
+                                      detail: "\(availability.cached) 篇 · 收藏条目保留",
+                                      tint: Color.sjzOrange) {
+                            showClearContentConfirm = true
+                        }
+                        if availability.cached > 10 {
+                            offlineAction(icon: "clock.arrow.circlepath",
+                                          title: "仅保留最近 10 篇正文",
+                                          detail: "释放其余空间",
+                                          tint: Color.sjzPrimary) {
+                                showKeepLatestConfirm = true
+                            }
+                        }
+                    }
+
+                    Text("清理仅移除离线正文，收藏条目完整保留；联网后可随时重新缓存。")
+                        .displayFont(11)
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 2)
+                }
+                .padding(16)
+            }
+            .navigationTitle("离线中心")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") { showOfflineCenter = false }
+                        .displayFont(17)
+                }
+            }
+            .confirmationDialog("确认清理全部离线正文？", isPresented: $showClearContentConfirm, titleVisibility: .visible) {
+                Button("清理 \(precacheAvailability.cached) 篇离线正文", role: .destructive) {
+                    clearOfflineContent(keepingLatest: nil)
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("将移除全部离线正文，收藏条目保留；联网后可重新缓存。")
+            }
+            .confirmationDialog("仅保留最近 10 篇离线正文？", isPresented: $showKeepLatestConfirm, titleVisibility: .visible) {
+                Button("保留最近 10 篇并清理其余", role: .destructive) {
+                    clearOfflineContent(keepingLatest: 10)
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("将释放其余正文缓存空间，收藏条目保留。")
+            }
+            .task {
+                LogManager.shared.info("favorite", "离线中心打开", context: [
+                    "cached": "\(bookmarkManager.contentCachedCount)",
+                    "total": "\(bookmarkManager.count)",
+                    "candidates": "\(precacheAvailability.candidates)",
+                    "autoCache": "\(bookmarkManager.autoCacheContent)"
+                ])
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    /// 离线正文占用卡片（篇数 / 字数 / 预估字节）
+    private var offlineStatsCard: some View {
+        let stats = bookmarkManager.offlineContentStats
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "icloud.and.arrow.down.fill")
+                    .displaySymbolFont(15, weight: .semibold)
+                    .foregroundStyle(Color.sjzGreen)
+                Text("离线正文占用")
+                    .displayFont(14, weight: .semibold)
+                Spacer()
+                Text(byteText(stats.bytes))
+                    .displayFont(14, weight: .semibold)
+                    .foregroundStyle(Color.sjzGreen)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: stats.bytes)
+            }
+            Text(stats.count > 0 ? "已缓存 \(stats.count) 篇 · 共 \(stats.chars) 字" : "尚未缓存任何正文")
+                .displayFont(12)
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: stats.count)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .combine)
+    }
+
+    /// 面板内批量缓存进度行（点按取消）
+    private func offlineProgressRow(_ progress: BookmarkManager.PrecacheProgress) -> some View {
+        Button {
+            bookmarkManager.cancelPrecache()
+        } label: {
+            HStack(spacing: 10) {
+                ProgressView().controlSize(.mini)
+                Text("正在缓存 \(progress.done)/\(progress.total) 篇")
+                    .displayFont(13, weight: .medium)
+                    .contentTransition(.numericText())
+                Spacer()
+                Text("点按取消")
+                    .displayFont(11)
+                    .foregroundStyle(.secondary)
+            }
+            .foregroundStyle(Color.sjzAccent)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(Color.sjzAccent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("正在缓存正文 \(progress.done) / \(progress.total)，点按取消")
+    }
+
+    /// 离线中心操作行（图标 + 标题 + 明细 + 触觉 + 直达动作）
+    private func offlineAction(icon: String, title: String, detail: String, tint: Color,
+                               disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        Button {
+            let impact = UIImpactFeedbackGenerator(style: .medium)
+            impact.impactOccurred()
+            action()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .displaySymbolFont(15, weight: .medium)
+                    .foregroundStyle(tint)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .displayFont(14, weight: .medium)
+                        .foregroundStyle(.primary)
+                    Text(detail)
+                        .displayFont(11)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .displaySymbolFont(11, weight: .medium)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.55 : 1)
+    }
+
+    /// 离线中心信息行（不可点，状态可达告知）
+    private func offlineInfoRow(icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .displaySymbolFont(15, weight: .medium)
+                .foregroundStyle(Color.sjzGreen)
+                .frame(width: 24)
+            Text(text)
+                .displayFont(14, weight: .medium)
+            Spacer()
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .background(Color.sjzGreen.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityLabel(text)
+    }
+
+    /// 执行离线正文清理（nil = 全部清理；10 = 仅保留最近 10 篇），结果横幅在面板关闭后展示
+    private func clearOfflineContent(keepingLatest keep: Int?) {
+        let impact = UIImpactFeedbackGenerator(style: .heavy)
+        impact.impactOccurred()
+        let cleared: (count: Int, bytes: Int)
+        if let keep {
+            cleared = withAnimation(.easeInOut(duration: 0.3)) {
+                bookmarkManager.clearAllContent(keepingLatest: keep)
+            }
+        } else {
+            cleared = withAnimation(.easeInOut(duration: 0.3)) {
+                bookmarkManager.clearAllContent()
+            }
+        }
+        if cleared.count > 0 { offlineCleared = cleared }
+        LogManager.shared.info("favorite", "离线中心清理操作", context: [
+            "mode": keep.map { "keepLatest(\($0))" } ?? "all",
+            "cleared": "\(cleared.count)", "bytes": "\(cleared.bytes)"
+        ])
+    }
+
+    /// 离线中心关闭后的延迟反馈（清理结果横幅）
+    private func handleOfflineCenterDismiss() {
+        guard let cleared = offlineCleared else { return }
+        offlineCleared = nil
+        showBanner("已清理 \(cleared.count) 篇离线正文 · 释放 \(byteText(cleared.bytes))",
+                   icon: "trash.fill", tone: .info)
     }
 
     // MARK: 行交互
@@ -1196,11 +1476,18 @@ struct BookmarkListView: View {
         if unread { parts.append("未读") }
         if item.hasPendingUpdate {
             parts.append("内容有更新")
-        } else if item.contentCached {
+        } else if item.hasCachedContent {
             parts.append("可离线阅读")
         }
         parts.append(relativeBookmarkTime(item.bookmarkDate, now: now))
         return parts.joined(separator: "，")
+    }
+
+    /// 字节数人类可读文案（离线占用展示统一口径）
+    private func byteText(_ bytes: Int) -> String {
+        if bytes >= 1024 * 1024 { return String(format: "%.1f MB", Double(bytes) / 1024 / 1024) }
+        if bytes >= 1024 { return String(format: "%.1f KB", Double(bytes) / 1024) }
+        return "\(bytes) B"
     }
 
     /// 收藏时间相对文案

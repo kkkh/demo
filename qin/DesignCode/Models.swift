@@ -1490,6 +1490,12 @@ struct BookmarkItem: Identifiable, Codable, Equatable, Hashable {
     /// 是否有待确认的内容更新（派生展示状态）
     var hasPendingUpdate: Bool { updateDetectedAt != nil }
 
+    /// 是否实际持有可离线正文（单一事实源：一律以 cachedContent 实际内容判定，
+    /// 不依赖 contentCached 标志位——标志位与内容不一致时由管理器自愈修正）
+    var hasCachedContent: Bool {
+        !(cachedContent ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     /// 已读状态唯一键
     var readKey: String { articleId ?? title + date }
 

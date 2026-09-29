@@ -319,6 +319,75 @@ final class BookmarkManagerTests: XCTestCase {
         XCTAssertEqual(manager.precacheCandidates.map(\.readKey), ["p1"])
     }
 
+    func testContentFlagSelfHealsFromActualContent() throws {
+        // 标志位与内容不一致：h1 假阳性（标志 true 无内容）、h2 假阴性（标志 false 有内容）
+        try writeStorageFile([
+            makeBookmark(title: "标志位假阳性", articleId: "h1", cachedContent: nil, contentCached: true),
+            makeBookmark(title: "标志位假阴性", articleId: "h2", cachedContent: "真实正文", contentCached: false)
+        ])
+
+        let manager = makeManager()
+        // 计数与候选一律以实际内容为准（判定源加固）
+        XCTAssertEqual(manager.contentCachedCount, 1)
+        XCTAssertEqual(manager.precacheCandidates.map(\.readKey), ["h1"])
+        XCTAssertEqual(manager.precacheAvailability.candidates, 1)
+        // 标志位已自愈并对齐实际内容
+        XCTAssertFalse(manager.bookmarks.first { $0.readKey == "h1" }!.contentCached)
+        XCTAssertTrue(manager.bookmarks.first { $0.readKey == "h2" }!.contentCached)
+        // 自愈结果已回写存储（重载后保持对齐）
+        let reloaded = makeManager()
+        XCTAssertEqual(reloaded.contentCachedCount, 1)
+        XCTAssertFalse(reloaded.bookmarks.first { $0.readKey == "h1" }!.contentCached)
+        XCTAssertTrue(reloaded.bookmarks.first { $0.readKey == "h2" }!.contentCached)
+    }
+
+    func testClearAllContentClearsContentNotBookmarks() throws {
+        try writeStorageFile([
+            makeBookmark(title: "甲", articleId: "a1", cachedContent: "正文甲", contentCached: true),
+            makeBookmark(title: "乙", articleId: "a2", cachedContent: "正文乙", contentCached: true),
+            makeBookmark(title: "丙", articleId: "a3")
+        ])
+
+        let manager = makeManager()
+        XCTAssertEqual(manager.contentCachedCount, 2)
+        let stats = manager.offlineContentStats
+        XCTAssertEqual(stats.count, 2)
+        XCTAssertGreaterThan(stats.bytes, 0)
+
+        let cleared = manager.clearAllContent()
+        XCTAssertEqual(cleared.count, 2)
+        XCTAssertGreaterThan(cleared.bytes, 0)
+        // 收藏条目保留，仅正文清空
+        XCTAssertEqual(manager.count, 3)
+        XCTAssertEqual(manager.contentCachedCount, 0)
+        XCTAssertEqual(manager.precacheCandidates.count, 3)
+        XCTAssertTrue(manager.bookmarks.allSatisfy { !$0.contentCached && !$0.hasCachedContent })
+    }
+
+    func testClearContentKeepingLatestRetainsNewest() throws {
+        func datedBookmark(title: String, articleId: String, content: String, daysAgo: Double) -> BookmarkItem {
+            BookmarkItem(title: title, date: "2026-01-01", category: "学校要闻", summary: "摘要",
+                         articleId: articleId,
+                         bookmarkDate: Date().addingTimeInterval(-daysAgo * 86_400),
+                         cachedContent: content, contentCached: true)
+        }
+        try writeStorageFile([
+            datedBookmark(title: "最新", articleId: "k1", content: "正文一", daysAgo: 0),
+            datedBookmark(title: "其次", articleId: "k2", content: "正文二", daysAgo: 1),
+            datedBookmark(title: "最早", articleId: "k3", content: "正文三", daysAgo: 2)
+        ])
+
+        let manager = makeManager()
+        XCTAssertEqual(manager.contentCachedCount, 3)
+
+        let cleared = manager.clearAllContent(keepingLatest: 2)
+        XCTAssertEqual(cleared.count, 1)
+        XCTAssertEqual(manager.contentCachedCount, 2)
+        XCTAssertTrue(manager.bookmarks.first { $0.readKey == "k1" }!.hasCachedContent)
+        XCTAssertTrue(manager.bookmarks.first { $0.readKey == "k2" }!.hasCachedContent)
+        XCTAssertFalse(manager.bookmarks.first { $0.readKey == "k3" }!.hasCachedContent)
+    }
+
     func testSettingsPersistAcrossReload() {
         let manager = makeManager()
         manager.maxCount = 100
