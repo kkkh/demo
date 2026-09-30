@@ -1,0 +1,26 @@
+# SPA 静态枚举（bundle 内全部 API，baseURL=https://gwqietap.sxjzit.edu.cn/mapi）
+/school/org          GET  （机构树，全字段：id/parent_id/title_cn/title_en/site_key/site_id/article_id/path/children）
+/dept/home            GET  参数 site_key（部门首页·旧）
+/dept/home2           GET  参数 site_key（部门/学院首页聚合：子栏目菜单+各板块文章+日历）
+/college/home         GET  参数 site_key?（学院首页）
+/common/column/head   GET  无参（顶部导航栏目）
+/common/foot          GET  无参（页脚：友情链接/联系方式）
+/common/column/articles GET site_id&column_id&page（从1起）&size（页大小）→ 列表（有 total/页数）
+/common/column/oneTwoArticles GET ?（一二级栏目混合文章，板块用）
+/common/article/detail GET （文章详情，参数名待验证 id/article_id）
+/common/msg/detail    GET  （校长信箱来信详情）
+/common/msg/send      POST （校长信箱提交）
+/common/recruit/query POST （招生查询）
+/common/search        GET  （站内搜索，参数待验证）
+/common/teacher/page  GET  （教师分页）
+/school/events        GET  year&month&site_id（校园日历月历）
+/school/home5         GET  （首页聚合·新版？）
+/school/intro         GET  （学校概况六板块）
+/school/cooperate     GET  （合作交流）
+/school/msg           GET  （校长信箱列表）
+/article/videos       GET  （视频列表）
+/mapi/common/short/create GET?url= （短链创建，fetch 直调非 axios）
+# 已验证样例（浏览器实捕）
+dept/home2?site_key=jwc → 200
+school/events?year=2026&month=9&site_id=222fa53591a3494e9c860390039b0844 → 200
+common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=94511e8fcb8c49b4a1ade5d2fda8a03b&page=1&size=8 → 200（jwc 通知公告 48 页）

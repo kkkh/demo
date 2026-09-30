@@ -11571,9 +11571,14 @@ struct ZSWArticleListView: View {
             let nextPage = currentPage + 1
             let dto = try await NetworkService.shared.fetchZSWArticlePage(
                 siteId: siteId, columnId: columnId,
-                pageNo: nextPage, pageSize: 20
+                page: nextPage, size: 20
             )
             totalCount = dto.total ?? 0
+            // 分页留痕（2026-09-30 修复 pageNo 失效后，页号/累计/总量可对账）
+            LogManager.shared.debugLog("ui", "招生网列表加载更多", context: [
+                "page": "\(nextPage)", "size": "20",
+                "got": "\(dto.list?.count ?? 0)", "total": "\(totalCount)"
+            ])
             let newArticles = (dto.list ?? []).compactMap { a -> ZSWArticle? in
                 guard let title = a.title, !title.isEmpty else { return nil }
                 return ZSWArticle(articleId: a.id, title: title,
