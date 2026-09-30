@@ -2858,6 +2858,8 @@ struct OrganizationArticleDetailView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
+    /// 系统级链接打开（mailto/tel/sms 等非 http(s) 正文链接）
+    @Environment(\.openURL) private var openURL
 
     @State private var detailContent: String = ""
     @State private var detailTitle: String = ""
@@ -3171,8 +3173,24 @@ struct OrganizationArticleDetailView: View {
     }
 
     /// 正文链接点击 → App 内浏览器（WKNavigationDelegate 已取消 WebView 内跳转）
+    /// http(s) 走 App 内 WebViewContainer；mailto/tel/sms 交系统处理；其余协议仅留痕（避免白屏页）
     private func handleContentLink(_ url: URL) {
-        contentLinkPreview = ContentLinkPreview(id: url.absoluteString, url: url.absoluteString)
+        let scheme = url.scheme?.lowercased() ?? ""
+        switch scheme {
+        case "http", "https":
+            contentLinkPreview = ContentLinkPreview(id: url.absoluteString, url: url.absoluteString)
+        case "mailto", "tel", "sms":
+            LogManager.shared.info("organization", "正文链接交由系统处理", context: [
+                "scheme": scheme,
+                "url": url.absoluteString
+            ])
+            openURL(url)
+        default:
+            LogManager.shared.warning("organization", "正文链接协议不受支持，已忽略", context: [
+                "scheme": scheme.isEmpty ? "(空)" : scheme,
+                "url": String(url.absoluteString.prefix(120))
+            ])
+        }
     }
 
     /// 画廊计数联动（E1）：成功计数+1；全部完成记日志并 1s 后渐隐进度条
@@ -5152,7 +5170,12 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                     if (anchor && anchor.getAttribute('href')) { return; }
                     var images = viewableImages();
                     var index = images.indexOf(target);
-                    if (index < 0) { return; }
+                    if (index < 0) {
+                        // 兜底：被点图片未通过「可查看」过滤（极端情况：懒加载未布局）→ 回退全量图集
+                        images = Array.prototype.slice.call(document.querySelectorAll('body img'));
+                        index = images.indexOf(target);
+                        if (index < 0) { return; }
+                    }
                     try {
                         bridge.postMessage({
                             index: index,
