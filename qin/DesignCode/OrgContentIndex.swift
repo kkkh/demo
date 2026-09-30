@@ -248,6 +248,54 @@ actor OrgRequestGate {
     }
 }
 
+// MARK: - 正文图片查看桥（阶段三 A：WKWebView JS → 看图载荷；纯函数可单测）
+
+/// 正文图片点击 → `SJZImageGalleryPayload` 构造（DOM 序图集 + 落点索引重映射）
+///
+/// 规则（与 SJZImageGalleryPayload.make 同口径）：
+/// - 跳过空串 / 非 http(s) URL，并把「被点击项」映射到过滤后的落点索引（点第 N 张必开第 N 张）
+/// - alts 与 urls 同序；alts 短于 urls 时缺位补空串（供 VoiceOver）
+enum OrgGalleryPayloadBuilder {
+
+    /// - Parameters:
+    ///   - index: JS 侧「可查看图集」中被点图片的索引
+    ///   - urls: JS 侧 DOM 序图集（已为绝对 URL）
+    ///   - alts: 与 urls 同序的 alt 文本
+    ///   - source: 日志归因标识
+    nonisolated static func make(index: Int, urls: [String], alts: [String],
+                                 source: String = "organization_detail") -> SJZImageGalleryPayload? {
+        var resolved: [URL] = []
+        var resolvedAlts: [String] = []
+        var start = 0
+        for (position, raw) in urls.enumerated() {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let url = URL(string: trimmed),
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https" else { continue }
+            if position == index { start = resolved.count }
+            resolved.append(url)
+            resolvedAlts.append(position < alts.count ? alts[position] : "")
+        }
+        guard !resolved.isEmpty else { return nil }
+        return SJZImageGalleryPayload(urls: resolved, alts: resolvedAlts,
+                                      startIndex: start, source: source)
+    }
+}
+
+// MARK: - 正文富媒体探针（阶段三 A：视频内联播放的日志取证）
+
+enum OrgMediaProbe {
+    /// 正文视频源数量（`<video src>` / `<source src>`；仅日志取证，不参与渲染决策）
+    nonisolated static func videoSourceCount(in html: String) -> Int {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"(?i)<(?:video|source)\b[^>]*\bsrc\s*=\s*["'][^"']+["']"#,
+            options: []
+        ) else { return 0 }
+        let range = NSRange(html.startIndex..<html.endIndex, in: html)
+        return regex.numberOfMatches(in: html, options: [], range: range)
+    }
+}
+
 // MARK: - 分页状态机（纯值类型）
 
 /// 栏目分页状态：去重追加 / total 真值 / 翻到底判定

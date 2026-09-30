@@ -34,6 +34,9 @@ struct MainTabView: View {
     @State private var showSchoolProfileSheet = false
     /// 党建专题通知点击 → sheet 直达完整党建专题模块
     @State private var showPartySubjectSheet = false
+    /// 机构动态通知点击 → sheet 直达机构子站文章详情（机构动态通道）
+    @State private var showOrgArticleFromNotification = false
+    @State private var pendingOrgArticle: PendingOrgArticleDeepLink?
 
     private var resolvedColorScheme: ColorScheme? {
         switch colorSchemePreference {
@@ -74,6 +77,37 @@ struct MainTabView: View {
             "lockEngaged": "\(biometricSecurity.isLockEngaged)"
         ])
         scheduleNotificationArticlePresentation()
+    }
+
+    /// 消费 NotificationManager.pendingOrgArticleDeepLink（机构动态通道）：
+    /// 等场景激活与 Face ID 解锁完成后再弹 sheet（避免详情页盖在安全遮罩之上），
+    /// 与文章详情同源：绝不在系统通知回调的同步链中直接弹窗。
+    private func consumePendingOrgArticleDeepLink(_ request: PendingOrgArticleDeepLink?) {
+        guard let request else { return }
+        notificationManager.pendingOrgArticleDeepLink = nil
+        LogManager.shared.info("ui", "收到机构动态通知打开指令", context: [
+            "articleId": request.articleId,
+            "org": request.orgName,
+            "source": request.source,
+            "scenePhase": scenePhaseText,
+            "lockEngaged": "\(biometricSecurity.isLockEngaged)"
+        ])
+        Task { @MainActor in
+            var waitCount = 0
+            while !Task.isCancelled && waitCount < 30 &&
+                  (scenePhase != .active || biometricSecurity.isLockEngaged) {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                waitCount += 1
+            }
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            pendingOrgArticle = request
+            showOrgArticleFromNotification = true
+            LogManager.shared.info("ui", "机构动态通知 → 直达机构文章详情", context: [
+                "articleId": request.articleId,
+                "org": request.orgName,
+                "waitedMs": "\(waitCount * 100)"
+            ])
+        }
     }
 
     /// 延迟调度通知文章详情弹窗 —— 修复「点击通知闪退」的核心：
@@ -251,6 +285,7 @@ struct MainTabView: View {
             // 冷启动点击通知时 didReceive 可能早于本视图出现：
             // 补消费一次挂起的 DeepLink，避免 onChange 漏接
             consumePendingDeepLink(notificationManager.pendingDeepLink)
+            consumePendingOrgArticleDeepLink(notificationManager.pendingOrgArticleDeepLink)
         }
         .onChange(of: notificationManager.pendingDeepLink) { _, newLink in
             // @Published 状态驱动：登记待展示文章并排队弹窗，
@@ -286,6 +321,9 @@ struct MainTabView: View {
                 showPartySubjectSheet = true
                 LogManager.shared.info("ui", "通知点击 → 打开党建专题模块", context: [:])
             }
+        }
+        .onChange(of: notificationManager.pendingOrgArticleDeepLink) { _, request in
+            consumePendingOrgArticleDeepLink(request)
         }
         .onChange(of: scenePhase) { _, newPhase in
             // 场景回到前台活跃后，补发一次弹窗调度（覆盖冷启动点击通知的场景）
@@ -355,6 +393,29 @@ struct MainTabView: View {
                     }
             }
             .sjzPresentationChrome()
+        }
+        .sheet(isPresented: $showOrgArticleFromNotification, onDismiss: {
+            pendingOrgArticle = nil
+            LogManager.shared.debugLog("ui", "机构动态文章详情页已关闭", context: [:])
+        }) {
+            if let request = pendingOrgArticle {
+                NavigationStack {
+                    OrganizationArticleDetailView(
+                        article: OrgArticle(
+                            id: request.articleId,
+                            title: request.title,
+                            description: "",
+                            imageUrl: nil,
+                            updateTime: "",
+                            tag: request.orgName,
+                            articleId: request.articleId,
+                            sectionSiteId: request.siteId),
+                        siteId: request.siteId,
+                        color: OrganizationCategory(rawValue: request.categoryRaw)?.color ?? .sjzAccent
+                    )
+                }
+                .sjzPresentationChrome()
+            }
         }
     }
 

@@ -49,6 +49,31 @@ struct PendingArticleDeepLink: Equatable {
     }
 }
 
+/// 待打开的机构文章 deep link（第五检测通道「机构动态」：点击通知直达机构子站文章详情）
+struct PendingOrgArticleDeepLink: Equatable {
+    let id: UUID
+    let articleId: String
+    let title: String
+    /// 机构名（详情页归因与消息中心标题）
+    let orgName: String
+    /// 机构分类（OrganizationCategory.rawValue；详情页着色）
+    let categoryRaw: String
+    /// 机构子站 site_id
+    let siteId: String
+    let source: String
+
+    init(articleId: String, title: String, orgName: String,
+         categoryRaw: String, siteId: String, source: String) {
+        self.id = UUID()
+        self.articleId = articleId
+        self.title = title
+        self.orgName = orgName
+        self.categoryRaw = categoryRaw
+        self.siteId = siteId
+        self.source = source
+    }
+}
+
 /// DeepLink 处理结果（回显给通知测试页的闭环反馈）
 enum DeepLinkOutcome: Equatable {
     case presented(articleId: String)   // 详情页已成功打开
@@ -119,6 +144,8 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
     @Published var pendingSchoolProfileDeepLink: Bool = false
     /// 党建专题通知深链（用户点击「党建专题·有新内容」通知 → 主界面打开党建专题 sheet）
     @Published var pendingPartySubjectDeepLink: Bool = false
+    /// 机构动态通知深链（第五检测通道：点击 → 主界面打开机构子站文章详情）
+    @Published var pendingOrgArticleDeepLink: PendingOrgArticleDeepLink?
     /// DeepLink 处理结果（供通知测试页闭环回显）
     @Published var deepLinkOutcome: DeepLinkOutcome?
     /// 系统「标记（Badge）」许可状态文案
@@ -143,6 +170,19 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             UserDefaults.standard.set(trimmed, forKey: "notifiedMailboxIds")
         }
     }
+
+    /// 已通知的机构动态文章 id（第五通道「机构动态」独立去重集，与新闻通道完全隔离）
+    private var notifiedOrgArticleIds: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: "notifiedOrgArticleIds") ?? []) }
+        set {
+            // 上限 3000：关注机构多、更新频繁时不至于无限增长
+            let trimmed = Array(newValue.suffix(3000))
+            UserDefaults.standard.set(trimmed, forKey: "notifiedOrgArticleIds")
+        }
+    }
+
+    /// 机构动态通道冷启动基线标记（首次运行只登记不推送，避免升级即历史轰炸）
+    private let orgFollowBaselineKey = "orgFollowBaselineEstablished"
 
     // MARK: 轮询定时器
 
@@ -270,11 +310,12 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         newArticlesFound = 0
         defer { isChecking = false; lastCheckTime = Date() }
 
-        // 新闻、校长信箱、学校概况、党建专题为四条独立检测通道：任一失败均不影响其他通道
+        // 新闻、校长信箱、学校概况、党建专题、机构动态为五条独立检测通道：任一失败均不影响其他通道
         await checkNewsUpdates(pushToSystem: pushToSystem)
         await checkMailboxUpdates(pushToSystem: pushToSystem)
         await checkSchoolProfileUpdates(pushToSystem: pushToSystem)
         await checkPartySubjectUpdates(pushToSystem: pushToSystem)
+        await checkOrgFollowUpdates(pushToSystem: pushToSystem)
     }
 
     /// 新闻新文章检测（原核心逻辑）
@@ -709,6 +750,147 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         }
     }
 
+    // MARK: 机构动态检测（第五通道：仅遍历用户关注机构）
+
+    /// 机构动态检测：数据源 = 关注机构的 `/dept/home2`（每站 1 请求，扫描 nav 嵌套区块最新文章）。
+    /// - 无关注机构 → 零请求短路；
+    /// - 冷启动首次运行 → 只登记基线、不推送（避免升级即历史轰炸）；
+    /// - 新关注机构 → 由 `seedOrgFollowBaseline(for:)` 在关注动作时播种基线；
+    /// - 命中新文章 → 系统通知（org-{articleId} 标识）+ 消息中心 `orgUpdate` 入盒 + 去重登记。
+    /// 任一机构失败仅跳过该机构（不影响其他通道与其他机构）。
+    func checkOrgFollowUpdates(pushToSystem: Bool = true) async {
+        let followed = OrgFollowStore.shared.followed
+        guard !followed.isEmpty else { return }
+
+        // 单轮最多巡检的关注机构数（防止关注过多导致轮询过重）
+        let scoped = Array(followed.prefix(10))
+        let baselineEstablished = UserDefaults.standard.bool(forKey: orgFollowBaselineKey)
+        var known = notifiedOrgArticleIds
+        var pushed = 0
+        var registeredBaseline = 0
+
+        for org in scoped {
+            // 单轮全局推送上限（跨机构共用，避免关注多机构时通知轰炸）
+            guard pushed < maxNotificationsPerCheck else { break }
+            do {
+                let data = try await NetworkService.shared.fetchDeptHome2(siteKey: org.siteKey)
+                let candidates = OrgFollowArticleScanner.candidates(from: data)
+                guard !candidates.isEmpty else { continue }
+
+                if !baselineEstablished {
+                    // 冷启动首轮：全部登记为已通知，不推送
+                    for candidate in candidates { known.insert(candidate.articleId) }
+                    registeredBaseline += candidates.count
+                    continue
+                }
+
+                let fresh = candidates.filter { !known.contains($0.articleId) }
+                let slots = max(0, maxNotificationsPerCheck - pushed)
+                for candidate in fresh.prefix(slots) {
+                    let identifier = "org-\(candidate.articleId)"
+                    let content = UNMutableNotificationContent()
+                    content.title = "【\(org.name)】有新内容"
+                    content.body = candidate.title
+                    content.sound = .default
+                    content.badge = nil
+                    content.userInfo = [
+                        "orgArticleId": candidate.articleId,
+                        "orgName": org.name,
+                        "orgCategory": org.categoryRaw,
+                        "orgSiteId": org.siteId,
+                        "articleTitle": candidate.title,
+                        "articleCategory": org.name,
+                        "isTestNotification": false
+                    ]
+                    let request = UNNotificationRequest(
+                        identifier: identifier, content: content,
+                        trigger: UNTimeIntervalNotificationTrigger(
+                            timeInterval: TimeInterval(1 + pushed), repeats: false))
+
+                    var delivered = false
+                    if pushToSystem {
+                        do {
+                            try await UNUserNotificationCenter.current().add(request)
+                            delivered = true
+                        } catch {
+                            LogManager.shared.warning("notification", "机构动态通知发送失败", context: [
+                                "identifier": identifier,
+                                "error": error.localizedDescription
+                            ])
+                        }
+                    } else {
+                        delivered = true
+                    }
+
+                    // 发送失败：保留未通知态，下轮重推（对齐新闻通道契约）
+                    guard delivered else { continue }
+                    pushed += 1
+                    known.insert(candidate.articleId)
+                    MessageCenterStore.shared.ingest(
+                        kind: .orgUpdate,
+                        id: identifier,
+                        title: "【\(org.name)】有新内容",
+                        subtitle: candidate.title,
+                        deepLink: DeepLinkPayload(
+                            articleTitle: candidate.title,
+                            orgArticleId: candidate.articleId,
+                            orgName: org.name,
+                            orgCategory: org.categoryRaw,
+                            orgSiteId: org.siteId))
+                }
+
+                // 超出本轮推送预算的剩余新文章：登记为已通知，避免下轮重复轰炸
+                for candidate in fresh.dropFirst(slots) {
+                    known.insert(candidate.articleId)
+                }
+            } catch {
+                LogManager.shared.debugLog("notification", "机构动态检测失败（跳过该机构，不影响其他通道）", context: [
+                    "siteKey": org.siteKey,
+                    "error": (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                ])
+            }
+        }
+
+        notifiedOrgArticleIds = known
+        if !baselineEstablished {
+            UserDefaults.standard.set(true, forKey: orgFollowBaselineKey)
+            LogManager.shared.info("notification", "机构动态通道基线建立（不推送历史）", context: [
+                "orgs": "\(scoped.count)",
+                "articles": "\(registeredBaseline)"
+            ])
+        }
+        if pushed > 0 {
+            LogManager.shared.info("notification", "机构动态检测到更新并推送", context: [
+                "pushed": "\(pushed)",
+                "orgs": "\(scoped.count)",
+                "silent": "\(!pushToSystem)"
+            ])
+        }
+    }
+
+    /// 关注动作触发的基线播种：把该机构当前可见文章全部登记为已通知（不推送）。
+    /// 由机构详情页「关注」成功回调调用（fire-and-forget）；失败不阻断关注动作。
+    func seedOrgFollowBaseline(for org: FollowedOrg) async {
+        do {
+            let data = try await NetworkService.shared.fetchDeptHome2(siteKey: org.siteKey)
+            let candidates = OrgFollowArticleScanner.candidates(from: data)
+            guard !candidates.isEmpty else { return }
+            var known = notifiedOrgArticleIds
+            for candidate in candidates { known.insert(candidate.articleId) }
+            notifiedOrgArticleIds = known
+            LogManager.shared.info("notification", "关注机构基线播种完成（只登记不推送）", context: [
+                "siteKey": org.siteKey,
+                "name": org.name,
+                "articles": "\(candidates.count)"
+            ])
+        } catch {
+            LogManager.shared.debugLog("notification", "关注机构基线播种失败（不影响关注动作）", context: [
+                "siteKey": org.siteKey,
+                "error": (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            ])
+        }
+    }
+
     // MARK: 信箱通知模拟（调试验收：Debug 面板触发，验证 横幅→点击→直达信箱页 全链路）
 
     /// 发送一封模拟校长信箱通知（固定标识符，多次模拟只保留最新一条，避免通知中心堆积）
@@ -834,6 +1016,32 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             ])
             MessageCenterStore.shared.markRead(kind: .partySubject)
             pendingPartySubjectDeepLink = true
+            return
+        }
+
+        // 机构动态通知：第五通道（机构子站文章），点击携带机构归因直达文章详情
+        if let orgArticleId = userInfo["orgArticleId"] as? String, !orgArticleId.isEmpty {
+            let orgName = userInfo["orgName"] as? String ?? "机构动态"
+            let categoryRaw = userInfo["orgCategory"] as? String ?? ""
+            let siteId = userInfo["orgSiteId"] as? String ?? "1"
+            let title = userInfo["articleTitle"] as? String ?? ""
+            LogManager.shared.info("notification", "机构动态通知点击响应", context: [
+                "source": source,
+                "action": actionIdentifier,
+                "orgArticleId": orgArticleId,
+                "orgName": orgName,
+                "appState": appStateDescription,
+                "tapTimestamp": String(format: "%.3f", tapTimestamp.timeIntervalSince1970),
+                "pipeline": "通知点击→App入口→机构文章详情"
+            ])
+            MessageCenterStore.shared.markRead(id: "org-\(orgArticleId)")
+            pendingOrgArticleDeepLink = PendingOrgArticleDeepLink(
+                articleId: orgArticleId,
+                title: title,
+                orgName: orgName,
+                categoryRaw: categoryRaw,
+                siteId: siteId,
+                source: source)
             return
         }
 

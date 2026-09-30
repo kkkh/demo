@@ -62,6 +62,9 @@ struct OrgArticle: Identifiable, Hashable {
     let articleId: String
     /// 文章所属站点的 siteId（从区块继承）
     var sectionSiteId: String?
+
+    /// 已读键（全模块统一口径，与 ReadStatusManager 全局已读库同源；articleId 优先，空则标题+时间）
+    var readKey: String { articleId.isEmpty ? title + updateTime : articleId }
 }
 
 // MARK: - 文章详情缓存模型
@@ -197,6 +200,10 @@ struct OrganizationDetailView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
+    /// 已读状态（阶段三 B：文章行未读光点，与全局已读库同源）
+    @ObservedObject private var readManager = ReadStatusManager.shared
+    /// 关注清单（阶段三 C：关注制推送入口，驱动第五检测通道）
+    @ObservedObject private var followStore = OrgFollowStore.shared
 
     @State private var homeData: NetworkService.DeptHome2DTO?
     @State private var isLoading = true
@@ -717,6 +724,7 @@ struct OrganizationDetailView: View {
                 color: unit.category.color
             )
         } label: {
+            let isRead = readManager.isRead(article.readKey)
             HStack(spacing: 12) {
                 if let imageUrl = article.imageUrl, !imageUrl.isEmpty,
                    !imageUrl.contains("no_picture") {
@@ -742,6 +750,8 @@ struct OrganizationDetailView: View {
                     Text(article.title)
                         .displayFont(14, weight: .medium)
                         .foregroundStyle(.primary)
+                        .opacity(isRead ? 0.87 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isRead)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
@@ -753,6 +763,13 @@ struct OrganizationDetailView: View {
                     }
 
                     HStack {
+                        Circle()
+                            .fill(OrgTheme.tint)
+                            .frame(width: 6, height: 6)
+                            .scaleEffect(isRead ? 0.01 : 1)
+                            .opacity(isRead ? 0 : 1)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: isRead)
+                            .accessibilityHidden(true)
                         if !article.tag.isEmpty {
                             Text(article.tag)
                                 .displayFont(10)
@@ -764,12 +781,16 @@ struct OrganizationDetailView: View {
                                         .fill(unit.category.color.opacity(0.1))
                                 )
                         }
+                        // 阶段三 B：阅读时长角标（显示设置三重开关管辖）
+                        ReadingTimeBadgeView(cachedID: article.readKey, summary: article.description)
                         Spacer()
                         Text(formatDate(article.updateTime))
                             .displayFont(10)
                             .foregroundStyle(.tertiary)
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(isRead ? "已读" : "未读")
 
                 Spacer(minLength: 0)
 
@@ -1005,6 +1026,58 @@ struct OrganizationDetailView: View {
         }
     }
 
+    // MARK: 阶段三 C · 关注（关注制推送入口）
+
+    /// 关注 pill（身份头内；未配置 siteKey 的机构不显示，不留占位）
+    @ViewBuilder
+    private func followPill(siteKey: String) -> some View {
+        let isFollowing = followStore.isFollowing(siteKey: siteKey)
+        let accent = isFollowing ? OrgTheme.brassStrong : OrgTheme.tint
+        Button {
+            toggleFollow(siteKey: siteKey)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: isFollowing ? "bell.fill" : "bell")
+                    .displaySymbolFont(10, weight: .semibold)
+                Text(isFollowing ? "已关注" : "关注")
+                    .displayFont(12, weight: .medium)
+            }
+            .foregroundStyle(accent)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(accent.opacity(OrgTheme.categoryTintOpacity(colorScheme))))
+            .overlay(Capsule().stroke(accent.opacity(0.35), lineWidth: 1))
+        }
+        .buttonStyle(OrgPressStyle(scale: 0.95))
+        .contentShape(Capsule())
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isFollowing)
+        .accessibilityLabel(isFollowing ? "已关注该机构，双击取消关注" : "关注该机构，接收更新通知")
+    }
+
+    /// 关注 / 取关：中·状态改变触觉 + Toast 反馈；关注成功即播种推送基线（只登记不推送）
+    private func toggleFollow(siteKey: String) {
+        let org = FollowedOrg(siteKey: siteKey,
+                              name: unit.name,
+                              categoryRaw: unit.category.rawValue,
+                              siteId: deptSiteId.isEmpty ? "1" : deptSiteId)
+        let nowFollowing = followStore.toggle(org)
+        OrgHaptics.medium()
+        refreshToastSuccess = true
+        refreshToastMessage = nowFollowing
+            ? "已关注「\(unit.name)」，有新内容会通知你"
+            : "已取消关注「\(unit.name)」"
+        withAnimation(.easeInOut(duration: 0.25)) { showRefreshToast = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) { showRefreshToast = false }
+            }
+        }
+        if nowFollowing {
+            Task { await NotificationManager.shared.seedOrgFollowBaseline(for: org) }
+        }
+    }
+
     /// 刷新并显示反馈
     private func performDetailRefresh(source: String) async {
         LogManager.shared.info("organization", "部门详情刷新触发", context: [
@@ -1185,6 +1258,11 @@ struct OrganizationDetailView: View {
                         .displayFont(12)
                         .monospacedDigit()
                         .foregroundStyle(OrgTheme.textSecondary)
+                }
+
+                // 阶段三 C：关注入口（关注制推送；无 siteKey 时不显示）
+                if let siteKey = unit.siteKey, !siteKey.isEmpty {
+                    followPill(siteKey: siteKey)
                 }
             }
 
@@ -1991,6 +2069,7 @@ struct OrganizationDetailView: View {
                 color: unit.category.color
             )
         } label: {
+            let isRead = readManager.isRead(article.readKey)
             HStack(spacing: 12) {
                 if let imageUrl = article.imageUrl, !imageUrl.isEmpty,
                    !imageUrl.contains("no_picture") {
@@ -2016,6 +2095,9 @@ struct OrganizationDetailView: View {
                     Text(article.title)
                         .displayFont(15, weight: .semibold)
                         .foregroundStyle(OrgTheme.textPrimary)
+                        // 阶段三 B：已读态标题 87% 不透明（0.3s 过渡，与光点收敛同步）
+                        .opacity(isRead ? 0.87 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isRead)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
@@ -2027,6 +2109,14 @@ struct OrganizationDetailView: View {
                     }
 
                     HStack(spacing: 8) {
+                        // 阶段三 B：未读光点（6pt 交互蓝；已读时收敛消隐，占位恒定避免抖动）
+                        Circle()
+                            .fill(OrgTheme.tint)
+                            .frame(width: 6, height: 6)
+                            .scaleEffect(isRead ? 0.01 : 1)
+                            .opacity(isRead ? 0 : 1)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: isRead)
+                            .accessibilityHidden(true)
                         if !article.tag.isEmpty {
                             Text(article.tag)
                                 .displayFont(10)
@@ -2038,6 +2128,8 @@ struct OrganizationDetailView: View {
                                         .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
                                 )
                         }
+                        // 阶段三 B：阅读时长角标（受显示设置 readingStatsEnabled / readingListBadgeEnabled / readingTimeEnabled 三重管辖）
+                        ReadingTimeBadgeView(cachedID: article.readKey, summary: article.description)
                         Spacer()
                         Text(formatDate(article.updateTime))
                             .displayFont(10)
@@ -2045,6 +2137,8 @@ struct OrganizationDetailView: View {
                             .foregroundStyle(OrgTheme.textTertiary)
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(isRead ? "已读" : "未读")
 
                 Spacer(minLength: 0)
 
@@ -2784,6 +2878,18 @@ struct OrganizationArticleDetailView: View {
     /// 画廊计数（E1）：已成功加载的图片索引
     @State private var galleryLoadedIndices: Set<Int> = []
     @State private var showGalleryBar = false
+    /// 看图载荷（阶段三 A：正文图片点击 / 缩略图条点击；item 式呈现避免陈旧快照）
+    @State private var webGalleryPayload: SJZImageGalleryPayload?
+    /// 正文链接预览（阶段三 A：App 内浏览器呈现，避免 WebView 内跳转替换正文）
+    @State private var contentLinkPreview: ContentLinkPreview?
+    /// 已读状态（阶段三 B：进入详情标记已读，列表行未读光点）
+    @ObservedObject private var readManager = ReadStatusManager.shared
+
+    /// 正文链接预览包装（Identifiable，供 sheet(item:) 呈现）
+    struct ContentLinkPreview: Identifiable {
+        let id: String
+        let url: String
+    }
 
     // 分享与收藏
     @State private var showSharePicker = false
@@ -2941,12 +3047,45 @@ struct OrganizationArticleDetailView: View {
             let body = detailContent.isEmpty ? article.description : detailContent.strippingHTMLTagsFast()
             ShareSheet(items: shareItemsForFormat(format, url: articleURL, title: title, body: body))
         }
+        // 阶段三 A：正文图片 → 看图（缩放/翻页/预取全量复用既有 FullScreenImageView）
+        .fullScreenCover(item: $webGalleryPayload) { payload in
+            FullScreenImageView(payload: payload,
+                                fallbackTitle: detailTitle.isEmpty ? article.title : detailTitle)
+                .sjzPresentationChrome()
+        }
+        // 阶段三 A：正文链接 → App 内浏览器（WebView 内跳转会使正文被替换且无法返回）
+        .sheet(item: $contentLinkPreview) { preview in
+            NavigationStack {
+                WebViewContainer(urlString: preview.url)
+                    .navigationTitle("官网链接")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button {
+                                contentLinkPreview = nil
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+            }
+            .sjzPresentationChrome()
+        }
         .task {
             LogManager.shared.info("organization", "文章详情页打开", context: [
                 "articleId": article.articleId,
                 "title": article.title,
                 "siteId": siteId
             ])
+            // 阶段三 B：进入详情即标记已读（复用全局已读库，列表未读光点同步收敛）
+            if !readManager.isRead(readKey) {
+                readManager.markAsRead(readKey)
+                LogManager.shared.info("organization", "文章标记已读", context: [
+                    "articleId": article.articleId,
+                    "readKey": readKey
+                ])
+            }
             await loadArticleDetail()
         }
         .onReceive(NotificationCenter.default.publisher(for: .organizationArticleWebViewLoaded)) { _ in
@@ -2990,6 +3129,50 @@ struct OrganizationArticleDetailView: View {
                 longImageLoadingOverlay
             }
         }
+    }
+
+    /// 已读键（阶段三 B：与列表行、搜索结果同口径，直接复用 OrgArticle.readKey）
+    private var readKey: String { article.readKey }
+
+    // MARK: 阶段三 A · 图片查看与链接拦截
+
+    /// 正文图片点击 → 看图（JS 桥回传 DOM 序图集与落点；载荷构造为纯函数，非法 URL 自动跳过并重映射）
+    private func openWebImageGallery(index: Int, urls: [String], alts: [String]) {
+        guard let payload = OrgGalleryPayloadBuilder.make(index: index, urls: urls, alts: alts) else {
+            LogManager.shared.warning("organization", "正文图片查看器载荷构建失败", context: [
+                "articleId": article.articleId,
+                "index": "\(index)",
+                "count": "\(urls.count)"
+            ])
+            return
+        }
+        OrgHaptics.light()
+        LogManager.shared.info("organization", "正文图片打开查看器", context: [
+            "articleId": article.articleId,
+            "page": "\(payload.clampedStartIndex + 1)/\(payload.count)",
+            "source": payload.source
+        ])
+        webGalleryPayload = payload
+    }
+
+    /// 缩略图条点击 → 看图（索引与条内一致；仅已成功加载的图可点，失败图保留「轻点重试」语义）
+    private func openStripGallery(at index: Int) {
+        guard galleryLoadedIndices.contains(index) else { return }
+        guard let payload = SJZImageGalleryPayload.make(images: detailImages,
+                                                       tappedIndex: index,
+                                                       source: "organization_detail_strip") else { return }
+        OrgHaptics.light()
+        LogManager.shared.info("organization", "画廊缩略图打开查看器", context: [
+            "articleId": article.articleId,
+            "page": "\(payload.clampedStartIndex + 1)/\(payload.count)",
+            "source": payload.source
+        ])
+        webGalleryPayload = payload
+    }
+
+    /// 正文链接点击 → App 内浏览器（WKNavigationDelegate 已取消 WebView 内跳转）
+    private func handleContentLink(_ url: URL) {
+        contentLinkPreview = ContentLinkPreview(id: url.absoluteString, url: url.absoluteString)
     }
 
     /// 画廊计数联动（E1）：成功计数+1；全部完成记日志并 1s 后渐隐进度条
@@ -3350,6 +3533,9 @@ struct OrganizationArticleDetailView: View {
                                 .onPhaseChange { newPhase in
                                     handleGalleryPhase(idx: idx, phase: newPhase)
                                 }
+                                .onTapGesture {
+                                    openStripGallery(at: idx)
+                                }
                             }
                         }
                         .padding(.horizontal, 16)
@@ -3379,7 +3565,13 @@ struct OrganizationArticleDetailView: View {
                     OrganizationArticleWebView(
                         htmlContent: detailContent,
                         title: detailTitle.isEmpty ? article.title : detailTitle,
-                        typographyCSS: DisplaySettingsManager.shared.articleCSSLiveInjectionPayload
+                        typographyCSS: DisplaySettingsManager.shared.articleCSSLiveInjectionPayload,
+                        onImageTap: { index, urls, alts in
+                            openWebImageGallery(index: index, urls: urls, alts: alts)
+                        },
+                        onLinkTap: { url in
+                            handleContentLink(url)
+                        }
                     )
                     .opacity(webViewLoaded ? 1 : 0)
 
@@ -4654,6 +4846,13 @@ struct OrganizationArticleWebView: UIViewRepresentable {
     let title: String
     /// 排版实时重注入载荷（设置变更/字体下载完成 → 无需重载页面即覆盖 style#sjz-typography）
     let typographyCSS: String
+    /// 正文图片点击回调（阶段三 A）：DOM 序「可查看图集」落点索引 + urls + alts → 详情页构造看图载荷
+    var onImageTap: (Int, [String], [String]) -> Void = { _, _, _ in }
+    /// 正文链接点击回调（阶段三 A）：拦截 <a> 跳转，改用 App 内浏览器呈现（避免正文被替换、无法返回）
+    var onLinkTap: (URL) -> Void = { _ in }
+
+    /// JS → Swift 图片点击桥名（`window.webkit.messageHandlers.<name>`）
+    static let imageTapHandlerName = "sjzOrgImageTap"
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -4661,6 +4860,10 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
         // 性能优化：抑制增量渲染，等待完整HTML加载后再渲染，减少闪烁
         config.suppressesIncrementalRendering = true
+        // 阶段三 A：正文图片点击桥（用户脚本消息回传图集与落点）
+        config.userContentController.add(context.coordinator, name: Self.imageTapHandlerName)
+        context.coordinator.onImageTap = onImageTap
+        context.coordinator.onLinkTap = onLinkTap
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
@@ -4699,6 +4902,9 @@ struct OrganizationArticleWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        // 回调保鲜：SwiftUI 重建 struct 时闭包捕获的父级状态可能变化，每次更新即同步
+        context.coordinator.onImageTap = onImageTap
+        context.coordinator.onLinkTap = onLinkTap
         // 排版实时重注入（2026-09-29）：设置变更（家族/字号档/行距/字距/粗体）或字体下载完成（revision）
         // → 覆盖 <style id="sjz-typography"> + DOM 级 inline !important 强制 → 无需重载页面即时生效
         guard context.coordinator.lastTypographyCSS != typographyCSS else { return }
@@ -4706,6 +4912,12 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         context.coordinator.latestTypographyCSS = typographyCSS
         Self.injectTypography(typographyCSS, into: webView, logTag: "机构文章",
                               probeFamily: DisplaySettingsManager.shared.articleCSSCurrentFamilyName, phase: "update")
+    }
+
+    /// 卸载时移除脚本消息处理器（WKUserContentController 强持有 handler，不移除会造成 Coordinator 泄漏）
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        let controller = uiView.configuration.userContentController
+        controller.removeScriptMessageHandler(forName: imageTapHandlerName)
     }
 
     /// 排版实时重注入 + DOM 级强制覆盖（2026-09-29 真机反馈强化）：
@@ -4781,6 +4993,11 @@ struct OrganizationArticleWebView: UIViewRepresentable {
             "darkHex": textDark
         ]
         injectionContext.merge(displaySettings.articleCSSTypographyLogContext) { _, new in new }
+        // 阶段三 A：正文富媒体取证（视频数量；内联播放由页面 JS 统一开启 playsinline + 零预载）
+        let videoCount = OrgMediaProbe.videoSourceCount(in: content)
+        if videoCount > 0 {
+            injectionContext["videos"] = "\(videoCount)"
+        }
         LogManager.shared.debugLog("organization", "机构文章网页原文配色与排版注入", context: injectionContext)
         return """
         <!DOCTYPE html>
@@ -4891,7 +5108,7 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                     border-top: 1px solid var(--border-color);
                     margin: 24px 0;
                 }
-                video { max-width: 100%; border-radius: 8px; margin: 16px 0; }
+                video { max-width: 100%; border-radius: 18px; margin: 16px 0; background: var(--table-bg); min-height: 44px; }
                 iframe { max-width: 100%; border-radius: 8px; margin: 16px 0; }
                 /* 清除 CMS 编辑器常见冗余样式 */
                 span[style*="font-size"] { font-size: inherit !important; }
@@ -4905,6 +5122,59 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                     background: var(--table-bg);
                 }
             </style>
+            <style>
+                /* 阶段三 A：正文图片 = 可查看大图（圆角对齐 OrgTheme.card 18；轻按微降透明度作即时反馈） */
+                img { border-radius: 18px; cursor: pointer; -webkit-user-drag: none; transition: opacity 0.12s linear; }
+                img:active { opacity: 0.85; }
+            </style>
+            <script>
+            // 阶段三 A：正文图片点击 → 原生看图（postMessage 桥）；视频统一内联播放 + 零预载
+            (function() {
+                var bridge = window.webkit && window.webkit.messageHandlers
+                    ? window.webkit.messageHandlers.sjzOrgImageTap : null;
+
+                // 「可查看」图集：正文中渲染尺寸 ≥60pt 的图片（跳过图标/表情等装饰图）
+                function viewableImages() {
+                    var all = Array.prototype.slice.call(document.querySelectorAll('body img'));
+                    return all.filter(function(im) {
+                        var rect = im.getBoundingClientRect();
+                        var w = Math.max(rect.width, im.naturalWidth || 0);
+                        var h = Math.max(rect.height, im.naturalHeight || 0);
+                        return w >= 60 && h >= 60;
+                    });
+                }
+
+                document.addEventListener('click', function(event) {
+                    var target = event.target;
+                    if (!bridge || !target || target.tagName !== 'IMG') { return; }
+                    // 链接包裹图：交给链接策略（App 内浏览器）处理，避免双动作
+                    var anchor = target.closest ? target.closest('a') : null;
+                    if (anchor && anchor.getAttribute('href')) { return; }
+                    var images = viewableImages();
+                    var index = images.indexOf(target);
+                    if (index < 0) { return; }
+                    try {
+                        bridge.postMessage({
+                            index: index,
+                            urls: images.map(function(im) { return im.currentSrc || im.src || ''; }),
+                            alts: images.map(function(im) { return im.getAttribute('alt') || ''; })
+                        });
+                    } catch (err) {}
+                }, false);
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    var videos = document.querySelectorAll('body video');
+                    for (var i = 0; i < videos.length; i++) {
+                        var video = videos[i];
+                        video.setAttribute('playsinline', '');
+                        video.setAttribute('webkit-playsinline', '');
+                        video.setAttribute('controls', 'controls');
+                        // 零预载：未点播不加载视频数据（封面由 CMS poster 提供，缺省显示底色占位）
+                        if (!video.getAttribute('preload')) { video.setAttribute('preload', 'none'); }
+                    }
+                });
+            })();
+            </script>
             <script>
             // 图片加载失败自动修复：多策略域名替换
             document.addEventListener('DOMContentLoaded', function() {
@@ -4978,7 +5248,7 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         """
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         private var loadStartTime: Date?
         /// 持有 estimatedProgress KVO 观察，防止提前释放
         private var progressObservation: NSKeyValueObservation?
@@ -4986,10 +5256,47 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         var lastTypographyCSS: String = ""
         /// 最近一次载荷（加载完成后兜底强制覆盖与自检探针使用；2026-09-29）
         var latestTypographyCSS: String = ""
+        /// 正文图片点击回调（阶段三 A；由 UIViewRepresentable 每次更新保鲜）
+        var onImageTap: ((Int, [String], [String]) -> Void)?
+        /// 正文链接点击回调（阶段三 A）
+        var onLinkTap: ((URL) -> Void)?
 
         func retainProgressObservation(_ observation: NSKeyValueObservation) {
             progressObservation?.invalidate()
             progressObservation = observation
+        }
+
+        // MARK: 脚本消息桥（阶段三 A）
+
+        func userContentController(_ userContentController: WKUserContentController,
+                                   didReceive message: WKScriptMessage) {
+            guard message.name == OrganizationArticleWebView.imageTapHandlerName,
+                  let body = message.body as? [String: Any] else { return }
+            let index = (body["index"] as? NSNumber)?.intValue ?? (body["index"] as? Int) ?? -1
+            guard index >= 0 else { return }
+            let urls = (body["urls"] as? [String]) ?? []
+            let alts = (body["alts"] as? [String]) ?? []
+            LogManager.shared.debugLog("organization", "正文图片点击桥接到 Swift", context: [
+                "index": "\(index)",
+                "count": "\(urls.count)"
+            ])
+            onImageTap?(index, urls, alts)
+        }
+
+        // MARK: 链接策略（阶段三 A：拦截正文 <a> 跳转，避免 WebView 内正文被替换且无法返回）
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            if navigationAction.navigationType == .linkActivated,
+               let url = navigationAction.request.url {
+                decisionHandler(.cancel)
+                LogManager.shared.info("organization", "正文链接点击（App 内打开）", context: [
+                    "url": url.absoluteString
+                ])
+                onLinkTap?(url)
+                return
+            }
+            decisionHandler(.allow)
         }
 
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
@@ -5466,6 +5773,8 @@ struct ChildSectionDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var articleNavigation: ArticleNavigation?
+    /// 已读状态（阶段三 B：列表行未读光点）
+    @ObservedObject private var readManager = ReadStatusManager.shared
 
     // MARK: 分页加载状态
     @State private var articles: [OrgArticle] = []
@@ -5740,6 +6049,7 @@ struct ChildSectionDetailView: View {
                 color: color
             )
         } label: {
+            let isRead = readManager.isRead(article.readKey)
             HStack(spacing: 12) {
                 // 缩略图
                 if let imageUrl = article.imageUrl, !imageUrl.isEmpty,
@@ -5766,6 +6076,8 @@ struct ChildSectionDetailView: View {
                     Text(article.title)
                         .displayFont(14, weight: .medium)
                         .foregroundStyle(.primary)
+                        .opacity(isRead ? 0.87 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isRead)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
@@ -5777,6 +6089,13 @@ struct ChildSectionDetailView: View {
                     }
 
                     HStack {
+                        Circle()
+                            .fill(OrgTheme.tint)
+                            .frame(width: 6, height: 6)
+                            .scaleEffect(isRead ? 0.01 : 1)
+                            .opacity(isRead ? 0 : 1)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: isRead)
+                            .accessibilityHidden(true)
                         if !article.tag.isEmpty {
                             Text(article.tag)
                                 .displayFont(10)
@@ -5788,12 +6107,16 @@ struct ChildSectionDetailView: View {
                                         .fill(color.opacity(0.1))
                                 )
                         }
+                        // 阶段三 B：阅读时长角标（显示设置三重开关管辖）
+                        ReadingTimeBadgeView(cachedID: article.readKey, summary: article.description)
                         Spacer()
                         Text(formatDate(article.updateTime))
                             .displayFont(10)
                             .foregroundStyle(.tertiary)
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(isRead ? "已读" : "未读")
 
                 Spacer(minLength: 0)
 

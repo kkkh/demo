@@ -104,6 +104,10 @@ enum ArticleSearchSortOrder: String, CaseIterable, Identifiable {
 
 struct OrganizationView: View {
     @ObservedObject private var manager = OrganizationManager.shared
+    /// 已读状态（阶段三 B：搜索结果行未读光点，与全局已读库同源）
+    @ObservedObject private var readManager = ReadStatusManager.shared
+    /// 关注清单（阶段三 C：列表卡关注角标与详情页 pill 同源）
+    @ObservedObject private var followStore = OrgFollowStore.shared
     @Environment(\.colorScheme) private var colorScheme
 
     // 搜索模式
@@ -1172,6 +1176,7 @@ struct OrganizationView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
+                followBadge(for: unit)
                 Image(systemName: "chevron.right")
                     .displaySymbolFont(12, weight: .semibold)
                     .foregroundStyle(OrgTheme.textTertiary)
@@ -1189,6 +1194,18 @@ struct OrganizationView: View {
         .simultaneousGesture(TapGesture().onEnded { OrgHaptics.light() })
     }
 
+    /// 关注角标（阶段三 C：铜金铃铛，仅已关注机构显示；无 siteKey 一律不显示）
+    @ViewBuilder
+    private func followBadge(for unit: OrganizationUnit) -> some View {
+        if let siteKey = unit.siteKey, !siteKey.isEmpty,
+           followStore.isFollowing(siteKey: siteKey) {
+            Image(systemName: "bell.fill")
+                .displaySymbolFont(9, weight: .semibold)
+                .foregroundStyle(OrgTheme.brassStrong)
+                .accessibilityLabel("已关注")
+        }
+    }
+
     private func cardContent(_ unit: OrganizationUnit, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
@@ -1202,6 +1219,8 @@ struct OrganizationView: View {
                 }
 
                 Spacer(minLength: 0)
+
+                followBadge(for: unit)
 
                 Image(systemName: "chevron.right")
                     .displaySymbolFont(10, weight: .semibold)
@@ -1708,6 +1727,7 @@ extension OrganizationView {
                 siteId: result.siteId
             )
         } label: {
+            let isRead = readManager.isRead(result.articleId)
             HStack(spacing: 12) {
                 // 缩略图
                 if let imageUrl = result.imageUrl, !imageUrl.isEmpty,
@@ -1745,6 +1765,14 @@ extension OrganizationView {
                     }
 
                     HStack(spacing: 8) {
+                        // 未读光点（阶段三 B：全局已读库；已读收敛消隐、占位恒定）
+                        Circle()
+                            .fill(OrgTheme.tint)
+                            .frame(width: 6, height: 6)
+                            .scaleEffect(isRead ? 0.01 : 1)
+                            .opacity(isRead ? 0 : 1)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: isRead)
+                            .accessibilityHidden(true)
                         // 栏目来源标签（按栏目分色，与全 App 分类配色一致）
                         HStack(spacing: 4) {
                             Image(systemName: "newspaper")
@@ -1798,6 +1826,8 @@ extension OrganizationView {
                             .foregroundStyle(.tertiary)
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(isRead ? "已读" : "未读")
 
                 Spacer(minLength: 0)
 

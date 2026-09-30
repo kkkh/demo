@@ -2,7 +2,7 @@
 //  MessageCenterStore.swift
 //  山西晋中理工学院 APP — App 内消息中心（站内信）
 //
-//  与四通道通知系统（新闻/校长信箱/学校概况/党建专题）及收藏更新通道联动：
+//  与五通道通知系统（新闻/校长信箱/学校概况/党建专题/机构动态）及收藏更新通道联动：
 //  每次成功产生系统通知时同步写入本地事件历史，用户在「我的 → 消息中心」回看全部消息，
 //  点击复用 NotificationManager.handleNotificationTap 深链分发，绝不在点击同步链直接弹窗。
 //
@@ -16,13 +16,14 @@ import UserNotifications
 
 // MARK: - 消息类型
 
-/// 消息来源通道（第五通道为收藏更新）
+/// 消息来源通道（新增通道只需在此加一项 + 视觉映射）
 enum MessageKind: String, Codable, CaseIterable {
     case news             // 新闻（要闻/资讯/党建动态/通知公告）
     case mailbox          // 校长信箱新回复
     case schoolProfile    // 学校概况更新
     case partySubject     // 党建专题更新
     case bookmarkUpdate   // 收藏文章官网更新
+    case orgUpdate        // 机构动态（用户关注的机构子站更新）
 }
 
 // MARK: - 深链载荷
@@ -38,6 +39,11 @@ struct DeepLinkPayload: Codable, Equatable {
     var partySubject: Bool?
     /// 收藏更新通道目的地归因（2026-09-29）：payload 自描述 + launch 侧按 kind 兜底双保险
     var isBookmarkUpdate: Bool?
+    /// 机构动态通道（关注机构子站文章）：机构归因四元组（articleTitle 复用上方字段承载文章标题）
+    var orgArticleId: String?
+    var orgName: String?
+    var orgCategory: String?
+    var orgSiteId: String?
 
     /// 转换成 NotificationManager.handleNotificationTap 可识别的 userInfo 字典
     var asUserInfo: [AnyHashable: Any] {
@@ -54,6 +60,13 @@ struct DeepLinkPayload: Codable, Equatable {
         if schoolProfile == true { info["schoolProfileDeepLink"] = true }
         if partySubject == true { info["partySubjectDeepLink"] = true }
         if isBookmarkUpdate == true { info["isBookmarkUpdate"] = true }
+        if let orgArticleId, !orgArticleId.isEmpty {
+            info["orgArticleId"] = orgArticleId
+            info["orgName"] = orgName ?? ""
+            info["orgCategory"] = orgCategory ?? ""
+            info["orgSiteId"] = orgSiteId ?? "1"
+            info["articleTitle"] = articleTitle ?? ""
+        }
         return info
     }
 
@@ -62,6 +75,7 @@ struct DeepLinkPayload: Codable, Equatable {
             && (mailboxId?.isEmpty ?? true)
             && schoolProfile != true
             && partySubject != true
+            && (orgArticleId?.isEmpty ?? true)
     }
 }
 
@@ -536,6 +550,7 @@ final class MessageCenterStore: ObservableObject {
         case .schoolProfile: return ("graduationcap.fill", .sjzPurple)
         case .partySubject: return ("flag.fill", .red)
         case .bookmarkUpdate: return ("bookmark.fill", .sjzGold)
+        case .orgUpdate: return ("building.2.fill", .sjzTeal)
         }
     }
 
@@ -546,12 +561,13 @@ final class MessageCenterStore: ObservableObject {
         case .schoolProfile: return "学校概况"
         case .partySubject: return "党建专题"
         case .bookmarkUpdate: return "收藏更新"
+        case .orgUpdate: return "机构动态"
         }
     }
 
     // MARK: 静默检测（站内信语义：独立于系统通知开关）
 
-    /// 手动触发（下拉刷新/立即检查按钮）：四通道检测并仅入盒、不推系统通知
+    /// 手动触发（下拉刷新/立即检查按钮）：五通道检测并仅入盒、不推系统通知（机构动态无关注时零请求）
     func silentCheckNow() async {
         LogManager.shared.info("messageCenter", "静默检测启动（仅入盒不推送）", context: [:])
         await NotificationManager.shared.checkForUpdates(pushToSystem: false)
@@ -675,6 +691,7 @@ final class MessageCenterStore: ObservableObject {
     }
 
     private func deepLinkTargetDescription(_ payload: DeepLinkPayload) -> String {
+        if payload.orgArticleId?.isEmpty == false { return "orgArticle(\(payload.orgArticleId!))" }
         if payload.articleId?.isEmpty == false { return "article(\(payload.articleId!))" }
         if payload.mailboxId?.isEmpty == false { return "mailbox(\(payload.mailboxId!))" }
         if payload.schoolProfile == true { return "schoolProfile" }
@@ -754,6 +771,8 @@ final class MessageCenterStore: ObservableObject {
         if info["schoolProfileDeepLink"] as? Bool == true { return .schoolProfile }
         if info["partySubjectDeepLink"] as? Bool == true { return .partySubject }
         if info["isBookmarkUpdate"] as? Bool == true { return .bookmarkUpdate }
+        // 机构动态先于新闻判定：该通道同样携带 articleTitle，必须靠 orgArticleId 区分
+        if info["orgArticleId"] as? String != nil { return .orgUpdate }
         if info["articleId"] as? String != nil { return .news }
         return nil
     }
@@ -801,6 +820,20 @@ final class MessageCenterStore: ObservableObject {
                 title: content.title, subtitle: content.body,
                 timestamp: notification.date, isRead: !importedUnread,
                 deepLink: DeepLinkPayload(partySubject: true),
+                isTest: false, schemaVersion: 1)
+        case .orgUpdate:
+            let orgArticleId = info["orgArticleId"] as? String ?? ""
+            guard !orgArticleId.isEmpty else { return nil }
+            return MessageItem(
+                id: "\(notification.request.identifier)", kind: kind,
+                title: content.title, subtitle: content.body,
+                timestamp: notification.date, isRead: !importedUnread,
+                deepLink: DeepLinkPayload(
+                    articleTitle: info["articleTitle"] as? String ?? "",
+                    orgArticleId: orgArticleId,
+                    orgName: info["orgName"] as? String ?? "",
+                    orgCategory: info["orgCategory"] as? String ?? "",
+                    orgSiteId: info["orgSiteId"] as? String ?? "1"),
                 isTest: false, schemaVersion: 1)
         }
     }
