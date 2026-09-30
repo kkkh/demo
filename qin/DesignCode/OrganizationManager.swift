@@ -27,22 +27,16 @@ enum OrganizationCategory: String, CaseIterable, Identifiable, Codable {
 
     var icon: String {
         switch self {
-        case .partyCommittee: return "flag.fill"
-        case .massOrg:        return "person.3.fill"
-        case .administrative: return "building.2.fill"
-        case .teaching:       return "graduationcap.fill"
-        case .support:        return "books.vertical.fill"
+        case .partyCommittee: return "flag"
+        case .massOrg:        return "person.3"
+        case .administrative: return "building.2"
+        case .teaching:       return "graduationcap"
+        case .support:        return "books.vertical"
         }
     }
 
     var color: Color {
-        switch self {
-        case .partyCommittee: return Color.sjzRed
-        case .massOrg:        return Color.sjzOrange
-        case .administrative: return Color.sjzAccent
-        case .teaching:       return Color.sjzPurple
-        case .support:        return Color.sjzTeal
-        }
+        OrgTheme.categoryColor(self)
     }
 
     var sortOrder: Int {

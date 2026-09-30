@@ -360,3 +360,103 @@ enum OrgSingleArticleResolver {
         })?.articleId
     }
 }
+
+// MARK: - 首页数据缓存（阶段二：预取与详情共用；TTL 30 分钟）
+
+/// 门户机构摘要（列表页焦点区展示；篇数随栏目 chips 惰性获取真值，此处只给可得真值）
+struct PortalStats: Equatable {
+    let siteKey: String
+    let columnCount: Int
+    let latestTitle: String?
+    let latestTime: String
+}
+
+/// 机构首页数据缓存（内存 TTL 30 分钟，与 `OrganizationManager.refreshInterval` 语义一致）
+@MainActor
+final class OrgHomeCache {
+    static let shared = OrgHomeCache()
+
+    /// 门户机构（列表页焦点区固定 3 个：教务处 / 团委 / 商学院）
+    static let portalSiteKeys = ["jwc", "tw", "sxy"]
+
+    private struct Entry {
+        let data: NetworkService.DeptHome2DTO
+        let fetchedAt: Date
+    }
+
+    private var entries: [String: Entry] = [:]
+    private let ttl: TimeInterval = 1800
+
+    func cached(siteKey: String) -> NetworkService.DeptHome2DTO? {
+        guard let entry = entries[siteKey],
+              Date().timeIntervalSince(entry.fetchedAt) < ttl else { return nil }
+        return entry.data
+    }
+
+    func store(_ data: NetworkService.DeptHome2DTO, for siteKey: String) {
+        entries[siteKey] = Entry(data: data, fetchedAt: Date())
+    }
+
+    /// 取首页数据（新鲜缓存直返；否则经 OrgRequestGate 拉取并写入 —— 预取与详情共用同一缓存键）
+    func home(siteKey: String, force: Bool = false) async throws -> NetworkService.DeptHome2DTO {
+        if !force, let cached = cached(siteKey: siteKey) {
+            return cached
+        }
+        let data = try await OrgRequestGate.shared.withPermit {
+            try await NetworkService.shared.fetchDeptHome2(siteKey: siteKey)
+        }
+        store(data, for: siteKey)
+        return data
+    }
+
+    /// 门户机构预取（列表页展开 = 3 请求；失败静默留痕，不阻塞列表）
+    func prefetchPortals() async -> [String: PortalStats] {
+        var result: [String: PortalStats] = [:]
+        for siteKey in Self.portalSiteKeys {
+            do {
+                let data = try await home(siteKey: siteKey)
+                if let stats = Self.stats(from: data, siteKey: siteKey) {
+                    result[siteKey] = stats
+                }
+            } catch {
+                LogManager.shared.warning("organization", "门户机构预取失败", context: [
+                    "siteKey": siteKey,
+                    "error": error.localizedDescription
+                ])
+            }
+        }
+        if !result.isEmpty {
+            LogManager.shared.info("organization", "门户机构预取完成", context: [
+                "count": "\(result.count)",
+                "portals": result.keys.sorted().joined(separator: ",")
+            ])
+        }
+        return result
+    }
+
+    /// 由 home2 响应提取可得真值（列表类栏目数 + 最新一篇标题/时间）
+    static func stats(from data: NetworkService.DeptHome2DTO, siteKey: String) -> PortalStats? {
+        let nav = data.nav ?? []
+        guard !nav.isEmpty else { return nil }
+        let index = OrgColumnIndexBuilder.build(nav: nav, defaultSiteId: "1")
+        let columnCount = index.columns.filter { $0.kind == .list }.count
+
+        // 最新一篇：取首页嵌套区块 articles.list 中 update_time 最大者（服务端已按时间排序，仍取最大值保证稳健）
+        var latestTitle: String?
+        var latestTime = ""
+        for item in nav {
+            guard let blockData = item.data else { continue }
+            for (_, section) in blockData {
+                for article in section.articles?.list ?? [] {
+                    let time = article.updateTime ?? ""
+                    if time > latestTime, let title = article.title, !title.isEmpty {
+                        latestTime = time
+                        latestTitle = title
+                    }
+                }
+            }
+        }
+        return PortalStats(siteKey: siteKey, columnCount: columnCount,
+                           latestTitle: latestTitle, latestTime: latestTime)
+    }
+}
