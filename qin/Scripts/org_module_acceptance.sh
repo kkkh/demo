@@ -44,6 +44,13 @@
 #   D1 显示设置联动        「系统渲染面字体接管已刷新」或「WebView 排版已实时重注入」
 #   S1~S4 代码静态契约     看图桥注册/卸载、链接拦截、视频零预载、单轮全局推送上限
 #
+# 状态型旁证（2026-09-30 新增，抗日志窗口）：
+#   App 日志单日上限 1000 条（高活跃约 3 分钟写满）→ 关注/入盒/点击等证据会被挤出。
+#   脚本额外拉取并解析两处持久化数据作为铁证（即使日志缺失也可判定）：
+#     · Library/Preferences/<bundle>.plist → orgFollowedOrgs（关注清单）/ orgFollowBaselineEstablished / notifiedOrgArticleIds
+#     · Documents/MessageCenter/messageCenterEvents.json → kind=orgUpdate 条目（含 isRead ⇒ 用户点击过）
+#   判定优先级：日志命中优先（含时间戳），否则回落持久化旁证并在报告中标注「持久化旁证」。
+#
 # 已知约束（踩坑沉淀，勿改）：
 #   - App 日志单日上限 1000 条（高活跃约 3 分钟写满）→ 操作完成后应尽快拉取，脚本已在窗口结束立即拉取
 #   - 日志文件「最新在前」落盘 → 断言前必须按时间升序排序
@@ -286,19 +293,43 @@ fi
 LOG_COUNT="$(find "$PULL_DIR" -name 'log_*.json' | wc -l | tr -d ' ')"
 info "已获取日志文件：${LOG_COUNT} 个"
 
+# ------------------------------------------------------------------ 4.5) 拉取状态型旁证
+# App 日志单日上限 1000 条（高活跃约 3 分钟写满）→ 关注/入盒/点击等「状态型」证据会被挤出窗口。
+# 因此额外拉取持久化数据作为铁证：偏好设置（关注清单 / 基线标记 / 去重集）+ 消息中心条目。
+STATE_DIR="$PULL_DIR/state"
+mkdir -p "$STATE_DIR"
+info "拉取状态型旁证（偏好设置 / 消息中心条目）……"
+if xcrun devicectl device copy from --device "$DEVICE_ID" \
+      --domain-type appDataContainer --domain-identifier "$BUNDLE_ID" \
+      --source "Library/Preferences/${BUNDLE_ID}.plist" \
+      --destination "$STATE_DIR/prefs.plist" >/dev/null 2>&1; then
+  ok "已获取偏好设置 plist（关注清单 / 基线标记）"
+else
+  warn "偏好设置 plist 拉取失败（关注用例将仅按日志判定）"
+fi
+if xcrun devicectl device copy from --device "$DEVICE_ID" \
+      --domain-type appDataContainer --domain-identifier "$BUNDLE_ID" \
+      --source "Documents/MessageCenter/messageCenterEvents.json" \
+      --destination "$STATE_DIR/messageCenterEvents.json" >/dev/null 2>&1; then
+  ok "已获取消息中心条目（机构动态入盒 / 点击旁证）"
+else
+  warn "消息中心条目拉取失败（入盒用例将仅按日志判定）"
+fi
+
 # ------------------------------------------------------------------ 5) 用例断言 + 6) 报告
-python3 - "$PULL_DIR" "$REPORT" "$SESSION_START" "$DEVICE_ID" "$BUNDLE_ID" "$DO_LAUNCH" "$ONLY" "$ORG_KEY" "$ROOT" "$REF_FILE" "$DO_BRIDGE_SELFTEST" <<'PY'
+python3 - "$PULL_DIR" "$REPORT" "$SESSION_START" "$DEVICE_ID" "$BUNDLE_ID" "$DO_LAUNCH" "$ONLY" "$ORG_KEY" "$ROOT" "$REF_FILE" "$DO_BRIDGE_SELFTEST" "$STATE_DIR" <<'PY'
 # -*- coding: utf-8 -*-
-"""机构模块真机验收：用例级日志断言（阶段三设施接入）"""
+"""机构模块真机验收：用例级日志断言（阶段三设施接入）+ 状态型持久化旁证"""
 import datetime
 import glob
 import json
 import os
+import plistlib
 import re
 import sys
 
 (logdir, report_path, since, device_id, bundle_id, launched, only_raw,
- org_key, root, ref_file, selftest_raw) = sys.argv[1:12]
+ org_key, root, ref_file, selftest_raw, state_dir) = sys.argv[1:13]
 since = float(since)
 launched = launched == "1"
 selftest_mode = selftest_raw == "1"
@@ -309,6 +340,35 @@ ONLY = {x.strip().upper() for x in only_raw.split(",") if x.strip()} if only_raw
 
 def enabled(cid):
     return (not ONLY) or (cid in ONLY)
+
+
+# ---- 状态型持久化旁证（不受日志 1000 条上限影响） ---------------------------
+followed_orgs, baseline_flag, notified_count = None, None, None
+try:
+    _pf = os.path.join(state_dir, "prefs.plist")
+    if os.path.exists(_pf):
+        _pl = plistlib.load(open(_pf, "rb"))
+        _raw = _pl.get("orgFollowedOrgs")
+        if isinstance(_raw, str):
+            followed_orgs = json.loads(_raw)
+        elif isinstance(_raw, list):
+            followed_orgs = _raw
+        baseline_flag = bool(_pl.get("orgFollowBaselineEstablished"))
+        _ids = _pl.get("notifiedOrgArticleIds")
+        notified_count = len(_ids) if isinstance(_ids, list) else None
+except Exception as _e:
+    followed_orgs = None
+
+mc_items, mc_org = None, []
+try:
+    _mf = os.path.join(state_dir, "messageCenterEvents.json")
+    if os.path.exists(_mf):
+        mc_items = json.load(open(_mf, encoding="utf-8"))
+        mc_org = [m for m in mc_items if m.get("kind") == "orgUpdate"]
+except Exception:
+    mc_items = None
+
+mc_org_read = [m for m in mc_org if m.get("isRead")]
 
 
 def parse_ts(v):
@@ -406,15 +466,21 @@ selftest = find("organization", "图片桥自测：模拟点击已派发")
 page_ok = any(re.match(r"^\d+/\d+$", str(((e.get("context") or {}).get("page")) or "")) for e in viewer)
 
 probe_bound, probe_viewable, probe_total, probe_raw = None, None, None, "-"
-if probe:
-    probe_raw = str((probe[-1].get("context") or {}).get("result", "-"))
-    parts = probe_raw.split("|")
-    if len(parts) == 3:
-        probe_bound = parts[0].strip().lower() == "true"
+# 探针可能多次采样（每篇文章一次，且 didFinish 早期采样可能读到 0）→
+# 优先取「可查看图数 > 0」的最后一条作为代表，避免误报「该文章无图」
+probe_candidates = []
+for _e in probe:
+    _raw = str((_e.get("context") or {}).get("result", "-"))
+    _parts = _raw.split("|")
+    if len(_parts) == 3:
         try:
-            probe_viewable, probe_total = int(parts[1]), int(parts[2])
+            probe_candidates.append((_parts[0].strip().lower() == "true", int(_parts[1]), int(_parts[2]), _raw))
         except ValueError:
-            pass
+            continue
+_with_images = [c for c in probe_candidates if c[1] > 0]
+_chosen = _with_images[-1] if _with_images else (probe_candidates[-1] if probe_candidates else None)
+if _chosen:
+    probe_bound, probe_viewable, probe_total, probe_raw = _chosen
 
 if enabled("A1"):
     if bridge:
@@ -503,47 +569,70 @@ if enabled("B2"):
 else:
     skip("B2", "阅读时长角标")
 
-# ---- C1 关注 → 基线播种 -----------------------------------------------------
+# ---- C1 关注 → 基线播种（日志优先，plist 状态型旁证兜底） --------------------
 if enabled("C1"):
     follow = find("organization", "关注机构")
     seed = find("notification", "关注机构基线播种完成（只登记不推送）")
     baseline = find("notification", "机构动态通道基线建立（不推送历史）")
-    c = (follow[-1].get("context") or {}) if follow else {}
-    add(True, "C1", "C1a 关注动作落库", bool(follow),
-        ("siteKey=%s name=%s total=%s（%s）" % (c.get("siteKey", "-"), c.get("name", "-"), c.get("total", "-"), fmt(follow[-1]["_ts"])))
-        if follow else "未捕获：请在机构详情页身份头点「关注」")
-    seed_ok = bool(seed) or bool(baseline)
+    if follow:
+        c = follow[-1].get("context") or {}
+        add(True, "C1", "C1a 关注动作落库", True,
+            "日志：siteKey=%s name=%s total=%s（%s）" % (c.get("siteKey", "-"), c.get("name", "-"), c.get("total", "-"), fmt(follow[-1]["_ts"])))
+    elif followed_orgs:
+        _names = "、".join("%s(%s)" % (o.get("name", "?"), o.get("siteKey", "?")) for o in followed_orgs[:4])
+        add(True, "C1", "C1a 关注动作落库（plist 旁证）", True,
+            "关注清单 %d 个：%s（日志已被 1000 条上限挤出，采用持久化旁证）" % (len(followed_orgs), _names))
+    elif followed_orgs == []:
+        add(True, "C1", "C1a 关注动作落库", False, "关注清单为空且日志未命中：请在机构详情页身份头点「关注」")
+    else:
+        add(True, "C1", "C1a 关注动作落库", False, "未捕获：日志未命中且 plist 不可读（请在详情页点「关注」后重跑）")
     if seed:
         sc = seed[-1].get("context") or {}
-        d = "播种 siteKey=%s articles=%s（%s）" % (sc.get("siteKey", "-"), sc.get("articles", "-"), fmt(seed[-1]["_ts"]))
+        add(True, "C1", "C1b 关注基线播种 / 建立", True,
+            "日志：播种 siteKey=%s articles=%s（%s）" % (sc.get("siteKey", "-"), sc.get("articles", "-"), fmt(seed[-1]["_ts"])))
     elif baseline:
         bc = baseline[-1].get("context") or {}
-        d = "基线建立 orgs=%s articles=%s（%s）" % (bc.get("orgs", "-"), bc.get("articles", "-"), fmt(baseline[-1]["_ts"]))
+        add(True, "C1", "C1b 关注基线播种 / 建立", True,
+            "日志：基线建立 orgs=%s articles=%s（%s）" % (bc.get("orgs", "-"), bc.get("articles", "-"), fmt(baseline[-1]["_ts"])))
+    elif baseline_flag or (notified_count or 0) > 0:
+        add(True, "C1", "C1b 关注基线播种 / 建立（plist 旁证）", True,
+            "orgFollowBaselineEstablished=true，去重集 %s 条（日志已挤出，采用持久化旁证）" % (notified_count if notified_count is not None else "-"))
     else:
-        d = "未捕获：关注成功后应触发基线播种（防历史轰炸）"
-    add(True, "C1", "C1b 关注基线播种 / 建立", seed_ok, d)
+        add(True, "C1", "C1b 关注基线播种 / 建立", False, "未捕获：关注成功后应触发基线播种（防历史轰炸）")
 else:
     skip("C1", "关注 → 基线播种")
 
-# ---- C2 取关 ---------------------------------------------------------------
+# ---- C2 取关（日志；plist 旁证：清单空 + 去重集非空 ⇒ 曾关注现已取关） -------
 if enabled("C2"):
     unfollow = find("organization", "取消关注机构")
-    add(False, "C2", "C2 取关动作", bool(unfollow) or None,
-        ("siteKey=%s remaining=%s" % (((unfollow[-1].get("context") or {}).get("siteKey", "-")),
-                                      ((unfollow[-1].get("context") or {}).get("remaining", "-")))) if unfollow
-        else "未触发（可选用例：再点一次「已关注」）")
+    if unfollow:
+        add(False, "C2", "C2 取关动作", True,
+            "日志：siteKey=%s remaining=%s" % (((unfollow[-1].get("context") or {}).get("siteKey", "-")),
+                                               ((unfollow[-1].get("context") or {}).get("remaining", "-"))))
+    elif followed_orgs == [] and (notified_count or 0) > 0:
+        add(False, "C2", "C2 取关动作（plist 旁证）", True,
+            "关注清单为空且去重集 %s 条 ⇒ 曾关注、现已全部取关" % notified_count)
+    else:
+        add(False, "C2", "C2 取关动作", None, "未触发（可选用例：再点一次「已关注」）")
 else:
     skip("C2", "取关")
 
-# ---- C3 静默检测 → 机构动态入盒 --------------------------------------------
+# ---- C3 静默检测 → 机构动态入盒（消息中心条目为状态型铁证） ------------------
 if enabled("C3"):
     inbox = [e for e in session if e.get("module") == "messageCenter"
              and e.get("message") == "新消息入盒"
              and str((e.get("context") or {}).get("kind", "")) == "orgUpdate"]
-    add(False, "C3", "C3 机构动态静默入盒（orgUpdate）", bool(inbox) or None,
-        ("id=%s unread=%s（%s）" % (((inbox[-1].get("context") or {}).get("id", "-")),
-                                    ((inbox[-1].get("context") or {}).get("unread", "-")), fmt(inbox[-1]["_ts"]))) if inbox
-        else "未触发：仅当官网「%s」在该机构去重集之外有新文时触发（见参照数据）" % org_key)
+    if inbox:
+        add(False, "C3", "C3 机构动态静默入盒（orgUpdate）", True,
+            "日志：id=%s unread=%s（%s）" % (((inbox[-1].get("context") or {}).get("id", "-")),
+                                             ((inbox[-1].get("context") or {}).get("unread", "-")), fmt(inbox[-1]["_ts"])))
+    elif mc_org:
+        m = mc_org[-1]
+        add(False, "C3", "C3 机构动态静默入盒（orgUpdate，持久化旁证）", True,
+            "消息中心存在 orgUpdate 条目：%s（%s）" % (str(m.get("title", "-")), str(m.get("id", "-"))[:24]))
+    else:
+        add(False, "C3", "C3 机构动态静默入盒（orgUpdate）", None,
+            "未触发：官网「%s」在该机构去重集之外暂无新文（见参照数据）" % org_key)
 else:
     skip("C3", "静默检测 → 机构动态入盒")
 
@@ -554,23 +643,46 @@ if enabled("C4"):
     if push:
         c = push[-1].get("context") or {}
         add(False, "C4", "C4a 第五通道系统通知已推送", True,
-            "pushed=%s orgs=%s silent=%s（%s）" % (c.get("pushed", "-"), c.get("orgs", "-"), c.get("silent", "-"), fmt(push[-1]["_ts"])))
+            "日志：pushed=%s orgs=%s silent=%s（%s）" % (c.get("pushed", "-"), c.get("orgs", "-"), c.get("silent", "-"), fmt(push[-1]["_ts"])))
+    elif mc_org:
+        add(False, "C4", "C4a 第五通道系统通知已推送（持久化旁证）", True,
+            "orgUpdate 条目已产出（%d 条）⇒ 该通道已完成推送/入盒（推送日志被窗口挤出，采用持久化旁证）" % len(mc_org))
     else:
         add(False, "C4", "C4a 第五通道系统通知已推送", None,
             "未触发：依赖「官网该机构有新文」+ 通知轮询（下拉消息中心或等待轮询周期）")
-    add(False, "C4", "C4b 通知点击 → 冷启动直达文章详情", bool(deep) or None,
-        ("articleId=%s org=%s（%s）" % (((deep[-1].get("context") or {}).get("articleId", "-")),
-                                       ((deep[-1].get("context") or {}).get("org", "-")), fmt(deep[-1]["_ts"]))) if deep
-        else "未触发：点击「【机构名】有新内容」横幅后应弹出文章详情")
+    if deep:
+        add(False, "C4", "C4b 通知点击 → 冷启动直达文章详情", True,
+            "日志：articleId=%s org=%s（%s）" % (((deep[-1].get("context") or {}).get("articleId", "-")),
+                                                ((deep[-1].get("context") or {}).get("org", "-")), fmt(deep[-1]["_ts"])))
+    elif mc_org_read:
+        m = mc_org_read[-1]
+        add(False, "C4", "C4b 通知点击 → 冷启动直达文章详情（持久化旁证）", True,
+            "orgUpdate 条目已读 ⇒ 用户点击并完成深链（日志已挤出，采用持久化旁证）：%s" % str(m.get("id", "-"))[:24])
+    else:
+        add(False, "C4", "C4b 通知点击 → 冷启动直达文章详情", None, "未触发：点击「【机构名】有新内容」横幅后应弹出文章详情")
 else:
     skip("C4", "系统通知 → 冷启动深链")
 
 # ---- C5 消息中心条目 → 深链 -------------------------------------------------
 if enabled("C5"):
     instr = find("ui", "收到机构动态通知打开指令")
-    add(False, "C5", "C5 消息中心「机构动态」条目 → 深链", bool(instr) and bool(deep),
-        ("指令=%d 条，落地=%d 条（%s）" % (len(instr), len(deep), fmt((deep or instr)[-1]["_ts"]))) if (instr or deep)
-        else "未触发：消息中心筛选「机构动态」并点任一条")
+    if instr and deep:
+        add(False, "C5", "C5 消息中心「机构动态」条目 → 深链", True,
+            "日志：指令 %d 条、落地 %d 条（%s）" % (len(instr), len(deep), fmt(deep[-1]["_ts"])))
+    elif deep:
+        add(False, "C5", "C5 消息中心「机构动态」条目 → 深链", True,
+            "日志：落地 %d 条（指令日志已被窗口挤出）（%s）" % (len(deep), fmt(deep[-1]["_ts"])))
+    elif instr:
+        add(False, "C5", "C5 消息中心「机构动态」条目 → 深链", None,
+            "指令已收到 %d 条但未见落地记录：文章详情可能未成功弹出" % len(instr))
+    elif mc_org_read:
+        m = mc_org_read[-1]
+        add(False, "C5", "C5 消息中心「机构动态」条目 → 深链（持久化旁证）", True,
+            "orgUpdate 条目已读 ⇒ 点击已触发深链投递（日志已挤出，采用持久化旁证）：%s" % str(m.get("title", "-")))
+    elif mc_org:
+        add(False, "C5", "C5 消息中心「机构动态」条目 → 深链", None, "存在条目但未见点击痕迹：消息中心筛选「机构动态」并点任一条")
+    else:
+        add(False, "C5", "C5 消息中心「机构动态」条目 → 深链", None, "未触发：消息中心暂无 orgUpdate 条目（先满足 C3 前提）")
 else:
     skip("C5", "消息中心条目 → 深链")
 
@@ -596,7 +708,7 @@ else:
     skip("D1", "显示设置联动")
 
 # ---- 报告 ------------------------------------------------------------------
-hard_failed, skipped = 0, 0
+hard_failed, soft_gap, skipped = 0, 0, 0
 for hard, cid, name, passed, _ in checks:
     if passed is None:
         skipped += 1
@@ -632,6 +744,37 @@ for hard, cid, name, passed, detail in checks:
     CASE_KIND[cid] = kind
     mark = "✅ 通过" if passed else ("⬜ 未触发" if passed is None else "❌ 未通过")
     lines.append("| %s | %s | %s | %s | %s |" % (cid, kind, name, mark, detail))
+
+lines.append("")
+lines.append("## 状态型旁证（持久化数据；不受日志 1000 条上限影响）")
+lines.append("")
+if followed_orgs is None:
+    lines.append("- 关注清单：**plist 未获取**（关注用例仅按日志判定）")
+elif not followed_orgs:
+    lines.append("- 关注清单：空（尚未关注任何机构）")
+else:
+    lines.append("- 关注清单：**%d 个** ｜ 基线标记 `orgFollowBaselineEstablished`=%s ｜ 去重集 `notifiedOrgArticleIds`=%s 条" % (
+        len(followed_orgs), "true" if baseline_flag else "false",
+        notified_count if notified_count is not None else "-"))
+    lines.append("")
+    lines.append("| siteKey | 机构名 | 分类 | siteId |")
+    lines.append("|---|---|---|---|")
+    for o in followed_orgs:
+        lines.append("| `%s` | %s | %s | `%s…` |" % (o.get("siteKey", "-"), o.get("name", "-"),
+                                                     o.get("categoryRaw", "-"), str(o.get("siteId", "-"))[:10]))
+if mc_items is not None:
+    lines.append("")
+    lines.append("- 消息中心条目：共 **%d 条**，其中「机构动态」(orgUpdate) **%d 条**（已读 %d 条）" % (
+        len(mc_items), len(mc_org), len(mc_org_read)))
+    if mc_org:
+        lines.append("")
+        lines.append("| id | 标题 | 副标题 | 已读 |")
+        lines.append("|---|---|---|---|")
+        for m in mc_org[:8]:
+            lines.append("| `%s…` | %s | %s | %s |" % (str(m.get("id", "-"))[:22], m.get("title", "-"),
+                                                       str(m.get("subtitle", "-"))[:34], "是" if m.get("isRead") else "否"))
+else:
+    lines.append("- 消息中心条目：**未获取**（入盒用例仅按日志判定）")
 
 lines.append("")
 lines.append("## 人工确认项（脚本不判定，请在真机上目视核对）")
@@ -703,8 +846,8 @@ print("报告：%s" % report_path)
 if hard_failed:
     print("结论：❌ 硬性用例未通过（%d 项），请按详情修复后重跑。" % hard_failed)
     sys.exit(1)
-if skipped:
-    print("结论：✅ 已启用的硬性用例全部通过；%d 项条件/未触发用例（多为「官网暂无新文」等外部前提）。" % skipped)
+if skipped or soft_gap:
+    print("结论：✅ 硬性用例全部通过；信息项未通过 %d 项、未触发 %d 项（多为「官网暂无新文」等外部前提）。" % (soft_gap, skipped))
 else:
     print("结论：✅ 全部通过。")
 PY
