@@ -3,6 +3,7 @@
 > 本 Wiki 基线为 2026-09-29（源码工作区快照，含收藏深链归因修复；其基础为 2026-09-28 HEAD `e3d282e` 全册复核），以源码为唯一事实源（`wc -l` + 逐符号 grep 校准行号）生成。源码根目录：`qin/DesignCode/`（Xcode 工程名 DesignCode，App 显示名「园枢」）。
 > 相对上一版（2026-09-27 基线）本轮为全册复核刷新 + 2026-09-29 增量：统计口径统一并实测（51 文件 / 65,985 行；日志域 **39 个 / 1,269 处字面域埋点 / 1,288 调用点**）；跨 presentation 注入机制改述（`sjzGrayScale()` → `sjzPresentationChrome()` 外观模式 + 专注灰度双注入，**62 处真实挂载**〈dot 调用 64 处含 2 处注释示例，2026-09-29 复核〉 + 构建期护栏 `Scripts/display_coverage_guard.py`，判定窗口已剔除注释行防洗白）；字体下载停滞看门狗（无进展 60s → 复位可重试，原「无超时兜底」遗留已缓解）；全部关键符号行号重校准（03/06）；**收藏更新深链归因修复**（2026-09-29，真机 195/195，见 02 §2.11）；**收藏更新深链无人值守自测**（App DEBUG 钩子 + `Scripts/bookmark_deeplink_selftest.py`，真机自动 PASS）。
 > 旧版单文件 `qin/CODE_WIKI.md` 为同源历史合并版；本目录分册为最新权威版本（`ARCHITECTURE.md`、`PROJECT_UNDERSTANDING.md`、`项目技术全景报告.md` 等其余 md 为历史快照，冲突处一律以本目录为准，行号以符号名为准）。
+> **2026-10-01 全量逐行精读档案**：全仓 50 源码 + 6 测试（共 70,961 行）逐行核验完毕——补读此前清单遗漏的 `BiometricLockOverlayView.swift`；配置层（Info.plist / DesignCode.entitlements）一并核验；测试 237 例（本页下方 195 例为 2026-09-29 旧基线）；在线/设备依赖脆弱用例修正为 5+ 条；6 处新缺陷定位与图片管线/长图渲染器契约归档，见 [07 §13](07-全量深度分析总文档.md)。
 
 ## 文档身份
 
@@ -35,14 +36,14 @@
 | 4 | [04-依赖关系](04-依赖关系.md) | 模块依赖图、依赖矩阵、核心数据实体与关系、数据一致性规则、持久化明细（UserDefaults 键 / 缓存文件清单 / 日志域总表） |
 | 5 | [05-项目运行方式](05-项目运行方式.md) | 构建环境、真机构建/测试命令、签名与分发配置、关键常量、工程红线、风险清单与常见任务 |
 | 6 | [06-接口契约与调用链](06-接口契约与调用链.md) | 核心模块精确函数签名、错误码与兼容策略、函数级调用链 Mermaid 时序图 |
-| 7 | [07-全量深度分析总文档](07-全量深度分析总文档.md) | 2026-09-24/25 全量深析报告（骨架→核心六问→调用链→测试→隐性知识→核查闭环 12 章），含 2026-09-27 增量勘误 |
+| 7 | [07-全量深度分析总文档](07-全量深度分析总文档.md) | 2026-09-24/25 全量深析报告（骨架→核心六问→调用链→测试→隐性知识→核查闭环 12 章），含 2026-09-27 增量勘误，2026-10-01 追加第 13 章全量逐行精读档案 |
 
 ## 一页速览
 
 - 是什么：山西晋中理工学院校园信息聚合 iOS App，纯 SwiftUI，唯一第三方为微信开放平台 SDK（2026-09-27 接入），无后端、无账号体系。
 - 数据从哪来：学校公开 API `https://gwqietap.sxjzit.edu.cn/mapi`（GET 只读）+ 开发者博客 `https://www.43322.cn/blog`（公告/隐私协议），失败时降级本地 JSON 缓存 → 静态兜底数据。
 - 最核心的特色：无服务端条件下，用官网指纹轮询自建了一套本属于服务端的本地推送体系（新闻/信箱/概况/党建四通道 + 收藏第五通道）与站内信消息中心；并以 `URLProtocol` 埋点自建全 App 网络遥测（链路/吞吐/延迟/诊断/测速）。
-- 规模（2026-09-29 `wc -l` 实测）：51 个 Swift 源文件共 65,985 行——主 target 46 文件 62,436 行 + 测试 5 文件 3,549 行；主视图集全在单文件 [TabBar.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/TabBar.swift)（12,993 行，62 个类型声明 / 30+ View）。单元测试 195 例（MessageCenterStore 系 97 + NetworkServiceDTO 系 22 + WeChatSDK 系 23 + 收藏 Bookmark 系 20 + 已读 ReadStatus 系 4 + 日志 Log 系 29）；2026-09-29 真机复测 195/195 通过（0 失败，日志 `qin/build/verify/bookmark_deeplink_fix_test.log`）；另有收藏深链无人值守自测真机 PASS（`qin/build/verify/bookmark_deeplink_selftest_report.txt`）。
+- 规模（2026-10-01 `wc -l` 实测）：56 个 Swift 源文件共 70,961 行——主 target 50 文件 + 测试 6 文件；主视图集全在单文件 [TabBar.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/TabBar.swift)（13,687 行，62 个类型声明 / 30+ View）。单元测试 **237 例**（MessageCenterStore 系 114 + NetworkServiceDTO 系 22 + WeChatSDK 系 23 + 收藏 Bookmark 系 27 + 日志 Log 系 29 + 机构 Org 系 22；2026-09-30 真机 237/237 通过 0 失败）；另有收藏深链无人值守自测真机 PASS（`qin/build/verify/bookmark_deeplink_selftest_report.txt`）。
 - 日志：自研 `LogManager`，全工程 **39 个日志域、1,269 处字面域埋点**（`LogManager.shared` 调用点共 **1,288 处**；口径＝首参为字符串字面量的调用点，含 `log(level:module:)` 的 module 字面量，grep 可复现），可在「我的 → 应用日志」查看（支持级别/模块/关键词三维筛选、日期分组、跟随最新、详情卡、导出 TXT/JSON）；网络监测独占 `netmon` 域 50 处、显示设置独占 `display` 域 50 处、微信集成独占 `wechat` 域 67 处、长图生成独占 `longimage` 域 54 处、收藏 `favorite` 域 76 处、日志模块自身 `log` 域 61 处（含 DEBUG 自测钩子 12 处）。
 - 构建环境：Xcode 27.0（27A266a）+ iOS 26 SDK；真机「秦超的iPhone」（iPhone 13 Pro Max，UDID `00008110-000411A40EC1401E`）为唯一调试目标。
 
