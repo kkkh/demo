@@ -458,6 +458,34 @@
 
 配套视图见 §5.2（OrganizationView 全栏目深度搜索 / OrganizationDetailView 区块渲染）。
 
+### 4.12.1 机构栏目九形态（※阶段三 2026-10-01，[OrgContentIndex.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/OrgContentIndex.swift#L18-L70) + [OrganizationDetailView.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/OrganizationDetailView.swift)）
+
+- **真值源**：`/dept/home2` 的 nav 数组逐项 = 一个栏目；`OrgColumnKind.classify(componentType, title, path)` 构建期一次性判定（不改每帧重算）。
+- **九形态**：`list`（news/notice/notice-small/news-important/download/electronic-book/thematic-center/tabs/tabs-sub → `column/articles` 分页）· `content`（单篇直渲：列接口 total=1 + `article/detail` 正文预览，「阅读全文」进 zoom 详情）· `video`（列接口 total=0 实证 → 主站 videos 板块封面卡，正文 WebView 承载播放源）· `teacher`（`/common/teacher/page` 首字头像卡 + 简介收起/展开 + 分页）· `recruit`（录取查询表单：姓名/身份证 + 合规 Alert「仅用于录取查询，提交即同意；不保存凭证」；RSA 公钥待取证前保底「官网查询」WKWebView）· `calendar`（入口卡 → sheet CampusCalendarView 月历联动）· `opinion`（入口卡 → sheet PrincipalMailboxView；title 含联系/意见/反馈 或 path 含 contact/opinion 二次判定）· `link`（无地址栏 WebViewContainer 内嵌 +「在系统浏览器打开」；数据源 = nav path 绝对 URL，如 rlzyc https://xtrlzyyfzghc.sxjzit.edu.cn）· `webFallback`（空态壳「这个栏目还没有内容」——**严禁再出现「需在官网查看」**）。
+- **渲染分发点**：`columnArticlesSection` 内 `switch column.kind`；分页复用 `OrgPagerState`（pageSize=40）；师资独立 `teacherCache` 会话缓存。
+- **新增网络接口**：`fetchTeacherPage(siteId:page:size:isLeader:)`（`/common/teacher/page`，is_leader 必传）· `queryRecruit(name:encryptedIdCard:)`（`POST /common/recruit/query`，HTTP 恒 200 业务码在 body；data:null = 未命中；**不落库、日志不记凭证**）· 通用 `post<T>(path:body:as:)`（JSON body + Content-Type）。
+- **已验证**：content/teacher/link/opinion 判定线索（2026-10-01 curl 实机）；`电子图书并入 ①文章列表`；videos 板块 = 静态封面图（播放源阶段四核对）。
+- **真机验收**：[Scripts/org_forms_acceptance.sh](file:///Users/qinchao/Downloads/designcode-swiftui/qin/Scripts/org_forms_acceptance.sh)（T1~T9 九形态 + S5~S7 静态契约 + D0 无 ERROR，一条命令闭环）。
+
+### 4.12.2 阶段四 · 视觉令牌与节奏模型（※2026-10-01，[OrgTheme.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/OrgTheme.swift)）
+
+- **令牌增补（v2.2 §1.4，保留 OrgTheme 命名防回归）**：`Radius.shell`=18（形态壳）· `Spacing.screen`=24 · `Shadow`（floatShadowColor/Radius/Y + chipShadowColor/Radius/Y）· `Motion`（chipsIn spring(0.5,0.8) / stagger 0.03 / imageFadeIn 0.2 / glassIn 0.25 / columnInOffset 6）· `brassRule`（饰线色）。
+- **图标单点**：`OrgTheme.symbol(_:fallback:)`（UIImage 探测，缺失回退）→ `kindSymbol(_:)` 九形态语义映射；`OrgBadge`（40×40/圆角 12/分类色 12% 衬底/24px 线性符号，可 pulse）。
+- **列表节奏模型（§3.5①）**：`articleItem(index:)` 逢 4 行出 16:9 大图卡（`articleHeroCard`），其余文字卡（`articleTextCard`）左列铜金竖排 MM/DD 日期徽章（`columnDateBadge`）；缩略图占位 = 分类色 + `photo` 线性示意（告别灰块）；两卡共享 `openArticle`/`unreadDot`/`articleMetaFooter`。
+- **题头档案纸感（§3.5②）**：1px `separator` 细线 + 铜金 2pt 饰线（`brassRule`）+「更新到 HH:mm」同步角标（8pt 胶囊 + 4pt `symbolEffect(.pulse)`，时间源 `lastSyncAt` 于部门加载成功时刷新）。
+- **形态壳统一外观（§3.5⑤/§1.3）**：content/teacher/recruit/联动入口卡由 `.ultraThinMaterial` 改为 **surface + 1px separator 描边 + shell(18) 圆角**（内容卡禁玻璃、无阴影）；外链内嵌容器同制。
+- **栏目切换动效（§4#2）**：内容区 `.id(selectedColumnId)` + `.transition(.opacity+offset(y:6))` + `.animation(Motion.chipsIn)`（旧淡出新涌入）；chips 选中态 `.animation(chipsIn)`。
+- **视觉验收**：[Scripts/org_visual_acceptance.sh](file:///Users/qinchao/Downloads/designcode-swiftui/qin/Scripts/org_visual_acceptance.sh)（V1~V6 人工清单 + S8/S8b 静态 + D0）；深浅双模式逐屏核对。
+
+### 4.12.3 外链形态多页签与链接切换会话重置（※2026-10-01，[TabBar.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/TabBar.swift#L4883-L5136)）
+
+- **外链形态（link）内嵌站点**：超星电子图书 `http://www.sslibrary.com/page/239443/show` 等站内「知网/电子图书」跨域入口（JS 主帧跳转/window.open）→ **浏览器式多页签**（`WebViewTab` + 页签条 + 各自前进/后退 + 关闭），互不覆盖、原页保留可返回。
+- **跨域判据防竞态**：页签参照域 = 页签初始 URL host（`referenceHost`），**非实时 `webView.url`**（JS 导航发起时 `webView.url` 已指向目标页，实时判断永不触发）。
+- **ATS 豁免**：Info.plist `NSAllowsArbitraryLoadsInWebContent=true`（Web 内容明文 http 豁免，主网层仍严格）；登录流域（`chaoxing.com` / `sslibrary.com` 后缀）跨页签判定放行保持登录。
+- **link 形态栏目切换会话重置（※修复 2026-10-01）**：知网/电子图书两个 link 栏目共用同一 `switch column.kind == .link` 分支 + 同一 `WebViewContainer` 视图位置，SwiftUI 复用视图身份 → 仅靠 `onAppear` 时 `urlString` 变更不触发重载，表现为「点知网没反应」（页签停留旧站）。已加 `.onChange(of: urlString)` 重置页签为新站会话（打点「外链切换·页签重置」），实现「点知网开知网页、点电子图书开电子图书页」。
+- **打点链路（日志取证）**：`外链切换·页签重置`（urlString 变）→ `导航请求`（refHost/destHost/mainFrame/type）→ `导航开始` → `页面加载完成`（title 含站点名）。知网点击闭环：页签重置 https://www.cnki.net/ → 导航请求（refHost=www.cnki.net）→ 「中国知网」加载完成。
+- **经验教训**：外部站点内嵌的点击链路由站点自身登录墙/iframe 决定，不可完全掌控——以「浏览器式多页签 + 外部链接切换必重置会话」为最终兜底，保证任一入口点开即该站独立页。
+
 ### 4.13 PrivacyManager — 隐私管理（[PrivacyManager.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/PrivacyManager.swift)）
 
 - 文档类型：`terms`（用户协议）/ `privacy-policy`（隐私政策），均位于 `https://www.43322.cn/blog/*`。

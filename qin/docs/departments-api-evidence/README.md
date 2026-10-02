@@ -37,9 +37,10 @@
 | `probe_id.json` | 1 | `id=` 参数无效证据（body code 400） |
 | `school_org.json` | 1 | 机构树原始响应（与上级目录同源） |
 | `dept_home2_jwc.json` | 1 | jwc nav 栏目树（用于取站点根栏目 id `66e9645f4eee4f2ead37a8fe1223d7fb`） |
+| `raw_cal_list.json` | 1 | 校园日历完整列表页 `#/list/more?site_id=1&column_id=8197fe41…` 响应（**结构变体** `data.articles:{total,list[]}`；2026-09-30 补充实测） |
 | `img_check.txt` | 1 | 图片复测日志（非 JSON） |
 
-> 目录内共 **311 个文件** = 310 个 JSON + 1 个 `img_check.txt`。
+> 目录内共 **312 个文件** = 311 个 JSON + 1 个 `img_check.txt`（2026-10-01 复核修正：此前误计 310/311，`raw_cal_list.json` 未入表）。
 
 ---
 
@@ -70,4 +71,5 @@
 - **所有 `raw/` 响应均由 `curl -s` 直连官网 API 获得**，不带任何请求头（无 Referer / UA / Cookie）。
 - 若要完整复验，可直接执行文档 §12 的 20 条 curl 命令，或按上表"如何复验"逐项执行。
 - **审计后修订**：本目录证据结论已通过独立审计复核（`audit-report.md`），并据此修正了交付文档的 6 处问题（`article/page` 参数、日历入口表述、截图缺失说明、`detail_art_*` 计数、App 行号、未接入计数）；详见 `audit-report.md` 末尾「修复回执」。
+- **第三轮全量复核（2026-10-01）**：`sweep_columns.py` + `sweep_result_20261001.json` 对 22 站 × 178 栏目现网逐一重扫（约 240 请求），结果与 agentB 基线**完全一致**（code 零差异、site_id 零差异、翻底 22/22、列表型文章总量 4310 篇）；完整结论见 `../departments-columns-sweep-20261001.md`。
 - `raw/raw_cal_list.json`：主站「校园日历」单栏目列表页（#/list/more?site_id=1&column_id=8197fe41…）真实响应——含**结构变体** `data.{column_id,title_cn,title_en,href,articles:{total,list[]}}`（2026-09-30 补充实测）

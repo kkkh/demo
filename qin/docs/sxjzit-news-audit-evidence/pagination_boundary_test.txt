@@ -1,0 +1,24 @@
+=== /common/column/articles 分页边界测试（site_id=1&column_id=41cb4c8424ac474891e1470aa2fb071b）===
+page=53&size=10  -> code 200 total=522 list=2   （末页，522=52*10+2）
+page=54&size=10  -> code 200 total=522 list=[]   （超末页空列表，不报错）
+page=0&size=10   -> data=null（补测 date 为空）
+page=-1&size=10  -> code 500 data=null          （负页 500）
+page=abc&size=10 -> code 200（容错回到默认分页）
+size=20          -> code 200 list=20            （size 生效，可扩展到每页 20）
+size=50          -> code 200（默认最大可用）
+缺 site_id       -> code 400 参数[site_id]为必填项
+缺 column_id     -> code 400 参数[column_id]为必填项
+=== /common/search？key_words=军训&p=1&s=10 ===
+code 200 total=74 list=10（title 含 <em> 高亮标记；分页元数据齐全）
+=== /common/article/detail?article_id=... ===
+code 200 data keys: title/update_time/content(HTML)/href/image_url
+
+=== 补充复核（第二轮）===
+父栏目直查 ccb0ed...: code200 total=0 list=null（容器须走 children）
+school/home（旧）: code200 与 home5 一致少 videos 板块；news.children 5 栏目与 home5 逐一对 True×5
+common/video: type 必填；type=campus/news/latest/video/home5 → data.href 空（废止端点）
+common/download: filename+filepath 双参；200 返回 JSON；正文无附件链接
+detail 边界: id=abc/000..0 → data:null；缺 id → 400
+search 边界: 缺 key_words→400；key_words=xyz(纯编码)→total=0（187 系中文误传）；p=2 正常
+size=100: len 100 无上限报错
+m站: m/wap/mobile/app.sxjzit 子域 DNS 000；/api/news /news.json /rss → 404

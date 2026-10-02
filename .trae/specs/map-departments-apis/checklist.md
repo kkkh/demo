@@ -1,7 +1,7 @@
 # Checklist
 
 ## 一、实机摸查与捕获
-- [x] 已实机打开 `https://www.sxjzit.edu.cn/#/departments/list` 并完成网络全量捕获（首屏 4 XHR + 逐页点击网络台账 `network-capture.md`；HAR 不可由浏览器扩展导出，已以等效台账 + 310 份直连原始响应留档并注明）
+- [x] 已实机打开 `https://www.sxjzit.edu.cn/#/departments/list` 并完成网络全量捕获（首屏 4 XHR + 逐页点击网络台账 `network-capture.md`；HAR 不可由浏览器扩展导出，已以等效台账 + 311 份直连原始响应留档并注明）
 - [x] 机构树/机构列表接口契约（URL/方法/参数/响应结构）已记录且直连复验通过
 - [x] 机构树层级（根→5 分组→34 机构叶子）与 id/parent_id/title_cn/title_en/site_key/site_id/article_id/path 字段逐项记录，且与页面展示核对一致
 - [x] 机构树全部机构/站点已枚举为清单（34/34 = 机构树叶子数；site_key 去重 22）
@@ -30,10 +30,10 @@
 - [x] 清单内证据索引可用（结论 → 证据文件 → 命名规则：home2_/list_/detail_/ep_/rob_）
 
 ## 四、交付物
-- [x] 接口清单文档 `qin/docs/departments-api-inventory.md` 已产出（1079 行 / 14 节：六范围组织、样例与字段表、分页与拼接规则、curl、坑位）
+- [x] 接口清单文档 `qin/docs/departments-api-inventory.md` 已产出（现有 1086 行 / 14 节：六范围组织、样例与字段表、分页与拼接规则、curl、坑位）
 - [x] 清单中每个机构/站点均有条目，六范围 0 遗漏（检索核算：34 机构 / 22 site_key / 178 column_id / 20 端点 全部可检索）
 - [x] 覆盖矩阵 + 站点映射表 + App 对照表 + 完整性核算结论均已随清单交付
-- [x] App 现有实现对照表已完成（已接入 / 未接入 9 / 待接入 + 行号证据；`/common/article/page` 分页失效已标注）
+- [x] App 现有实现对照表已完成（已接入 13 / 未接入 9 / 待接入 + 实测行号证据；`/common/article/page` 曾分页失效、**已于 2026-09-30 修复**，当前已用 `page/size`）
 
 ## 五、复核
 - [x] 执行侧自检通过：抽样重测（机构树 + 22 站 home2/college + 178 栏目翻底 + 详情 + 搜索 + 日历 + 14 条 curl）全部通过
