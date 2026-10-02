@@ -182,12 +182,12 @@ grep -oh 'LogManager\.shared\.' qin/DesignCode/*.swift | wc -l   # 日志调用�
 | 「测试 target 也有 `-disable-sandbox`」 | **仅主 target**（`pbxproj:641/689`）；测试 target 没有 |
 | 「三种缓存模式」 | **2 个枚举例**（`instant` / `cached`）+ **1 个正交布尔**（`imageFreeModeEnabled`），无图模式优先 |
 | 「网络监测支持上传/下载测速」 | **上传测速未实现**；`runSpeedTest`（`:1523-1693`）仅下载 |
-| 「`cleanEmptyFiles` 与保留 7 天注释矛盾」 | 当前 `LogManager` 中**已不存在**（仅存于 `DesignCode_backup_20260922/`） |
+| 「`cleanEmptyFiles` 与保留 7 天注释矛盾」 | 当前 `LogManager` 中**已不存在**，现存备份（`DesignCode_backup_20260926_display/_fonts`）亦无——旧版函数已彻底移除 |
 | 「机构 34 个 / 22 个 site_key」 | 旧文档的「35 条机构 / 23 个唯一 site_key」为**首版基线 `904d75f`** 口径；**2026-10-02 已删 `wlzx` 并改名思政部** → 现为 **34 条 / 22 个唯一 site_key**（`siteKey` 非 nil 24、nil 10） |
 | 「机构模块用到 20 个端点」 | **实际只用 8 条 API + 1 个 HTML 校验页**（2026-10-01 增 `teacher/page`）；20 是摸查文档的官网全量 |
 | 「校园日历支持日期聚合与筛选」 | **源码中不存在**；仅 `dateText`（`:453`）对单条日期做规范化 |
 | 「机构升级已实现预取与详情共用缓存」 | **未落地**——详情页全程不读写 `OrgHomeCache` |
-| 「显示设置文件内有 19 项」 | F1–F19 是**全工程**特性编号；该文件为 **18 项 / 12 个 Section**（F16 在 `TabBar.swift:10593`） |
+| 「显示设置文件内有 19 项」 | F1–F19 是**全工程**特性编号；该文件为 **18 项 / 12 个 Section**（F1–F15 + F17–F19；**F16 全库无编号标注，代码中不存在**） |
 | 「`cacheArticleContent` 有 `await` 后下标越界隐患」 | **已修复**（`BookmarkManager.swift:573` 在挂起点后重新 `firstIndex` 定位） |
 | 「237 用例全绿」 | 237 是首版基线**静态计数**；2026-10-02 重构后静态计数为 **241**；最近有日志证据的实跑为 **195/195**（2026-09-29），`OrgModuleTests` 在验证日志中 0 命中 |
 | 「隐私文本三处矛盾」笼统表述 | 已定位到具体行：`PrivacyLegalTexts.swift:219`（权限清单不实）、`:224`（宣称「所有网络请求 HTTPS」而 `Info.plist:58-64` 对 `sxjzit.edu.cn` 放行明文 HTTP——是否构成不实取决于学校接口**实际 scheme**，[未验证]）；而 `:140`「不收集生物特征数据」表述**本身正确** |
