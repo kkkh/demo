@@ -1,0 +1,48 @@
+sequenceDiagram
+    autonumber
+    participant V as OrganizationDetailView
+    participant G as OrgRequestGate(actor)
+    participant NS as NetworkService
+    participant PC as pagerCache / TeacherPageCache
+
+    V->>V: selectColumn(column, reset:)(:2392)
+    Note over V: 防重入：!reset 且已选中同栏目 → 直接 return<br/>按 OrgColumnKind 九路分支（columnArticlesSection :1590 渲染分发）
+    alt list / content（列接口分页）
+        V->>V: selectListColumn(:2417)
+        alt 会话缓存命中
+            PC-->>V: pagerCache 秒回
+            alt content
+                V->>NS: loadContentDetailIfNeeded(:2726) → fetchArticleDetail<br/>（正文纯文本预览，HTML 正则剥离，主线程安全）
+            end
+        else 未命中
+            V->>G: withPermit（≤3 并发）
+            G->>NS: fetchArticles(columnId:page:size:40)
+            NS-->>V: ColumnDTO → pager.apply（articleId 去重）
+        end
+    else teacher
+        V->>V: loadTeacherFirstPage(:2581)
+        alt TeacherPageCache 命中
+            PC-->>V: 秒回（切回不重拉）
+        else 未命中
+            V->>G: withPermit + withTimeout(12s)
+            G->>NS: fetchTeacherPage(siteId:page:size:20)(NetworkService :1644)
+            Note over V: 触底 loadMoreTeachersIfNeeded(:2629) 翻页，按 id 去重
+        end
+    else video
+        V->>V: loadVideoColumn(:2677)
+        Note over V: videoLoadedOnce 全局缓存——跨栏目/机构只拉一次
+        V->>G: withPermit
+        G->>NS: fetchHome2() → home2.videos.articles.list
+    else recruit
+        V->>V: submitRecruitQuery(:2758) → 合规弹窗
+        V->>V: performRecruitQuery(:2773)
+        Note over V: RSA 公钥未取证 → 不发假请求，提示「官网查询」<br/>recruitShowWeb sheet → 官网录取查询页 WebView
+    else calendar / opinion
+        V->>V: columnToolModal = kind（:177 枚举）
+        V-->>V: sheet 复用 CampusCalendarView / PrincipalMailboxView
+    else link
+        V->>V: linkEmbedSection(:2172)
+        Note over V: desktopUA 内嵌 WebViewContainer；非 http(s) → 空态
+    else webFallback
+        V->>V: formEmptyState(:2270)【空书架插画，不提示官网】
+    end

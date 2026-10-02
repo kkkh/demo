@@ -1,6 +1,6 @@
 # 「园枢」山西晋中理工学院 App — Code Wiki
 
-> **基线**：Git 提交 `904d75f`（2026-09-30 16:50，`main` 分支）
+> **基线**：Git 提交 `215ea30`（2026-10-02 13:18，`main` 分支）——本轮（2026-10-02）在首版基线 `904d75f`（2026-09-30）之上做**增量核验与同步**：机构模块九形态改造、WebView 标签页浏览器、通知深链单状态化、招生全量覆盖等（详见「本轮增量」）。
 > **生成方式**：以源码为唯一事实源，全部结论经 `wc -l` / `grep -n` / `read` 逐符号实测；文档内所有行号均可复现。
 > **源码根目录**：`qin/DesignCode/`（Xcode 工程名 `DesignCode`，App 显示名「园枢」）
 
@@ -27,12 +27,12 @@
 | # | 分册 | 内容概要 |
 |---:|---|---|
 | 1 | [01-项目整体架构](01-项目整体架构.md) | 项目定位、技术栈、实测规模、三层架构、目录结构、**启动流程**、6 条**关键执行链路**（含 Mermaid 时序）、12 条**设计决策记录（ADR）**、非功能性设计、**技术债清单** |
-| 2 | [02-主要模块职责](02-主要模块职责.md) | **30 个模块**逐一说明：职责、边界、文件与行数、关键类型、数据流、存储键、技术债。含机构模块（10,729 行）与通知体系（5+1 通道）的深度拆解 |
+| 2 | [02-主要模块职责](02-主要模块职责.md) | **30 个模块**逐一说明：职责、边界、文件与行数、关键类型、数据流、存储键、技术债。含机构模块（12,148 行）与通知体系（5+1 通道）的深度拆解 |
 | 3 | [03-关键类与函数参考](03-关键类与函数参考.md) | 核心类关系图、按领域分组的**关键类与方法签名 + 精确行号**、12 段**非平凡算法伪代码**、符号检索速查 |
 | 4 | [04-依赖关系](04-依赖关系.md) | 依赖总图、**模块依赖矩阵**、**88 个 UserDefaults 键全表**、文件路径总表、内存缓存与 Keychain、**数据一致性规则**、耦合风险清单、外部依赖 |
 | 5 | [05-项目运行方式](05-项目运行方式.md) | 环境要求、工程结构、Info.plist / entitlements / 导出配置、**构建命令**、**测试套件**、**10 个自动化脚本**、真机安装调试、三远端备份、构建产物、常见任务、排障、**12 条工程红线** |
-| 6 | [06-接口契约与调用链](06-接口契约与调用链.md) | 网络层契约、**13 条 API 路径 + 21 个方法完整签名**、DTO 约定、**5 条函数级调用链时序图**、模块间契约、错误处理与降级、兼容策略 |
-| 7 | [07-附录-类型与符号索引](07-附录-类型与符号索引.md) | **398 个顶层声明**按文件索引（含行号）、测试索引、**32 个单例清单**、**40 个日志域总表** |
+| 6 | [06-接口契约与调用链](06-接口契约与调用链.md) | 网络层契约、**15 条 API 路径 + 完整方法签名**（含 2026-10-01 的 `teacher/page` 与 POST `recruit/query`）、DTO 约定、**9 条函数级调用链时序图**、模块间契约、错误处理与降级、兼容策略 |
+| 7 | [07-附录-类型与符号索引](07-附录-类型与符号索引.md) | **406 个顶层声明**按文件索引（含行号）、测试索引、**33 个单例清单**、**40 个日志域总表** |
 
 ---
 
@@ -59,16 +59,16 @@
 
 | 指标 | 数值 |
 |---|---:|
-| 主 target | **50 文件 / 66,737 行** |
-| 测试 target | **6 文件 / 4,224 行** |
-| **代码总计** | **56 文件 / 70,961 行** |
-| 顶层声明 | **398**（371 类型 + 27 extension） |
-| 单元测试用例 | **237**（15 个测试类，**最近实跑记录为 195/195**） |
-| 单例（`static let shared`） | **32** |
-| `LogManager` 调用点 | **1,371**（**1,354 处字面量域埋点 / 40 个日志域**） |
+| 主 target | **50 文件 / 68,699 行** |
+| 测试 target | **6 文件 / 4,296 行** |
+| **代码总计** | **56 文件 / 72,995 行** |
+| 顶层声明 | **406**（379 类型 + 27 extension） |
+| 单元测试用例 | **241**（15 个测试类，**最近实跑记录为 195/195**） |
+| 单例（`static let shared`） | **33** |
+| `LogManager` 调用点 | **1,400**（**1,383 处字面量域埋点 / 40 个日志域**） |
 | UserDefaults 键 | **88** |
-| API 路径 | **13**（21 个方法） |
-| 最大文件 | `TabBar.swift` **13,687 行**（87 个顶层声明、51 个 View） |
+| API 路径 | **15**（19 方法 + 2 个 `fetchJSONDict` 重载 + 通用 `post()`） |
+| 最大文件 | `TabBar.swift` **13,992 行**（89 个顶层声明、51 个 View） |
 
 ### 五大 Tab
 
@@ -96,15 +96,15 @@
 
 ## 文档约定
 
-| 标注 | 含义 |
-|---|---|
-| `[实测]` | 本轮已在源码 / 工程文件中直接验证（`grep` / `read` / `wc`） |
-| `[推断]` | 由代码结构归纳，非文档明示 |
-| `[未验证]` | 无法从仓库确认（需联网、真机、抓包或产品决策） |
-| ⚠️ | 已知缺陷或风险，附准确行号 |
-| 🔴 / 🟠 / 🟡 / 🟢 | 风险严重度：高 / 中 / 低 / 提示 |
+| 标注 | 含义 | 对应证据等级（product-doc-writing） |
+|---|---|---|
+| `[实测]` | 本轮已在源码 / 工程文件中直接验证（`grep` / `read` / `wc`） | `[Data-backed]` |
+| `[推断]` | 由代码结构归纳，非文档明示 | `[Expert judgment]` |
+| `[未验证]` | 无法从仓库确认（需联网、真机、抓包或产品决策） | `[Hypothesis]`（发布前必须确认） |
+| ⚠️ | 已知缺陷或风险，附准确行号 | —（诊断标注） |
+| 🔴 / 🟠 / 🟡 / 🟢 | 风险严重度：高 / 中 / 低 / 提示 | —（诊断标注） |
 
-**行号口径**：所有行号指**基线提交 `904d75f`** 时刻的源码行号。早于此的文件与当前工作区一致；后续改动请以**符号名检索**（见 [07](07-附录-类型与符号索引.md)）而非行号为准。
+**行号口径**：所有行号指**基线提交 `215ea30`（2026-10-02）** 时刻的源码行号。早于此的文件与当前工作区一致；后续改动请以**符号名检索**（见 [07](07-附录-类型与符号索引.md)）而非行号为准。
 
 **行数口径**：一律使用 `wc -l`（注意：部分文件末行无换行符，编辑器显示值可能比 `wc -l` 多 1）。
 
@@ -137,6 +137,25 @@ grep -oh 'LogManager\.shared\.' qin/DesignCode/*.swift | wc -l   # 日志调用�
 
 ---
 
+## 本轮增量（2026-10-02，基线 `904d75f` → `215ea30`）
+
+本套文档随机构模块改造做了**增量核验与同步**（`git diff 904d75f..HEAD` 实测 13 文件 / +2,425 −386）。主要变更：
+
+| 变更 | 位置 | 说明 |
+|---|---|---|
+| **机构栏目九形态**（原 4 态 → 9 态） | `OrgContentIndex.swift` / `OrganizationDetailView.swift` | `OrgColumnKind` 扩为 `list / content / video / teacher / recruit / calendar / opinion / link / webFallback`；`classify()` 新增 `title/path/embeddedTotal` 二次判定；`OrgColumnSpec.kind` 构建期一次性判定；`OrganizationDetailView` 渲染 switch 分发九形态壳（单篇直渲 / 视频封面卡 / 师资表单分页 / 招生查询 / 日历·信箱联动 / 外链内嵌 / 空态） |
+| **机构子站栏目全量** | `OrgContentIndex.swift` | `data.children` 键捕获（tabs-sub 容器）、子栏目 `articles`/`data` 双键兼容、简介类栏目按内嵌 total 分派单篇 |
+| **视觉 v2.2 令牌** | `OrgTheme.swift` | 新增 `brassRule`、`Radius.shell`、`Space.screen`、阴影/动效令牌、`symbol()` 图标单点探测、`kindSymbol()` 九形态语义图标、`OrgBadge` 线性徽章、`OrgEmptyArt` Canvas 空态插画（空书架/断线/折叠纸） |
+| **机构首页视觉** | `OrganizationDetailView.swift` | 档案式题头（OrgBadge 48 + 同步角标 + 铜金饰线）、头图静态化（移除视差，`resolverBannerImgSrc` 学院/部门/党委三档官网静态横幅）、列表节奏模型（逢 4 行大图卡 ↔ 铜金日期徽章文字卡）、`OrgArticle.createTime` |
+| **机构深链单状态化** | `TabBar.swift` `:413` / `NotificationManager.swift:53` | 机构动态通知 sheet 由「bool + item」双状态改为 `sheet(item:)` 驱动；`PendingOrgArticleDeepLink` 加 `Identifiable`；冷启动白屏修复（消息中心来源等待 sheet 完全退场 + 550ms 错峰） |
+| **WebView 标签页浏览器** | `TabBar.swift` `:4903` 起 | `WebViewContainer` 重构：页签条 + 导航条（后退/前进/刷新）、`WebViewTab` / `WebViewControl`、`desktopUA`（外链 PC 站）、跨站导航自动开新页签（`referenceHost`）、`window.open` 委托（`createWebViewWith`）；`Info.plist` 增 `NSAllowsArbitraryLoadsInWebContent` |
+| **师资 / 招生接口** | `NetworkService.swift` | 新增 `fetchTeacherPage()`（`/common/teacher/page`，行外嵌套 `TeacherDTO/TeacherPageDTO`）与 `queryRecruit()`（POST `/common/recruit/query`，`RecruitResultDTO`，RSA 加密待真机取证）；新增通用 `post()`（`:126`） |
+| **招生网全量覆盖** | `NetworkService.swift:812` / `DataService.swift` | `fetchZSWArticlePage` 由 `/common/article/page` 改走 `/common/column/articles`（修复「招生公告远少于官网」），DTO 兼容嵌套/扁平两结构；`DataService` 新增 `fetchFullZSWArticles` + `safeFetchArticles` total 驱动翻页 |
+| **机构搜索全量** | `OrganizationView.swift` | 深度检索/子站检索由「固定 4/8 页」改为**按服务端 total 动态翻页全量覆盖**（200 页安全上限） |
+| **深色模式修复** | `DisplaySettingsManager.swift:1084` / `OrganizationDetailView.swift` | WebView 排版 CSS 追加 `color: var(--text-color) !important`；`body a` 链接色提权保护 |
+| **机构数据治理** | `OrganizationManager.swift:664` | 「思想政治教育工作部」→「思想政治教育工作部党支部」（siteKey 置 nil，article_id 语义）；删除「网络与信息中心」；旧缓存 siteKey 按名称兜底纠正 |
+| **测试** | `OrgModuleTests.swift` | 九形态 classify、二次判定负样本、`createTime` 解码、师资分页解码等新增用例（静态 237 → 241） |
+
 ## 与本仓库其他文档的关系
 
 | 文档 | 关系 |
@@ -148,6 +167,7 @@ grep -oh 'LogManager\.shared\.' qin/DesignCode/*.swift | wc -l   # 日志调用�
 | `.trae/documents/`、`.trae/specs/` | 各模块**上游规格书与设计稿**（校园日历 / 显示设置 / 使用帮助 / 消息中心 / 网络监测 / 机构升级） |
 | `qin/docs/departments-api-inventory.md` + `departments-api-evidence/` | 机构设置页接口**全量摸查与原始报文取证**（89KB + 200+ JSON） |
 | `qin/docs/wechat-integration/` | 微信接入文档与 AASA 部署材料 |
+| `code-wiki/mermaid/` | [06 §6.4](06-接口契约与调用链.md) 的 **9 条调用链时序图 Mermaid 源码**（A–I，逐字同步）与目录索引 |
 
 ---
 
@@ -163,13 +183,13 @@ grep -oh 'LogManager\.shared\.' qin/DesignCode/*.swift | wc -l   # 日志调用�
 | 「三种缓存模式」 | **2 个枚举例**（`instant` / `cached`）+ **1 个正交布尔**（`imageFreeModeEnabled`），无图模式优先 |
 | 「网络监测支持上传/下载测速」 | **上传测速未实现**；`runSpeedTest`（`:1523-1693`）仅下载 |
 | 「`cleanEmptyFiles` 与保留 7 天注释矛盾」 | 当前 `LogManager` 中**已不存在**（仅存于 `DesignCode_backup_20260922/`） |
-| 「机构 34 个 / 22 个 site_key」 | 源码 **35 条机构**（多出 `wlzx`）/ **23 个唯一 site_key**（`siteKey` 非 nil 26 条、nil 9 条） |
-| 「机构模块用到 20 个端点」 | **实际只用 7 条 API + 1 个 HTML 校验页**；20 是摸查文档的官网全量 |
+| 「机构 34 个 / 22 个 site_key」 | 旧文档的「35 条机构 / 23 个唯一 site_key」为**首版基线 `904d75f`** 口径；**2026-10-02 已删 `wlzx` 并改名思政部** → 现为 **34 条 / 22 个唯一 site_key**（`siteKey` 非 nil 24、nil 10） |
+| 「机构模块用到 20 个端点」 | **实际只用 8 条 API + 1 个 HTML 校验页**（2026-10-01 增 `teacher/page`）；20 是摸查文档的官网全量 |
 | 「校园日历支持日期聚合与筛选」 | **源码中不存在**；仅 `dateText`（`:453`）对单条日期做规范化 |
 | 「机构升级已实现预取与详情共用缓存」 | **未落地**——详情页全程不读写 `OrgHomeCache` |
 | 「显示设置文件内有 19 项」 | F1–F19 是**全工程**特性编号；该文件为 **18 项 / 12 个 Section**（F16 在 `TabBar.swift:10593`） |
 | 「`cacheArticleContent` 有 `await` 后下标越界隐患」 | **已修复**（`BookmarkManager.swift:573` 在挂起点后重新 `firstIndex` 定位） |
-| 「237 用例全绿」 | 237 是**静态计数**；最近有日志证据的实跑为 **195/195**（2026-09-29），`OrgModuleTests` 在验证日志中 0 命中 |
+| 「237 用例全绿」 | 237 是首版基线**静态计数**；2026-10-02 重构后静态计数为 **241**；最近有日志证据的实跑为 **195/195**（2026-09-29），`OrgModuleTests` 在验证日志中 0 命中 |
 | 「隐私文本三处矛盾」笼统表述 | 已定位到具体行：`PrivacyLegalTexts.swift:219`（权限清单不实）、`:224`（宣称「所有网络请求 HTTPS」而 `Info.plist:58-64` 对 `sxjzit.edu.cn` 放行明文 HTTP——是否构成不实取决于学校接口**实际 scheme**，[未验证]）；而 `:140`「不收集生物特征数据」表述**本身正确** |
 
 ---

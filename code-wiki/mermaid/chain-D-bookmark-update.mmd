@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    participant T as Timer(3600s)
+    participant BM as BookmarkManager
+    participant NS as NetworkService
+    participant MC as MessageCenterStore
+    participant NM as NotificationManager
+
+    T->>BM: checkBookmarkedArticlesForUpdates(manual:)
+    BM->>BM: 取有 articleId 的前 12（手动）/ 10（自动）条
+    loop 每条
+        alt 无缓存正文
+            BM->>BM: 计 skipped
+        else 有缓存正文
+            BM->>NS: fetchArticleDetail(articleId:)
+            BM->>BM: firstIndex 重新定位（:573）
+            BM->>BM: isMeaningfulUpdate(old, new)? → updated / unchanged
+        end
+    end
+    alt updatedItems 非空 且 pushOnUpdate
+        BM->>BM: sendUpdateNotifications()（最多 3 条）
+        BM->>MC: ingest(kind: .bookmarkUpdate, id: "bookmark-update-{readKey}")
+        MC->>MC: 落盘 messageCenterEvents.json
+        MC->>MC: syncBadge()（防抖 300ms）
+    end
+    Note over BM: 用户点击该通知 → NM.handleNotificationTap<br/>isBookmarkUpdate=true → markRead(kind: .bookmarkUpdate)

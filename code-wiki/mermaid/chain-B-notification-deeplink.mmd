@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    participant OS as iOS
+    participant NM as NotificationManager
+    participant Tab as MainTabView
+    participant DS as DataService
+    participant BS as BiometricSecurityManager
+
+    OS->>NM: didReceive（完成回调版，主线程）
+    NM->>OS: completionHandler()【立即回执，先于任何业务逻辑】
+    NM->>NM: Task { @MainActor in handleNotificationTap(userInfo:source:) }
+    Note over NM: 分发优先级：<br/>① schoolProfileDeepLink ② partySubjectDeepLink<br/>③ orgArticleId ④ mailboxId ⑤ articleId 兜底
+    NM->>NM: MessageCenterStore.markRead(...) 回标已读
+    NM->>NM: pendingXxx = ...（含 UUID，保证 onChange 必触发）
+    NM-->>Tab: @Published 变更
+    Tab->>Tab: onChange(pendingXxx)
+    Tab->>DS: preloadArticleDetail(articleId)【并行预加载 → 秒开】
+    Tab->>Tab: scheduleNotificationArticlePresentation()
+    loop 每 100ms，最多 30 次
+        Tab->>BS: 检查 state == .unlocked 且 scenePhase == .active
+    end
+    alt 超时 > 3s
+        Tab->>NM: deepLinkOutcome = .failed(reason:)
+    else 条件满足
+        Tab->>Tab: sleep(350ms)【让出 runloop 周期】
+        Tab->>Tab: showNotificationArticle = true → 弹 sheet
+        Tab->>NM: deepLinkOutcome = .presented(articleId:)
+    end

@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    participant V as OrganizationDetailView
+    participant G as OrgRequestGate(actor)
+    participant NS as NetworkService
+    participant C as ArticleDetailCache
+
+    V->>V: loadData()
+    loop retry 0...2（12s withTimeout）
+        V->>G: 申请并发许可（maxConcurrent 3）
+        G->>NS: fetchDeptHome2(siteKey:)
+        alt 5xx / serverError / noData
+            V->>V: break retryLoop【不重试】
+        else 成功
+            V->>V: parseSections()
+        end
+    end
+    V->>NS: fetchArticles(columnId:, page: 2/3) 补充分页（40 条/页）
+    Note over V: 防串栏 + 会话级 pagerCache + 触底自动加载
+    Note over V: 2026-10-01 起 selectColumn 按 OrgColumnKind 九形态分流：<br/>list/content → 列接口分页；teacher → /common/teacher/page 专属分页（TeacherPageCache 会话缓存）；<br/>video → 主站 videos 板块（全局缓存一次）；recruit → 表单（RSA 取证前官网保底）；<br/>calendar/opinion → 联动 sheet；link → 外链内嵌 WebView
+    alt 主链路失败
+        V->>NS: loadFallbackArticles()【单次幂等】4 栏目并行关键词搜索
+    end
+    V->>V: fetchArticleDetailWithFallback(articleId:)
+    Note over V: 先早退（首个有效即停收集）→ 再取最长<br/>全部成功但正文为空 → OrgBriefArticleError（按 INFO）
+    V->>C: 写入 ArticleDetailCache
