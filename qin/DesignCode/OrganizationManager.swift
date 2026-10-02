@@ -136,7 +136,7 @@ final class OrganizationManager: ObservableObject {
         OrganizationUnit(name: "纪检监察办公室", category: .partyCommittee, siteKey: nil, icon: "shield.checkered"),
         OrganizationUnit(name: "党委教师工作部", category: .partyCommittee, siteKey: nil, icon: "person.text.rectangle.fill"),
         OrganizationUnit(name: "党委学生工作部（武装部）", category: .partyCommittee, siteKey: "dwxsgzb", icon: "studentdesk"),
-        OrganizationUnit(name: "思想政治教育工作部", category: .partyCommittee, siteKey: "mkszy", icon: "lightbulb.fill"),
+        OrganizationUnit(name: "思想政治教育工作部党支部", category: .partyCommittee, siteKey: nil, icon: "doc.richtext"),
 
         // MARK: 群团机构
         OrganizationUnit(name: "团委", category: .massOrg, siteKey: "tw", icon: "flag.2.crossed.fill"),
@@ -171,7 +171,6 @@ final class OrganizationManager: ObservableObject {
         // MARK: 教辅机构
         OrganizationUnit(name: "图书馆", category: .support, siteKey: "tsg", icon: "books.vertical.fill"),
         OrganizationUnit(name: "实践教学管理中心", category: .support, siteKey: "sjjxglzx", icon: "hammer.fill"),
-        OrganizationUnit(name: "网络与信息中心", category: .support, siteKey: "wlzx", icon: "network"),
     ]
 
     // MARK: 初始化
@@ -664,6 +663,36 @@ final class OrganizationManager: ObservableObject {
                 // 同时修复 icon（确保静态数据中的新图标被使用）
                 if merged[i].icon != staticUnit.icon {
                     merged[i].icon = staticUnit.icon
+                }
+            } else {
+                // 2026-10-02 修复：旧版本缓存可能存在「id 与静态表不一致」的机构条目
+                // （如早期版本把「思想政治教育工作部」存为 id=partyCommittee_思想政治教育工作部、
+                //  siteKey=mkszy，而静态权威条目为「思想政治教育工作部党支部」siteKey=nil）。
+                // 兜底匹配：缓存名去空格后是静态名的「前缀」（长度≥5 防误伤短词），
+                // 语义 = 静态权威名在旧版本曾以精简名存储（如去掉「党支部」后缀）。经全静态表
+                // 校验无二义（2026-10-02）：仅「思想政治教育工作部 → 思想政治教育工作部党支部」命中。
+                // 命中后以静态 siteKey/icon 为准——将 article_id 型机构（静态 siteKey=nil）
+                // 从误配的 siteKey 纠正回 nil，恢复单文章语义。
+                // 仅作用于 id 未命中的缓存条目，正常 id 命中的机构不受任何影响。
+                let trimmedCacheName = merged[i].name.replacingOccurrences(of: " ", with: "")
+                if trimmedCacheName.count >= 5,
+                   let staticUnit = staticData.first(where: {
+                       let trimmedStaticName = $0.name.replacingOccurrences(of: " ", with: "")
+                       return trimmedStaticName.hasPrefix(trimmedCacheName) && trimmedStaticName != trimmedCacheName
+                   }) {
+                    if merged[i].siteKey != staticUnit.siteKey {
+                        merged[i].siteKey = staticUnit.siteKey
+                        mergedCount += 1
+                        LogManager.shared.warning("organization", "缓存机构按名称兜底纠正 siteKey", context: [
+                            "name": merged[i].name,
+                            "staticName": staticUnit.name,
+                            "oldSiteKey": "\(merged[i].siteKey ?? "nil")",
+                            "correctedSiteKey": "\(staticUnit.siteKey ?? "nil")"
+                        ])
+                    }
+                    if merged[i].icon != staticUnit.icon {
+                        merged[i].icon = staticUnit.icon
+                    }
                 }
             }
         }

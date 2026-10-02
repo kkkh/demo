@@ -481,6 +481,46 @@ final class DataService: ObservableObject {
 
     // MARK: - 招生网数据加载
 
+    /// 拉取招生网栏目全量文章（total 驱动翻页，覆盖官网全量——补 home2 内嵌预览缺失的历史文章）
+    /// - 返回值：按服务端默认序的全量文章；空/失败时回退内嵌预览。
+    private func fetchFullZSWArticles(columnId: String, siteId: String, fallback: [NetworkService.ZSWHome2DTO.ZSWArticleDTO], pageSize: Int = 50, label: String) async -> [NetworkService.ZSWHome2DTO.ZSWArticleDTO] {
+        // 全量拉取（total 驱动，安全上限 100 页防异常死循环；错误降级为内嵌预览）
+        var all: [NetworkService.ZSWHome2DTO.ZSWArticleDTO] = []
+        var seen = Set<String>()
+        var page = 1
+        var totalSeen = 0
+        while true {
+            if page > 100 { break }
+            do {
+                let dto = try await NetworkService.shared.fetchZSWArticlePage(
+                    siteId: siteId, columnId: columnId, page: page, size: pageSize
+                )
+                let list = dto.list ?? []
+                if list.isEmpty { break }
+                for a in list {
+                    let key = a.id ?? a.title ?? ""
+                    if !key.isEmpty, !seen.contains(key) {
+                        seen.insert(key); all.append(a)
+                    }
+                }
+                totalSeen = dto.total ?? totalSeen
+                if list.count < pageSize { break }
+                if totalSeen > 0, all.count >= totalSeen { break }
+                page += 1
+            } catch {
+                LogManager.shared.warning("data", "招生栏目全量拉取失败，使用内嵌预览", context: [
+                    "label": label, "columnId": columnId, "error": error.localizedDescription
+                ])
+                return fallback
+            }
+        }
+        if all.isEmpty { return fallback }
+        LogManager.shared.info("data", "招生栏目全量拉取完成", context: [
+            "label": label, "pages": "\(page)", "count": "\(all.count)", "total": "\(totalSeen)"
+        ])
+        return all
+    }
+
     /// 加载招生网首页数据
     func loadZSWHomeData() async {
         zswIsLoading = true
@@ -518,10 +558,13 @@ final class DataService: ObservableObject {
                 }
             }
 
-            // 解析招生计划
+            // 解析招生计划（全量拉取替代 home2 内嵌预览）
             var enrollmentPlan: ZSWSection?
             if let ep = navData?.enrollmentPlan, let colId = ep.columnId {
-                let articles = (ep.articles?.list ?? []).compactMap { a -> ZSWArticle? in
+                let inlined = ep.articles?.list ?? []
+                let full = await fetchFullZSWArticles(columnId: colId, siteId: siteId,
+                                                      fallback: inlined, label: "招生计划")
+                let articles = full.compactMap { a -> ZSWArticle? in
                     guard let title = a.title, !title.isEmpty else { return nil }
                     return ZSWArticle(articleId: a.id, title: title,
                                       description: a.description ?? "",
@@ -534,10 +577,13 @@ final class DataService: ObservableObject {
                                             articles: articles)
             }
 
-            // 解析招生公告
+            // 解析招生公告（全量拉取替代 home2 内嵌预览——修复「招生公告数量远少于官网」）
             var notices: ZSWSection?
             if let nt = navData?.notice, let colId = nt.columnId {
-                let articles = (nt.articles?.list ?? []).compactMap { a -> ZSWArticle? in
+                let inlined = nt.articles?.list ?? []
+                let full = await fetchFullZSWArticles(columnId: colId, siteId: siteId,
+                                                      fallback: inlined, label: "招生公告")
+                let articles = full.compactMap { a -> ZSWArticle? in
                     guard let title = a.title, !title.isEmpty else { return nil }
                     return ZSWArticle(articleId: a.id, title: title,
                                       description: a.description ?? "",
@@ -550,28 +596,38 @@ final class DataService: ObservableObject {
                                      articles: articles)
             }
 
-            // 解析报考指南子栏目
+            // 解析报考指南子栏目（全量拉取——child.id 即 column_id，覆盖 total>内嵌 的历史文章）
             var guideChildren: [ZSWGuideChild] = []
             if let guideChildrenList = navData?.applicationGuide?.children?.list {
-                guideChildren = guideChildrenList.compactMap { child in
-                    guard let id = child.id, let titleCn = child.titleCn else { return nil }
-                    let articles = (child.articles?.list ?? []).compactMap { a -> ZSWArticle? in
+                for child in guideChildrenList {
+                    guard let id = child.id, let titleCn = child.titleCn else { continue }
+                    let inlined = child.articles?.list ?? []
+                    // 仅当内嵌数量 < 服务端 total 时全量补拉（奖励政策 8>6、入学须知 7>6）
+                    let total = child.articles?.total ?? inlined.count
+                    let full = total > inlined.count
+                        ? await fetchFullZSWArticles(columnId: id, siteId: siteId,
+                                                     fallback: inlined, label: titleCn)
+                        : inlined
+                    let articles = full.compactMap { a -> ZSWArticle? in
                         guard let title = a.title, !title.isEmpty else { return nil }
                         return ZSWArticle(articleId: a.id, title: title,
                                           description: a.description ?? "",
                                           imageUrl: a.imageUrl, updateTime: a.updateTime, tag: a.tag)
                     }
-                    return ZSWGuideChild(id: id, columnId: id,
-                                         titleCn: titleCn,
-                                         titleEn: child.titleEn ?? "",
-                                         articles: articles)
+                    guideChildren.append(ZSWGuideChild(id: id, columnId: id,
+                                                       titleCn: titleCn,
+                                                       titleEn: child.titleEn ?? "",
+                                                       articles: articles))
                 }
             }
 
-            // 解析招生动态
+            // 解析招生动态（全量拉取替代 home2 内嵌预览——108 篇全量）
             var enrollmentNews: ZSWSection?
             if let en = navData?.enrollmentNews, let colId = en.columnId {
-                let articles = (en.articles?.list ?? []).compactMap { a -> ZSWArticle? in
+                let inlined = en.articles?.list ?? []
+                let full = await fetchFullZSWArticles(columnId: colId, siteId: siteId,
+                                                      fallback: inlined, label: "招生动态")
+                let articles = full.compactMap { a -> ZSWArticle? in
                     guard let title = a.title, !title.isEmpty else { return nil }
                     return ZSWArticle(articleId: a.id, title: title,
                                       description: a.description ?? "",
@@ -692,11 +748,18 @@ final class DataService: ObservableObject {
     }
 
     /// 安全拉取栏目文章（内部捕获所有错误，永不抛出）
+    /// 通过首页响应的 total 动态翻页到底，覆盖大栏目（如学校要闻 522 条）；
+    /// 保留安全上限与去重/提前终止语义，杜绝小页提前退出或异常页死循环。
     private func safeFetchArticles(_ columnId: String, pageSize: Int = 50, label: String) async -> [NetworkService.ArticleDTO] {
         var all: [NetworkService.ArticleDTO] = []
         var seen = Set<String>()
 
-        for page in 1...6 {
+        // total 驱动翻页：首页携带 total（如学校要闻 522 → 11 页）、list.count < pageSize 提前 break；
+        // 无 total 时按页连续翻，兜底安全上限防异常页死循环。
+        var page = 1
+        var totalFetched = 0
+        while true {
+            if page > 100 { break }
             do {
                 let result = try await NetworkService.shared.fetchArticles(columnId: columnId, page: page, size: pageSize)
                 guard let list = result.articles?.list, !list.isEmpty else { break }
@@ -707,7 +770,12 @@ final class DataService: ObservableObject {
                         all.append(a)
                     }
                 }
+                totalFetched += list.count
+                // 结束判定：本页条数不足一页
                 if list.count < pageSize { break }
+                // 结束判定：服务端 total 已知且已拉满（页面量 >= total；容错偏多拉、绝不少拉）
+                if let total = result.articles?.total, total > 0, totalFetched >= total { break }
+                page += 1
             } catch {
                 // 服务端错误（如 500、data:null）降级为警告，不阻塞其他栏目同步
                 if let ne = error as? NetworkError, case .serverError = ne {
@@ -718,16 +786,33 @@ final class DataService: ObservableObject {
                 break
             }
         }
+        if label == "学校要闻" || label == "校园荣誉" {
+            LogManager.shared.info("articleSync", "栏目全量拉取完成", context: [
+                "label": label,
+                "pages": "\(page)",
+                "size": "\(pageSize)",
+                "fetched": "\(all.count)",
+                "columnId": columnId
+            ])
+        }
         return all
     }
 
     /// DTO 转 NewsItem
     private func toNewsItem(_ a: NetworkService.ArticleDTO, _ category: String, columnId: String? = nil) -> NewsItem? {
         guard let title = a.resolvedTitle, !title.isEmpty else { return nil }
-        return NewsItem(title: title, date: formatDate(a.createTime),
+        return NewsItem(title: title, date: resolvedArticleDate(a),
                         category: category, summary: a.description ?? "",
                         content: a.description ?? "", imageUrl: a.imageUrl,
                         columnId: columnId, articleId: a.id, href: a.href)
+    }
+
+    /// 文章日期取用顺序：create_time 优先，为空（官网 2025-07 前的早期文章 create_time=''）
+    /// 回退 update_time —— 保证所有文章列表与详情均能展示日期。
+    private func resolvedArticleDate(_ a: NetworkService.ArticleDTO) -> String {
+        let create = a.createTime ?? ""
+        let raw = create.isEmpty ? (a.updateTime ?? "") : create
+        return formatDate(raw.isEmpty ? nil : raw)
     }
 
     // MARK: - 文章详情（按需加载）
@@ -899,7 +984,8 @@ final class DataService: ObservableObject {
             plainTextContent: plainText.isEmpty ? (detail.description ?? "").strippingHTMLTags() : plainText,
             author: detail.author ?? "",
             source: detail.source ?? "",
-            publishTime: detail.createTime ?? "",
+            // create_time 为空（早期文章）时回退 update_time，详情页日期不缺失
+            publishTime: (!(detail.createTime ?? "").isEmpty ? detail.createTime : detail.updateTime) ?? "",
             images: images,
             articleId: articleId
         )

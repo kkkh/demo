@@ -65,14 +65,23 @@ final class OrgModuleTests: XCTestCase {
     // MARK: - 栏目类型分派
 
     func testClassifyComponentTypes() {
-        for listType in ["news", "news-important", "notice", "notice-small", "content",
-                         "download", "tabs", "tabs-sub", "teacher", "videos",
-                         "electronic-book", "thematic-center", "recruit"] {
+        for listType in ["news", "news-important", "notice", "notice-small",
+                         "download", "tabs", "tabs-sub", "electronic-book", "thematic-center"] {
             XCTAssertEqual(OrgColumnKind.classify(listType), .list, "\(listType) 应为列表类")
         }
+        XCTAssertEqual(OrgColumnKind.classify("content"), .content, "content 为单篇直渲")
+        XCTAssertEqual(OrgColumnKind.classify("videos"), .video, "videos 视频形态")
+        XCTAssertEqual(OrgColumnKind.classify("teacher"), .teacher, "teacher 走 teacher/page")
+        XCTAssertEqual(OrgColumnKind.classify("recruit"), .recruit, "recruit 招生查询")
         XCTAssertEqual(OrgColumnKind.classify("calendar"), .calendar)
-        for fallback in ["link", "opinion", "0", "", nil] {
-            XCTAssertEqual(OrgColumnKind.classify(fallback), .webFallback, "\(fallback ?? "nil") 应为官网兜底")
+        XCTAssertEqual(OrgColumnKind.classify("opinion"), .opinion)
+        XCTAssertEqual(OrgColumnKind.classify("link"), .link)
+        // 官网 componentType 常为空：标题/path 二次判定（2026-10-01 实证）
+        XCTAssertEqual(OrgColumnKind.classify(nil, title: "联系我们"), .opinion, "空类型+标题含'联系'应为信箱形态")
+        XCTAssertEqual(OrgColumnKind.classify(nil, path: "contact-us"), .opinion, "path=contact-us 应为信箱形态")
+        XCTAssertEqual(OrgColumnKind.classify(nil, title: "部门概况"), .webFallback, "无映射应为兜底")
+        for fallback in ["0", ""] {
+            XCTAssertEqual(OrgColumnKind.classify(fallback), .webFallback, "\(fallback) 应为官网兜底")
         }
     }
 
@@ -110,8 +119,9 @@ final class OrgModuleTests: XCTestCase {
         let result = OrgColumnIndexBuilder.build(nav: nav, defaultSiteId: "fallback")
 
         let byTitle = Dictionary(uniqueKeysWithValues: result.columns.map { ($0.title, $0) })
-        XCTAssertEqual(byTitle["部门概况"]?.kind, .list)
-        XCTAssertEqual(byTitle["联系我们"]?.kind, .webFallback)
+        XCTAssertEqual(byTitle["部门概况"]?.kind, .content, "content 型栏目为单篇直渲形态（g1 classify 九形态）")
+        XCTAssertEqual(byTitle["联系我们"]?.kind, .opinion, "opinion 型栏目为校长信箱联动形态（g1 classify 九形态）")
+        XCTAssertEqual(byTitle["学院简介"]?.kind, .content, "子栏目 content 型同样分派单篇形态")
         XCTAssertEqual(byTitle["通知公告"]?.siteId, "222fa53591a3494e9c860390039b0844")
     }
 
@@ -365,6 +375,68 @@ final class OrgModuleTests: XCTestCase {
     func testFollowScannerEmptyNavYieldsNoCandidates() throws {
         let data = try JSONDecoder().decode(NetworkService.DeptHome2DTO.self, from: Data("{}".utf8))
         XCTAssertTrue(OrgFollowArticleScanner.candidates(from: data).isEmpty, "空响应不得产出候补")
+    }
+
+    // MARK: - 阶段三 g4 · DTO 解码（createTime / 师资页）+ OrgArticle memberwise
+
+    /// 列接口 create_time（2026-10-01 实证字段名）+ 行映射到 OrgArticle.createTime
+    func testDeptArticleCreateTimeDecodingAndMemberwise() throws {
+        let json = """
+        {"id":"97a6d8d7","title":"部门概况","description":"简介",
+         "image_url":"https://a.example.com/1.jpg","create_time":"2026-01-02 08:00:00",
+         "update_time":"2026-09-30 10:00:00","tag":"通知","sort":1}
+        """
+        let dto = try JSONDecoder().decode(NetworkService.DeptArticleDTO.self, from: Data(json.utf8))
+        XCTAssertEqual(dto.createTime, "2026-01-02 08:00:00", "create_time 必须解码")
+        XCTAssertEqual(dto.updateTime, "2026-09-30 10:00:00")
+
+        let article = OrgArticle(id: dto.id!, title: dto.title!, description: dto.description ?? "",
+                                 imageUrl: dto.imageUrl, createTime: dto.createTime ?? "",
+                                 updateTime: dto.updateTime ?? "", tag: dto.tag ?? "",
+                                 articleId: dto.id!, sectionSiteId: "s1")
+        XCTAssertEqual(article.createTime, "2026-01-02 08:00:00", "OrgArticle 必须携带 createTime")
+
+        // 旧构造点（不传 createTime）仍可编译且默认空串（阶段二及既有调用处不受影响）
+        let legacy = OrgArticle(id: "x", title: "旧", description: "", imageUrl: nil,
+                                updateTime: "2026-09-30", tag: "", articleId: "x", sectionSiteId: nil)
+        XCTAssertEqual(legacy.createTime, "", "缺省构造 createTime 必须为空串")
+    }
+
+    /// 师资分页响应（teacher/page）：total + list（id 数字型、name/position/title/text）
+    func testTeacherPageDecoding() throws {
+        let json = """
+        {"total":2,"list":[
+          {"id":11,"name":"张三","position":"教授","title":"教务处处长","text":"<p>简介一</p>"},
+          {"id":12,"name":"李四","position":"副教授","title":"副处长","text":"<p>简介二</p>"}
+        ]}
+        """
+        let page = try JSONDecoder().decode(NetworkService.TeacherPageDTO.self, from: Data(json.utf8))
+        XCTAssertEqual(page.total, 2)
+        XCTAssertEqual(page.list?.count, 2)
+        let first = try XCTUnwrap(page.list?.first)
+        XCTAssertEqual(first.id, 11)
+        XCTAssertEqual(first.name, "张三")
+        XCTAssertEqual(first.position, "教授")
+        XCTAssertEqual(first.title, "教务处处长")
+        XCTAssertTrue(first.text?.hasPrefix("<p>") == true, "简介为 HTML 富文本，渲染前须剥离")
+    }
+
+    /// 师资分页空响应（空师资部门不应崩溃）
+    func testTeacherPageDecodingEmpty() throws {
+        let page = try JSONDecoder().decode(NetworkService.TeacherPageDTO.self,
+                                           from: Data(#"{"total":0,"list":[]}"#.utf8))
+        XCTAssertEqual(page.total, 0)
+        XCTAssertEqual(page.list?.isEmpty, true)
+    }
+
+    /// classify 二次判定的负面样本：不含联系/意见/反馈的标题与任意 path 不得误判 opinion
+    func testClassifySecondaryHeuristicNegative() {
+        XCTAssertEqual(OrgColumnKind.classify(nil, title: "教务动态"), .webFallback)
+        XCTAssertEqual(OrgColumnKind.classify(nil, title: "学院简介"), .webFallback)
+        XCTAssertEqual(OrgColumnKind.classify(nil, path: "introduction"), .webFallback)
+        XCTAssertEqual(OrgColumnKind.classify(nil, title: "货物配送系统"), .webFallback, "与意见/联系/反馈无关的标题不得误判")
+        // 无映射但 title 含「意见」→ 信箱；与正文同入口
+        XCTAssertEqual(OrgColumnKind.classify(nil, title: "意见反馈"), .opinion)
     }
 }
 
