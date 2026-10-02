@@ -35,7 +35,8 @@ struct MainTabView: View {
     /// 党建专题通知点击 → sheet 直达完整党建专题模块
     @State private var showPartySubjectSheet = false
     /// 机构动态通知点击 → sheet 直达机构子站文章详情（机构动态通道）
-    @State private var showOrgArticleFromNotification = false
+    /// 单状态（sheet(item:)）驱动：item 非 nil 即呈现，杜绝「isPresented=true 但 item=nil」
+    /// 的竞态窗口——冷启动白屏根因（详情视图未创建 → .task 不执行 → 空容器）。
     @State private var pendingOrgArticle: PendingOrgArticleDeepLink?
 
     private var resolvedColorScheme: ColorScheme? {
@@ -82,9 +83,14 @@ struct MainTabView: View {
     /// 消费 NotificationManager.pendingOrgArticleDeepLink（机构动态通道）：
     /// 等场景激活与 Face ID 解锁完成后再弹 sheet（避免详情页盖在安全遮罩之上），
     /// 与文章详情同源：绝不在系统通知回调的同步链中直接弹窗。
+    /// 2026-10-02 冷启动白屏修复：消息中心点击链路（source=message_center）是先关闭
+    /// 消息中心 sheet 再弹详情 sheet——若消息中心 dismiss 动画未收尾即 present 新 sheet，
+    /// SwiftUI 会丢弃详情 sheet（日志特征：直达指令已打点但详情页 .task 不执行，空 container 白屏）。
+    /// 修复：等 `showMessageCenter` 确认关闭（前置 sheet 判据）+ 放大错峰避开 dismiss 动画窗口。
     private func consumePendingOrgArticleDeepLink(_ request: PendingOrgArticleDeepLink?) {
         guard let request else { return }
         notificationManager.pendingOrgArticleDeepLink = nil
+        let fromMessageCenter = (request.source == "message_center")
         LogManager.shared.info("ui", "收到机构动态通知打开指令", context: [
             "articleId": request.articleId,
             "org": request.orgName,
@@ -94,18 +100,31 @@ struct MainTabView: View {
         ])
         Task { @MainActor in
             var waitCount = 0
-            while !Task.isCancelled && waitCount < 30 &&
-                  (scenePhase != .active || biometricSecurity.isLockEngaged) {
+            let consumeStart = Date()
+            // 消息中心 sheet 是否已完全退场：ProfileView onDismiss 写共享时间戳（messageCenterStore）
+            // 只认本次会话内的「新鲜」退场（距 consume 开始 3 秒内），防旧时间戳误判。
+            let messageCenterGone: () -> Bool = {
+                guard fromMessageCenter else { return true }
+                guard let t = MessageCenterStore.shared.messageCenterDismissedAt else { return false }
+                return t.timeIntervalSince(consumeStart) > -3
+            }
+            // 等待场景激活 + 解锁完成；消息中心点击场景额外等待消息中心 sheet 完全退场（onDismiss 收尾）
+            while !Task.isCancelled && waitCount < 40 &&
+                  (scenePhase != .active || biometricSecurity.isLockEngaged || !messageCenterGone()) {
                 try? await Task.sleep(nanoseconds: 100_000_000)
                 waitCount += 1
             }
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            // 错峰：覆盖前置 sheet 的 dismiss 动画收尾（系统 sheet 动画约 0.4–0.5s）+
+            // 冷启动首帧 presenter 稳定余量；消息中心场景给更足窗口，其他场景维持既有节奏。
+            try? await Task.sleep(nanoseconds: fromMessageCenter ? 550_000_000 : 300_000_000)
+            guard !Task.isCancelled else { return }
             pendingOrgArticle = request
-            showOrgArticleFromNotification = true
             LogManager.shared.info("ui", "机构动态通知 → 直达机构文章详情", context: [
                 "articleId": request.articleId,
                 "org": request.orgName,
-                "waitedMs": "\(waitCount * 100)"
+                "waitedMs": "\(waitCount * 100)",
+                "source": request.source,
+                "fromMessageCenter": "\(fromMessageCenter)"
             ])
         }
     }
@@ -394,28 +413,29 @@ struct MainTabView: View {
             }
             .sjzPresentationChrome()
         }
-        .sheet(isPresented: $showOrgArticleFromNotification, onDismiss: {
-            pendingOrgArticle = nil
+        .sheet(item: $pendingOrgArticle, onDismiss: {
             LogManager.shared.debugLog("ui", "机构动态文章详情页已关闭", context: [:])
-        }) {
-            if let request = pendingOrgArticle {
-                NavigationStack {
-                    OrganizationArticleDetailView(
-                        article: OrgArticle(
-                            id: request.articleId,
-                            title: request.title,
-                            description: "",
-                            imageUrl: nil,
-                            updateTime: "",
-                            tag: request.orgName,
-                            articleId: request.articleId,
-                            sectionSiteId: request.siteId),
-                        siteId: request.siteId,
-                        color: OrganizationCategory(rawValue: request.categoryRaw)?.color ?? .sjzAccent
-                    )
-                }
-                .sjzPresentationChrome()
+        }) { request in
+            // 2026-10-02 冷启动白屏修复：sheet(item:) 单状态驱动，
+            // closure 的 request 为呈现快照（非可选），呈现瞬间必非 nil，
+            // 详情视图必然创建 → .task 必然执行 → 不再出现空容器白屏/延迟。
+            // onDismiss 触发 = pendingOrgArticle 已置 nil，视图卸载后无悬挂引用。
+            NavigationStack {
+                OrganizationArticleDetailView(
+                    article: OrgArticle(
+                        id: request.articleId,
+                        title: request.title,
+                        description: "",
+                        imageUrl: nil,
+                        updateTime: "",
+                        tag: request.orgName,
+                        articleId: request.articleId,
+                        sectionSiteId: request.siteId),
+                    siteId: request.siteId,
+                    color: OrganizationCategory(rawValue: request.categoryRaw)?.color ?? .sjzAccent
+                )
             }
+            .sjzPresentationChrome()
         }
     }
 
@@ -10262,6 +10282,8 @@ struct ProfileView: View {
             AnnouncementDetailView().preferredColorScheme(resolvedColorScheme).sjzPresentationChrome()
         }
         .sheet(isPresented: $showMessageCenter, onDismiss: {
+            // onDismiss 在收起动画完成后触发：记录退场时刻，供机构动态通道 consume 轮询判据
+            messageCenterStore.messageCenterDismissedAt = Date()
             LogManager.shared.debugLog("messageCenter", "消息中心页已关闭", context: [:])
         }) {
             NavigationStack { MessageCenterView() }.preferredColorScheme(resolvedColorScheme).sjzPresentationChrome()
