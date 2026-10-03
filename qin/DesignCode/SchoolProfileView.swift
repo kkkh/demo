@@ -2591,6 +2591,7 @@ struct ProfileTextDetailView: View {
         }
         .background(GradientBackground())
         .navigationTitle(entry.kind)
+        .readingReportTrack(articleId: entry.id, title: entry.title, source: "概况")
         .navigationBarTitleDisplayMode(.inline)
         .overlay(alignment: .top) {
             if let toast = saveToast {
@@ -3235,6 +3236,7 @@ struct ProfileCooperateDetailView: View {
         }
         .background(GradientBackground())
         .navigationTitle(entry.groupTitle)
+        .readingReportTrack(articleId: entry.id, title: entry.title, source: "合作")
         .navigationBarTitleDisplayMode(.inline)
         .overlay(alignment: .top) {
             if let toast = saveToast {

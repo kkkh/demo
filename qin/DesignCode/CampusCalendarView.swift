@@ -854,6 +854,7 @@ struct CampusCalendarDetailView: View {
         }
         .background(GradientBackground())
         .navigationTitle("校历详情")
+        .readingReportTrack(articleId: article.id ?? "", title: article.title ?? "", source: "校历")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: article.id) {
             await load()

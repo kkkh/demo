@@ -120,6 +120,7 @@ struct AnnouncementDetailView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("公告详情")
+            .readingReportTrack(articleId: manager.title, title: manager.title, source: "公告")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
