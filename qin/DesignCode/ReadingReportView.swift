@@ -88,7 +88,7 @@ struct ReadingReportView: View {
                     .displayFont(13)
             }
             .sheet(isPresented: $showGoalEditor) {
-                ReadingGoalView()
+                ReadingGoalView().sjzPresentationChrome()
             }
             .task {
                 // 入场错峰：逐张卡片渐入
