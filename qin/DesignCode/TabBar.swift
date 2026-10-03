@@ -5037,7 +5037,7 @@ struct WebViewContainer: View {
             .frame(height: 34)
 
             ZStack {
-                if let url = safeURL, !tabs.isEmpty {
+                if safeURL != nil, !tabs.isEmpty {
                     ForEach(tabs) { tab in
                         let isActive = tab.id == activeTabID
                         WebView(url: tab.url,
@@ -5263,7 +5263,8 @@ struct WebView: UIViewRepresentable {
                 "type": "\(navigationAction.navigationType.rawValue)",
                 "mainFrame": "\(navigationAction.targetFrame?.isMainFrame ?? false)",
                 "refHost": parent.referenceHost ?? "nil",
-                "destHost": reqURL?.host ?? "nil"
+                "destHost": reqURL?.host ?? "nil",
+                "currentURL": currentURL?.absoluteString ?? "nil"
             ])
             // 页签参照域跨站导航 → 新页签（浏览器标签页行为）：
             // 页面内「知网」等跨域入口（JS 主帧跳转）各自打开独立页签，互不覆盖；

@@ -283,7 +283,7 @@ struct OrgEmptyArt: View {
             context.stroke(arc, with: .color(OrgTheme.primary.opacity(0.55)), style: stroke)
         }
         // 断点（小方点）+ 裂口短线（右下）
-        var dot = Path(ellipseIn: CGRect(x: 66, y: 68, width: 6, height: 6))
+        let dot = Path(ellipseIn: CGRect(x: 66, y: 68, width: 6, height: 6))
         context.fill(dot, with: .color(OrgTheme.primary.opacity(0.55)))
         var crack = Path()
         crack.move(to: CGPoint(x: 96, y: 30))
