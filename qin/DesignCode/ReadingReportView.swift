@@ -23,10 +23,12 @@ enum ReadingReportGoals {
 
 struct ReadingReportView: View {
     @ObservedObject private var store = ReadingReportStore.shared
+    @ObservedObject private var goalStore = ReadingGoalStore.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @State private var mode: ReadingReportMode = .daily
     @State private var showClearConfirm = false
+    @State private var showGoalEditor = false
     /// 卡片错峰入场（阶段推进）
     @State private var entrance = 0
 
@@ -85,6 +87,9 @@ struct ReadingReportView: View {
                 Text("阅读时光的全部记录将永久删除，不可恢复（不影响现有阅读统计）")
                     .displayFont(13)
             }
+            .sheet(isPresented: $showGoalEditor) {
+                ReadingGoalView()
+            }
             .task {
                 // 入场错峰：逐张卡片渐入
                 if !reduceMotion {
@@ -139,7 +144,8 @@ struct ReadingReportView: View {
     private var heroCard: some View {
         let palette = ReadingReportPalette.forNow()
         let today = store.todaySeconds
-        let progress = min(1.0, Double(today) / Double(ReadingReportGoals.dailyMinutes * 60))
+        let goalMinutes = goalStore.dailyMinutes
+        let progress = min(1.0, Double(today) / Double(max(1, goalMinutes) * 60))
         return VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -151,7 +157,7 @@ struct ReadingReportView: View {
                         .foregroundStyle(.white)
                 }
                 Spacer()
-                // 目标进度环（Apple Fitness 式）
+                // 目标进度环（Apple Fitness 式，点击可设定）
                 ZStack {
                     Circle().stroke(.white.opacity(0.22), lineWidth: 7)
                     Circle()
@@ -171,14 +177,26 @@ struct ReadingReportView: View {
                         Text("\(Int(progress * 100))%")
                             .displayFont(13, weight: .bold)
                             .foregroundStyle(.white)
-                        Text("目标 \(ReadingReportGoals.dailyMinutes)′")
+                        Text("目标 \(goalMinutes)′")
                             .displayFont(9, weight: .medium)
                             .foregroundStyle(.white.opacity(0.75))
                     }
                 }
                 .frame(width: 74, height: 74)
+                .overlay(alignment: .bottom) {
+                    Text("设定")
+                        .displayFont(8, weight: .medium)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(.white.opacity(0.2), in: Capsule())
+                        .offset(y: -14)
+                }
+                .onTapGesture {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showGoalEditor = true
+                }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("今日目标完成 \(Int(progress * 100))%")
+                .accessibilityLabel("今日目标完成 \(Int(progress * 100))%，点击设定阅读目标")
             }
 
             HStack(alignment: .lastTextBaseline, spacing: 10) {
@@ -341,12 +359,12 @@ struct ReadingReportView: View {
         let maxVal = max(4, days.map(\.minutes).max() ?? 0)
         return ReportCard(title: "近 7 天专注趋势", caption: "分钟 / 天") {
             Chart {
-                // 每日目标参考线（30 分钟）
-                RuleMark(y: .value("目标", Double(ReadingReportGoals.dailyMinutes)))
+                // 每日目标参考线（读取用户设定目标）
+                RuleMark(y: .value("目标", Double(goalStore.dailyMinutes)))
                     .foregroundStyle(Color.sjzOrange.opacity(0.55))
                     .lineStyle(StrokeStyle(lineWidth: 1.4, dash: [5, 5]))
                     .annotation(position: .top, alignment: .trailing) {
-                        Text("目标 \(ReadingReportGoals.dailyMinutes)′")
+                        Text("目标 \(goalStore.dailyMinutes)′")
                             .displayFont(9, weight: .medium)
                             .foregroundStyle(Color.sjzOrange)
                     }
