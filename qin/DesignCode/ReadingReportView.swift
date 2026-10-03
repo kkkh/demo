@@ -1,13 +1,23 @@
 //
 //  ReadingReportView.swift
-//  「园枢」阅读时光 · 日报/周报（2026-10-03 新增）
+//  「园枢」阅读时光 · 日报/周报（2026-10-03 顶级视觉版）
 //
-//  设计：克制 + 顶级。三张图表（Swift Charts 面积趋势 / 自制环形 / 24h 时段热力），
-//  全部 Apple 原生实现（零第三方依赖）；Hero 背景随本地时段渐变（晨曦/日间/黄昏/深空）；
-//  数字滚动 + 轻触觉 + VoiceOver 全文朗读；全文 display* 排版链；数据仅存本机。
+//  设计语言：对标 Apple Fitness / 微信读书 / App Store 设计大奖——
+//  · 时段氛围背景（晨曦/日间/黄昏/深空渐变 + 深空星点）
+//  · Hero 玻璃拟态 + 顶部光晕 + 目标进度环（Apple Fitness 式）
+//  · 等宽大数字（SF Mono）+ 数字滚动 + 轻触觉
+//  · 自定义胶囊模式切换、卡片错峰入场、目标参考线
+//  · 全部 Apple 原生（Swift Charts + Shape），零第三方依赖
 
 import SwiftUI
 import Charts
+
+// MARK: - 阅读目标（每日专注分钟）
+
+enum ReadingReportGoals {
+    /// 每日阅读目标（分钟）——未来可做成设置项
+    static let dailyMinutes = 30
+}
 
 // MARK: - 报告页
 
@@ -16,6 +26,8 @@ struct ReadingReportView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var mode: ReadingReportMode = .daily
     @State private var showClearConfirm = false
+    /// 卡片错峰入场（阶段推进）
+    @State private var entrance = 0
 
     enum ReadingReportMode: String, CaseIterable {
         case daily = "日报"
@@ -24,18 +36,27 @@ struct ReadingReportView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    heroCard
-                    modePicker
-                    if mode == .daily { dailySection } else { weeklySection }
-                    privacyCard
-                    footnote
+            ZStack {
+                // 时段氛围背景（全页渐变 + 深空星点）
+                ambientBackground
+
+                ScrollView {
+                    VStack(spacing: 18) {
+                        heroCard
+                            .opacity(reveal(0))
+                        modeCapsule
+                            .opacity(reveal(1))
+                        if mode == .daily { dailySection } else { weeklySection }
+                        privacyCard
+                            .opacity(reveal(6))
+                        footnote
+                            .opacity(reveal(6))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 32)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 32)
+                .scrollIndicators(.hidden)
             }
-            .background(Color.sjzLight.opacity(0.5))
             .navigationTitle("阅读时光")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -44,8 +65,8 @@ struct ReadingReportView: View {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         store.setEnabled(!store.enabled)
                     } label: {
-                        Label(store.enabled ? "已记录" : "已暂停",
-                              systemImage: store.enabled ? "record.circle.fill" : "pause.circle.fill")
+                        Label(store.enabled ? "记录中" : "已暂停",
+                              systemImage: store.enabled ? "dot.radiowaves.left.and.right" : "pause.circle.fill")
                             .displayLabelFont(13, weight: .medium)
                             .foregroundStyle(store.enabled ? Color.sjzGreen : Color.sjzOrange)
                     }
@@ -63,12 +84,171 @@ struct ReadingReportView: View {
                 Text("阅读时光的全部记录将永久删除，不可恢复（不影响现有阅读统计）")
                     .displayFont(13)
             }
+            .task {
+                // 入场错峰：逐张卡片渐入
+                if !reduceMotion {
+                    try? await Task.sleep(nanoseconds: 60_000_000)
+                    withAnimation(.easeOut(duration: 0.35)) { entrance = 7 }
+                } else {
+                    entrance = 7
+                }
+            }
         }
     }
 
-    // MARK: - Hero（时段渐变 + 今日专注 + 连击）
+    /// 错峰显示：index 前的卡片渐入
+    private func reveal(_ index: Int) -> Double {
+        reduceMotion || entrance >= index ? 1 : 0
+    }
 
-    /// 今日专注精确文案：<1 分显示「N 秒」；否则「X 分 Y 秒」（避免「读了 89 秒只显示 1 分钟」）
+    // MARK: - 时段氛围背景
+
+    private var ambientBackground: some View {
+        let palette = ReadingReportPalette.forNow()
+        return ZStack {
+            LinearGradient(
+                colors: [
+                    palette.ambientTop,
+                    palette.ambientBottom,
+                    Color(.systemGroupedBackground)
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            // 顶部光晕（Hero 处聚焦）
+            RadialGradient(
+                colors: [palette.colors.first?.opacity(0.16) ?? .clear, .clear],
+                center: .top, startRadius: 10, endRadius: 320
+            )
+            .ignoresSafeArea()
+
+            // 深空时段：星点装饰
+            if palette.starry {
+                StarsField(count: 26)
+                    .ignoresSafeArea()
+                    .opacity(0.55)
+            }
+        }
+    }
+
+    // MARK: - Hero（时段渐变 + 目标进度环 + 等宽大数字 + 连击）
+
+    private var heroCard: some View {
+        let palette = ReadingReportPalette.forNow()
+        let today = store.todaySeconds
+        let progress = min(1.0, Double(today) / Double(ReadingReportGoals.dailyMinutes * 60))
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(palette.greeting)
+                        .displayFont(13, weight: .medium)
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text("阅读时光")
+                        .displayFont(22, weight: .bold)
+                        .foregroundStyle(.white)
+                }
+                Spacer()
+                // 目标进度环（Apple Fitness 式）
+                ZStack {
+                    Circle().stroke(.white.opacity(0.22), lineWidth: 7)
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(
+                            AngularGradient(
+                                colors: [.white.opacity(0.95), palette.ringEnd],
+                                center: .center,
+                                startAngle: .degrees(-90),
+                                endAngle: .degrees(270)),
+                            style: StrokeStyle(lineWidth: 7, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .animation(.spring(response: 0.9, dampingFraction: 0.8), value: progress)
+                        .shadow(color: palette.ringEnd.opacity(0.6), radius: 6)
+                    VStack(spacing: 1) {
+                        Text("\(Int(progress * 100))%")
+                            .displayFont(13, weight: .bold)
+                            .foregroundStyle(.white)
+                        Text("目标 \(ReadingReportGoals.dailyMinutes)′")
+                            .displayFont(9, weight: .medium)
+                            .foregroundStyle(.white.opacity(0.75))
+                    }
+                }
+                .frame(width: 74, height: 74)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("今日目标完成 \(Int(progress * 100))%")
+            }
+
+            HStack(alignment: .lastTextBaseline, spacing: 10) {
+                Text(todayDurationText)
+                    .displayFont(54, weight: .bold)
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText(value: Double(store.todaySeconds)))
+                    .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8), value: store.todaySeconds)
+                Text("· \(store.todayArticleCount) 篇")
+                    .displayFont(14, weight: .medium)
+                    .foregroundStyle(.white.opacity(0.85))
+                Spacer()
+                if store.currentStreak > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .displaySymbolFont(12)
+                            .foregroundStyle(palette.flame)
+                        Text("\(store.currentStreak) 天连击")
+                            .displayFont(12, weight: .semibold)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(.white.opacity(0.18), in: Capsule())
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 0.6))
+                    .shadow(color: palette.flame.opacity(0.5), radius: 8)
+                    .accessibilityLabel("阅读连击，连续 \(store.currentStreak) 天")
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("今日专注 \(todayDurationText)，阅读 \(store.todayArticleCount) 篇")
+
+            // 进度条细线（进度环的线性版本，强化层次）
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.white.opacity(0.18)).frame(height: 5)
+                    Capsule()
+                        .fill(palette.ringEnd)
+                        .frame(width: max(0, geo.size.width * progress), height: 5)
+                        .animation(.spring(response: 0.9, dampingFraction: 0.8), value: progress)
+                }
+            }
+            .frame(height: 5)
+            .accessibilityHidden(true)
+        }
+        .padding(22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: palette.colors,
+                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(.white.opacity(0.08)))            // 玻璃高光层
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .strokeBorder(.white.opacity(0.28), lineWidth: 0.8)) // 描边
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Image(systemName: "book.closed.fill")
+                .displaySymbolFont(88)
+                .foregroundStyle(.white.opacity(0.10))
+                .rotationEffect(.degrees(12))
+                .offset(x: 10, y: 14)
+                .accessibilityHidden(true)
+        }
+        .shadow(color: palette.colors.first?.opacity(0.38) ?? .clear, radius: 22, y: 12)
+    }
+
+    /// 今日专注精确文案
     private var todayDurationText: String {
         let s = store.todaySeconds
         if s <= 0 { return "0 秒" }
@@ -77,132 +257,136 @@ struct ReadingReportView: View {
         return r > 0 ? "\(m) 分 \(r) 秒" : "\(m) 分钟"
     }
 
-    private var heroCard: some View {
-        let palette = ReadingReportPalette.forNow()
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(palette.greeting).displayFont(13, weight: .medium).foregroundStyle(.white.opacity(0.8))
-                    Text("今日专注").displayFont(17, weight: .semibold).foregroundStyle(.white)
-                }
-                Spacer()
-                if store.currentStreak > 0 {
-                    Label("连续 \(store.currentStreak) 天", systemImage: "flame.fill")
-                        .displayLabelFont(13, weight: .semibold)
-                        .foregroundStyle(palette.flame)
-                        .accessibilityLabel("阅读连击，连续 \(store.currentStreak) 天")
-                }
-            }
-            HStack(alignment: .lastTextBaseline, spacing: 8) {
-                Text(todayDurationText)
-                    .displayFont(56, weight: .bold)
-                    .foregroundStyle(.white)
-                    .contentTransition(.numericText(value: Double(store.todaySeconds)))
-                    .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8), value: store.todaySeconds)
-                Text("· \(store.todayArticleCount) 篇")
-                    .displayFont(15, weight: .medium)
-                    .foregroundStyle(.white.opacity(0.85))
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("今日专注 \(todayDurationText)，阅读 \(store.todayArticleCount) 篇")
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(
-            LinearGradient(colors: palette.colors, startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 24)
-        )
-        .overlay(alignment: .topTrailing) {
-            Image(systemName: "book.closed.fill")
-                .displaySymbolFont(60)
-                .foregroundStyle(.white.opacity(0.14))
-                .rotationEffect(.degrees(12))
-                .padding(.trailing, 16).padding(.top, 8)
-                .accessibilityHidden(true)
-        }
-        .shadow(color: palette.colors.first?.opacity(0.35) ?? .clear, radius: 18, y: 10)
-    }
+    // MARK: - 模式切换（自定义胶囊）
 
-    // MARK: - 模式切换
-
-    private var modePicker: some View {
-        Picker("报告范围", selection: $mode) {
+    private var modeCapsule: some View {
+        HStack(spacing: 4) {
             ForEach(ReadingReportMode.allCases, id: \.self) { m in
-                Text(m.rawValue).displayFont(15, weight: .semibold)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { mode = m }
+                } label: {
+                    Text(m.rawValue)
+                        .displayFont(14, weight: .semibold)
+                        .foregroundStyle(mode == m ? Color.sjzPrimary : .secondary)
+                        .padding(.horizontal, 26).padding(.vertical, 9)
+                        .background {
+                            if mode == m {
+                                Capsule().fill(Color.sjzCard)
+                                    .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(mode == m ? .isSelected : [])
             }
         }
-        .pickerStyle(.segmented)
-        .onChange(of: mode) { _, _ in
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        }
-        .accessibilityLabel("报告范围")
+        .padding(4)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 0.6))
     }
 
-    // MARK: - 日报
+    // MARK: - 内容分区
 
     private var dailySection: some View {
         VStack(spacing: 14) {
-            categoryRingCard(title: "今日分布", sources: store.categoryMinutes())
-            hourlyHeatCard(title: "今日时段", hourly: store.hourlyMinutes(week: false))
+            sectionHeader(icon: "chart.pie.fill", title: "今日分布")
+                .opacity(reveal(2))
+            categoryRingCard(sources: store.categoryMinutes())
+                .opacity(reveal(3))
+            sectionHeader(icon: "clock.fill", title: "今日时段")
+                .opacity(reveal(4))
+            hourlyHeatCard(title: "", hourly: store.hourlyMinutes(week: false))
+                .opacity(reveal(5))
         }
     }
-
-    // MARK: - 周报
 
     private var weeklySection: some View {
         VStack(spacing: 14) {
             trendCard
+                .opacity(reveal(2))
             weekCompareCard
-            categoryRingCard(title: "本周分布", sources: store.categoryMinutes())
-            hourlyHeatCard(title: "本周时段", hourly: store.hourlyMinutes(week: true))
+                .opacity(reveal(3))
+            sectionHeader(icon: "chart.pie.fill", title: "本周分布")
+                .opacity(reveal(4))
+            categoryRingCard(sources: store.categoryMinutes())
+                .opacity(reveal(4))
+            sectionHeader(icon: "clock.fill", title: "本周时段")
+                .opacity(reveal(5))
+            hourlyHeatCard(title: "", hourly: store.hourlyMinutes(week: true))
+                .opacity(reveal(5))
         }
     }
 
-    // MARK: - 图表 ①：近 7 天时长趋势（Swift Charts 面积 + 渐变）
+    private func sectionHeader(icon: String, title: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .displaySymbolFont(12, weight: .semibold)
+                .foregroundStyle(Color.sjzAccent)
+            Text(title)
+                .displayFont(15, weight: .semibold)
+                .foregroundStyle(.primary)
+            Rectangle().fill(Color.sjzAccent.opacity(0.25)).frame(height: 1)
+        }
+    }
+
+    // MARK: - 图表 ①：近 7 天趋势（面积 + 目标参考线）
 
     private var trendCard: some View {
         let days = store.recentDays(7)
         let maxVal = max(4, days.map(\.minutes).max() ?? 0)
         return ReportCard(title: "近 7 天专注趋势", caption: "分钟 / 天") {
-            Chart(days) { day in
-                AreaMark(
-                    x: .value("日期", day.date, unit: .day),
-                    y: .value("分钟", day.minutes)
-                )
-                .foregroundStyle(LinearGradient(
-                    colors: [Color.sjzAccent.opacity(0.50), Color.sjzAccent.opacity(0.02)],
-                    startPoint: .top, endPoint: .bottom))
-                .interpolationMethod(.catmullRom)
+            Chart {
+                // 每日目标参考线（30 分钟）
+                RuleMark(y: .value("目标", Double(ReadingReportGoals.dailyMinutes)))
+                    .foregroundStyle(Color.sjzOrange.opacity(0.55))
+                    .lineStyle(StrokeStyle(lineWidth: 1.4, dash: [5, 5]))
+                    .annotation(position: .top, alignment: .trailing) {
+                        Text("目标 \(ReadingReportGoals.dailyMinutes)′")
+                            .displayFont(9, weight: .medium)
+                            .foregroundStyle(Color.sjzOrange)
+                    }
 
-                LineMark(
-                    x: .value("日期", day.date, unit: .day),
-                    y: .value("分钟", day.minutes)
-                )
-                .foregroundStyle(Color.sjzAccent)
-                .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                .interpolationMethod(.catmullRom)
-                .symbol {
-                    Circle().fill(Color.sjzAccent.opacity(0.18)).frame(width: 14, height: 14)
-                        .overlay(Circle().fill(.white).frame(width: 7, height: 7))
-                        .overlay(Circle().stroke(Color.sjzAccent, lineWidth: 2).frame(width: 7, height: 7))
-                }
-
-                // 今日高亮点 + 数值标注
-                if day.key == ReadingReportStore.key(for: Date(), calendar: .current) {
-                    PointMark(
+                ForEach(days) { day in
+                    AreaMark(
                         x: .value("日期", day.date, unit: .day),
                         y: .value("分钟", day.minutes)
                     )
+                    .foregroundStyle(LinearGradient(
+                        colors: [Color.sjzAccent.opacity(0.52), Color.sjzAccent.opacity(0.02)],
+                        startPoint: .top, endPoint: .bottom))
+                    .interpolationMethod(.catmullRom)
+
+                    LineMark(
+                        x: .value("日期", day.date, unit: .day),
+                        y: .value("分钟", day.minutes)
+                    )
+                    .foregroundStyle(Color.sjzAccent)
+                    .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.catmullRom)
+                    .symbol {
+                        Circle().fill(Color.sjzAccent.opacity(0.16)).frame(width: 16, height: 16)
+                            .overlay(Circle().fill(.white).frame(width: 8, height: 8))
+                            .overlay(Circle().stroke(Color.sjzAccent, lineWidth: 2).frame(width: 8, height: 8))
+                    }
+                }
+
+                // 今日高亮点
+                if let today = days.last, today.key == ReadingReportStore.key(for: Date(), calendar: .current) {
+                    PointMark(
+                        x: .value("日期", today.date, unit: .day),
+                        y: .value("分钟", today.minutes)
+                    )
                     .symbol {
                         ZStack {
-                            Circle().fill(Color.sjzAccent.opacity(0.25)).frame(width: 22, height: 22)
-                            Circle().fill(Color.sjzAccent).frame(width: 11, height: 11)
+                            Circle().fill(Color.sjzAccent.opacity(0.25)).frame(width: 24, height: 24)
+                            Circle().fill(Color.sjzAccent).frame(width: 12, height: 12)
                             Circle().fill(.white).frame(width: 4, height: 4)
                         }
                     }
                     .annotation(position: .top, spacing: 6) {
-                        Text("\(day.minutes)′")
-                            .displayFont(12, weight: .bold)
+                        Text("\(today.minutes)′")
+                            .displayFont(11, weight: .bold)
                             .foregroundStyle(Color.sjzAccent)
                             .padding(.horizontal, 7).padding(.vertical, 3)
                             .background(.ultraThinMaterial, in: Capsule())
@@ -222,9 +406,9 @@ struct ReadingReportView: View {
                     AxisValueLabel().font(DisplayFontFactory.font(size: 10)).foregroundStyle(.secondary)
                 }
             }
-            .chartYScale(domain: 0...(maxVal + 1))
-            .frame(height: 175)
-            .accessibilityLabel("近 7 天每日专注分钟趋势")
+            .chartYScale(domain: 0...(maxVal + 2))
+            .frame(height: 180)
+            .accessibilityLabel("近 7 天每日专注分钟趋势，目标 \(ReadingReportGoals.dailyMinutes) 分钟")
             .accessibilityValue(days.map { "\($0.key) \($0.minutes) 分钟" }.joined(separator: "，"))
         }
     }
@@ -237,25 +421,26 @@ struct ReadingReportView: View {
         let top = max(1, max(this, last))
         return ReportCard(title: "本周 vs 上周", caption: "分钟") {
             Chart {
-                BarMark(
-                    x: .value("周", "上周"),
-                    y: .value("分钟", Double(last)),
-                    width: 34
-                )
-                .foregroundStyle(LinearGradient(
-                    colors: [Color.sjzTeal.opacity(0.85), Color.sjzTeal.opacity(0.45)],
-                    startPoint: .top, endPoint: .bottom))
-                .cornerRadius(9, style: .continuous)
-
-                BarMark(
-                    x: .value("周", "本周"),
-                    y: .value("分钟", Double(this)),
-                    width: 34
-                )
-                .foregroundStyle(LinearGradient(
-                    colors: [Color.sjzAccent, Color.sjzAccent.opacity(0.5)],
-                    startPoint: .top, endPoint: .bottom))
-                .cornerRadius(9, style: .continuous)
+                BarMark(x: .value("周", "上周"), y: .value("分钟", Double(last)), width: 36)
+                    .foregroundStyle(LinearGradient(
+                        colors: [Color.sjzTeal.opacity(0.85), Color.sjzTeal.opacity(0.42)],
+                        startPoint: .top, endPoint: .bottom))
+                    .cornerRadius(10, style: .continuous)
+                    .annotation(position: .top) {
+                        Text("\(last)")
+                            .displayFont(11, weight: .semibold)
+                            .foregroundStyle(Color.sjzTeal)
+                    }
+                BarMark(x: .value("周", "本周"), y: .value("分钟", Double(this)), width: 36)
+                    .foregroundStyle(LinearGradient(
+                        colors: [Color.sjzAccent, Color.sjzAccent.opacity(0.48)],
+                        startPoint: .top, endPoint: .bottom))
+                    .cornerRadius(10, style: .continuous)
+                    .annotation(position: .top) {
+                        Text("\(this)")
+                            .displayFont(11, weight: .bold)
+                            .foregroundStyle(Color.sjzAccent)
+                    }
             }
             .chartXAxis {
                 AxisMarks { _ in
@@ -263,76 +448,70 @@ struct ReadingReportView: View {
                 }
             }
             .chartYAxis(.hidden)
-            .chartYScale(domain: 0...(top + 1))
-            .frame(height: 92)
+            .chartYScale(domain: 0...(top + 2))
+            .frame(height: 100)
             .overlay(alignment: .trailing) {
                 if let delta = store.weekChangePercent() {
                     Label(delta >= 0 ? "↑ \(delta)%" : "↓ \(-delta)%",
                           systemImage: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        .displayLabelFont(14, weight: .semibold)
+                        .displayLabelFont(13, weight: .semibold)
                         .foregroundStyle(delta >= 0 ? Color.sjzGreen : Color.sjzOrange)
-                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .padding(.horizontal, 9).padding(.vertical, 5)
                         .background(.ultraThinMaterial, in: Capsule())
                         .accessibilityLabel(delta >= 0 ? "较上周增长 \(delta)%" : "较上周下降 \(-delta)%")
-                } else {
-                    Text("上周无数据").displayFont(12).foregroundStyle(.secondary)
                 }
             }
             .accessibilityLabel("本周 \(this) 分钟，上周 \(last) 分钟")
         }
     }
 
-    // MARK: - 图表 ③：分类环形（Apple 原生 Shape 实现，无第三方）
+    // MARK: - 图表 ③：分类环形
 
-    private func categoryRingCard(title: String, sources: [(source: String, minutes: Int)]) -> some View {
+    private func categoryRingCard(sources: [(source: String, minutes: Int)]) -> some View {
         let total = sources.reduce(0) { $0 + $1.minutes }
-        return ReportCard(title: title, caption: "分钟") {
+        return ReportCard(title: "", caption: "") {
             if total <= 0 {
                 HStack {
                     Spacer()
-                    Text("本周还没有阅读记录，去读一篇吧")
+                    Text("还没有阅读记录，去读一篇吧")
                         .displayFont(13).foregroundStyle(.secondary)
-                        .padding(.vertical, 24)
+                        .padding(.vertical, 26)
                     Spacer()
                 }
             } else {
                 VStack(spacing: 16) {
-                    HStack(spacing: 18) {
+                    HStack(spacing: 20) {
                         ZStack {
-                            // 底环（浅色，衬托扇区）
-                            Circle().stroke(Color.sjzLight.opacity(0.55), lineWidth: 22)
-                            // 扇区：圆角线帽 + 2° 间隔（高级环形视觉）
+                            Circle().stroke(Color.sjzLight.opacity(0.6), lineWidth: 22)
                             ForEach(Array(sources.enumerated()), id: \.offset) { idx, item in
                                 RingSector(
                                     startAngle: sectorStart(sources: sources, upto: idx) + 2,
                                     endAngle: sectorStart(sources: sources, upto: idx + 1) - 2
                                 )
-                                .stroke(
-                                    paletteColor(idx),
-                                    style: StrokeStyle(lineWidth: 22, lineCap: .round)
-                                )
+                                .stroke(paletteColor(idx), style: StrokeStyle(lineWidth: 22, lineCap: .round))
                                 .rotationEffect(.degrees(-90))
                                 .animation(.spring(response: 0.6, dampingFraction: 0.85), value: total)
                             }
                             VStack(spacing: 2) {
-                                Text("\(total)").displayFont(24, weight: .bold).foregroundStyle(.primary)
+                                Text("\(total)").displayFont(25, weight: .bold).monospacedDigit()
                                     .contentTransition(.numericText(value: Double(total)))
                                 Text("分钟").displayFont(12).foregroundStyle(.secondary)
                             }
                         }
-                        .frame(width: 132, height: 132)
+                        .frame(width: 134, height: 134)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("分类分布，共 \(total) 分钟")
                         .accessibilityValue(sources.map { "\($0.source) \($0.minutes) 分钟" }.joined(separator: "，"))
 
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 11) {
                             ForEach(Array(sources.prefix(5).enumerated()), id: \.offset) { idx, item in
-                                HStack(spacing: 8) {
+                                HStack(spacing: 9) {
                                     Circle().fill(paletteColor(idx)).frame(width: 8, height: 8)
                                         .overlay(Circle().strokeBorder(.white.opacity(0.6), lineWidth: 1))
                                     Text(item.source).displayFont(13).lineLimit(1)
                                     Spacer()
-                                    Text("\(item.minutes)′").displayFont(13, weight: .medium).foregroundStyle(.secondary)
+                                    Text("\(item.minutes)′").displayFont(13, weight: .medium).monospacedDigit()
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -355,12 +534,12 @@ struct ReadingReportView: View {
         return palette[index % palette.count]
     }
 
-    // MARK: - 图表 ④：24h 时段热力（克制版 GitHub 风格）
+    // MARK: - 图表 ④：时段热力
 
     private func hourlyHeatCard(title: String, hourly: [Int]) -> some View {
         let maxMin = max(1, hourly.max() ?? 0)
         let peakHour = hourly.firstIndex(of: hourly.max() ?? 0) ?? -1
-        return ReportCard(title: title, caption: "按小时") {
+        return ReportCard(title: title, caption: "") {
             VStack(spacing: 10) {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 12), spacing: 7) {
                     ForEach(0..<24, id: \.self) { hour in
@@ -371,8 +550,7 @@ struct ReadingReportView: View {
                             .overlay(
                                 Text("\(hour)")
                                     .displayFont(9, weight: minutes >= 10 ? .bold : .regular)
-                                    .foregroundStyle(minutes >= 10 ? .white : .secondary)
-                            )
+                                    .foregroundStyle(minutes >= 10 ? .white : .secondary))
                             .accessibilityLabel("\(hour) 点，\(minutes) 分钟")
                     }
                 }
@@ -392,10 +570,10 @@ struct ReadingReportView: View {
     private func intensityColor(minutes: Int, maxMin: Int) -> Color {
         guard minutes > 0 else { return Color(.systemGray6).opacity(0.6) }
         let ratio = Double(minutes) / Double(maxMin)
-        if ratio >= 0.75 { return Color.sjzAccent }                        // 高
-        if ratio >= 0.4 { return Color.sjzAccent.opacity(0.72) }           // 中
-        if ratio >= 0.12 { return Color.sjzSkyBlue.opacity(0.5) }          // 低
-        return Color.sjzSkyBlue.opacity(0.25)                              // 极低
+        if ratio >= 0.75 { return Color.sjzAccent }
+        if ratio >= 0.4 { return Color.sjzAccent.opacity(0.72) }
+        if ratio >= 0.12 { return Color.sjzSkyBlue.opacity(0.5) }
+        return Color.sjzSkyBlue.opacity(0.25)
     }
 
     // MARK: - 隐私与口径
@@ -439,7 +617,28 @@ struct ReadingReportView: View {
     }
 }
 
-// MARK: - 报告卡片容器（高光渐变 + 精致阴影）
+// MARK: - 深空星点（原生 Canvas）
+
+private struct StarsField: View {
+    let count: Int
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.2)) { _ in
+            Canvas { ctx, size in
+                for i in 0..<count {
+                    let x = Double((i * 37) % 100) / 100 * size.width
+                    let y = Double((i * 71) % 100) / 100 * size.height * 0.6
+                    let twinkle = sin(Double(i) + Date().timeIntervalSinceReferenceDate) > 0 ? 0.85 : 0.35
+                    let r = Double((i % 3) + 1) * 0.8
+                    let rect = CGRect(x: x, y: y, width: r, height: r)
+                    ctx.fill(Path(ellipseIn: rect), with: .color(.white.opacity(twinkle)))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 报告卡片容器（玻璃拟态 + 渐变描边）
 
 private struct ReportCard<Content: View>: View {
     let title: String
@@ -448,29 +647,38 @@ private struct ReportCard<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(title).displayFont(16, weight: .semibold)
-                Spacer()
-                Text(caption).displayFont(12).foregroundStyle(.secondary)
+            if !title.isEmpty {
+                HStack {
+                    Text(title).displayFont(16, weight: .semibold)
+                    Spacer()
+                    Text(caption).displayFont(12).foregroundStyle(.secondary)
+                }
             }
             content
         }
         .padding(16)
         .background {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.sjzCard.opacity(0.96), Color.sjzLight.opacity(0.75)],
+                        colors: [Color.sjzCard.opacity(0.94), Color.sjzLight.opacity(0.7)],
                         startPoint: .topLeading, endPoint: .bottomTrailing))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(.white.opacity(0.5), lineWidth: 0.6))
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(.white.opacity(0.06)))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [.white.opacity(0.55), .white.opacity(0.08)],
+                                startPoint: .top, endPoint: .bottom),
+                            lineWidth: 0.8))
         }
-        .shadow(color: .black.opacity(0.05), radius: 14, y: 6)
+        .shadow(color: .black.opacity(0.05), radius: 16, y: 8)
     }
 }
 
-// MARK: - 环形扇区（原生 Shape）
+// MARK: - 环形扇区
 
 private struct RingSector: Shape {
     var startAngle: Double
@@ -492,20 +700,36 @@ private struct RingSector: Shape {
 
 private struct ReadingReportPalette {
     let colors: [Color]
+    let ambientTop: Color
+    let ambientBottom: Color
+    let ringEnd: Color
     let flame: Color
     let greeting: String
+    let starry: Bool
 
     static func forNow(_ date: Date = Date()) -> ReadingReportPalette {
         let hour = Calendar.current.component(.hour, from: date)
         switch hour {
         case 5..<9:
-            return ReadingReportPalette(colors: [Color(hex: "F2994A"), Color(hex: "EF7E5B")], flame: .white, greeting: "晨读好时光")
+            return ReadingReportPalette(
+                colors: [Color(hex: "F2994A"), Color(hex: "E96A55")],
+                ambientTop: Color(hex: "F6E7D5"), ambientBottom: Color(hex: "FBF6EF"),
+                ringEnd: Color(hex: "FFD166"), flame: .white, greeting: "晨读好时光", starry: false)
         case 9..<17:
-            return ReadingReportPalette(colors: [Color.sjzPrimary, Color(hex: "3E6FD8")], flame: Color.sjzGold, greeting: "日间专注中")
+            return ReadingReportPalette(
+                colors: [Color.sjzPrimary, Color(hex: "3E6FD8")],
+                ambientTop: Color(hex: "E8EEFB"), ambientBottom: Color(hex: "F5F8FE"),
+                ringEnd: Color.sjzAccent, flame: Color.sjzGold, greeting: "日间专注中", starry: false)
         case 17..<19:
-            return ReadingReportPalette(colors: [Color(hex: "7B4B94"), Color(hex: "C05C7C")], flame: Color.sjzGold, greeting: "黄昏慢读")
+            return ReadingReportPalette(
+                colors: [Color(hex: "7B4B94"), Color(hex: "C05C7C")],
+                ambientTop: Color(hex: "EFDEEF"), ambientBottom: Color(hex: "FBF4F7"),
+                ringEnd: Color(hex: "FF9E7D"), flame: Color.sjzGold, greeting: "黄昏慢读", starry: false)
         default:
-            return ReadingReportPalette(colors: [Color(hex: "0D1424"), Color(hex: "1E2A52")], flame: Color.sjzOrange, greeting: "深空夜读")
+            return ReadingReportPalette(
+                colors: [Color(hex: "0D1424"), Color(hex: "1E2A52")],
+                ambientTop: Color(hex: "121A30"), ambientBottom: Color(hex: "0A0E18"),
+                ringEnd: Color.sjzAccent.opacity(0.9), flame: Color.sjzOrange, greeting: "深空夜读", starry: true)
         }
     }
 }
