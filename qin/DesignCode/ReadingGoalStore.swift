@@ -33,10 +33,10 @@ final class ReadingGoalStore: ObservableObject {
         didSet { UserDefaults.standard.set(period.rawValue, forKey: Self.typeKey) }
     }
     @Published private(set) var dailyMinutes: Int {
-        didSet { UserDefaults.standard.set(clampDaily(dailyMinutes), forKey: Self.dailyKey) }
+        didSet { UserDefaults.standard.set(Self.clampDaily(dailyMinutes), forKey: Self.dailyKey) }
     }
     @Published private(set) var weeklyMinutes: Int {
-        didSet { UserDefaults.standard.set(clampWeekly(weeklyMinutes), forKey: Self.weeklyKey) }
+        didSet { UserDefaults.standard.set(Self.clampWeekly(weeklyMinutes), forKey: Self.weeklyKey) }
     }
 
     private init() {
@@ -44,13 +44,13 @@ final class ReadingGoalStore: ObservableObject {
         // 默认：每日 30 分钟 / 每周 180 分钟（与 Hero 进度环初始一致）
         if ud.object(forKey: Self.dailyKey) == nil { ud.set(30, forKey: Self.dailyKey) }
         if ud.object(forKey: Self.weeklyKey) == nil { ud.set(180, forKey: Self.weeklyKey) }
-        dailyMinutes = clampDaily(ud.integer(forKey: Self.dailyKey))
-        weeklyMinutes = clampWeekly(ud.integer(forKey: Self.weeklyKey))
+        dailyMinutes = Self.clampDaily(ud.integer(forKey: Self.dailyKey))
+        weeklyMinutes = Self.clampWeekly(ud.integer(forKey: Self.weeklyKey))
         period = ReadingGoalPeriod(rawValue: ud.string(forKey: Self.typeKey) ?? "") ?? .daily
     }
 
-    private func clampDaily(_ v: Int) -> Int { min(max(v, Self.dailyRange.lowerBound), Self.dailyRange.upperBound) }
-    private func clampWeekly(_ v: Int) -> Int { min(max(v, Self.weeklyRange.lowerBound), Self.weeklyRange.upperBound) }
+    private static func clampDaily(_ v: Int) -> Int { min(max(v, Self.dailyRange.lowerBound), Self.dailyRange.upperBound) }
+    private static func clampWeekly(_ v: Int) -> Int { min(max(v, Self.weeklyRange.lowerBound), Self.weeklyRange.upperBound) }
 
     /// 当前周期目标（分钟）
     var currentGoalMinutes: Int {
