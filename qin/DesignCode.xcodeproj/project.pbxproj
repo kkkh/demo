@@ -26,6 +26,8 @@
 		DC00001C22D74F5700D209BE /* LogSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00000D22D74F5700D209BE /* LogSettingsView.swift */; };
 		DC00001D22D74F5700D209BE /* AnnouncementManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00000E22D74F5700D209BE /* AnnouncementManager.swift */; };
 		DC00001E22D74F5700D209BE /* AnnouncementDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00000F22D74F5700D209BE /* AnnouncementDetailView.swift */; };
+		DCA0001122D74F5700D209BE /* ReadingReportStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00011122D74F5700D209BE /* ReadingReportStore.swift */; };
+		DCA0001222D74F5700D209BE /* ReadingReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00011222D74F5700D209BE /* ReadingReportView.swift */; };
 		DC00001F22D74F5700D209BE /* OrganizationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003022D74F5700D209BE /* OrganizationView.swift */; };
 		DC00002222D74F5700D209BE /* OrganizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003122D74F5700D209BE /* OrganizationManager.swift */; };
 		DC0000F1000000000000F001 /* OrgContentIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000F1000000000000F002 /* OrgContentIndex.swift */; };
@@ -102,6 +104,8 @@
 		DC00000D22D74F5700D209BE /* LogSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogSettingsView.swift; sourceTree = "<group>"; };
 		DC00000E22D74F5700D209BE /* AnnouncementManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnouncementManager.swift; sourceTree = "<group>"; };
 		DC00000F22D74F5700D209BE /* AnnouncementDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnouncementDetailView.swift; sourceTree = "<group>"; };
+		DC00011122D74F5700D209BE /* ReadingReportStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingReportStore.swift; sourceTree = "<group>"; };
+		DC00011222D74F5700D209BE /* ReadingReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingReportView.swift; sourceTree = "<group>"; };
 		DC00003022D74F5700D209BE /* OrganizationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizationView.swift; sourceTree = "<group>"; };
 		DC00003122D74F5700D209BE /* OrganizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizationManager.swift; sourceTree = "<group>"; };
 		DC0000F1000000000000F002 /* OrgContentIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgContentIndex.swift; sourceTree = "<group>"; };
@@ -207,6 +211,8 @@
 				DC00000D22D74F5700D209BE /* LogSettingsView.swift */,
 				DC00000E22D74F5700D209BE /* AnnouncementManager.swift */,
 				DC00000F22D74F5700D209BE /* AnnouncementDetailView.swift */,
+				DC00011122D74F5700D209BE /* ReadingReportStore.swift */,
+				DC00011222D74F5700D209BE /* ReadingReportView.swift */,
 				DC00003022D74F5700D209BE /* OrganizationView.swift */,
 				DC00003122D74F5700D209BE /* OrganizationManager.swift */,
 				DC0000F1000000000000F002 /* OrgContentIndex.swift */,
@@ -416,6 +422,8 @@
 				DC00001C22D74F5700D209BE /* LogSettingsView.swift in Sources */,
 				DC00001D22D74F5700D209BE /* AnnouncementManager.swift in Sources */,
 				DC00001E22D74F5700D209BE /* AnnouncementDetailView.swift in Sources */,
+				DCA0001122D74F5700D209BE /* ReadingReportStore.swift in Sources */,
+				DCA0001222D74F5700D209BE /* ReadingReportView.swift in Sources */,
 				DC00001F22D74F5700D209BE /* OrganizationView.swift in Sources */,
 				DC00002222D74F5700D209BE /* OrganizationManager.swift in Sources */,
 				DC0000F1000000000000F001 /* OrgContentIndex.swift in Sources */,

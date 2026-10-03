@@ -1815,3 +1815,112 @@ final class SJZImageViewerPagingTests: XCTestCase {
         XCTAssertEqual(SJZImageViewerGeometry.dampedPageOffset(-100, canNext: true, canPrevious: true), -100, accuracy: 0.001)
     }
 }
+
+// MARK: - 阅读时光（ReadingReport，与现有阅读统计 100% 隔离；键/域/UI 全独立）
+
+@MainActor
+final class ReadingReportTests: XCTestCase {
+
+    /// 重建一个干净的共享 Store（隔离环境：不污染用户数据）
+    private func makeStore() -> ReadingReportStore {
+        let ud = UserDefaults.standard
+        ud.removeObject(forKey: "readingReportEvents")
+        ud.removeObject(forKey: "readingReportEnabled")
+        // 通过 shared 强制重载（init 幂等）
+        _ = ReadingReportStore.shared
+        // 用内存直写方式模拟：通过 record 写入后取共享实例断言
+        return ReadingReportStore.shared
+    }
+
+    override func tearDown() {
+        // 恢复默认开启，避免影响后续真机行为
+        UserDefaults.standard.set(true, forKey: "readingReportEnabled")
+        UserDefaults.standard.removeObject(forKey: "readingReportEvents")
+        super.tearDown()
+    }
+
+    // 1) 入账 + <5s 不计
+    func testRecordThresholdAndPersistence() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+
+        store.record(articleId: "a1", title: "文章一", source: "新闻", durationSeconds: 4)
+        XCTAssertEqual(store.events.count, 0, "<5s 不应入账")
+
+        store.record(articleId: "a2", title: "文章二", source: "新闻", durationSeconds: 300)
+        XCTAssertEqual(store.events.count, 1)
+        XCTAssertEqual(store.events.first?.durationSeconds, 300)
+        XCTAssertEqual(store.events.first?.source, "新闻")
+    }
+
+    // 2) 关闭开关不入账
+    func testDisabledNoRecord() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(false)
+        store.clearAll()
+        store.record(articleId: "a3", title: "文章三", source: "新闻", durationSeconds: 120)
+        XCTAssertEqual(store.events.count, 0, "关闭记录后不应入账")
+        store.setEnabled(true)
+    }
+
+    // 3) 2000 上限裁剪（保最新）
+    func testMaxEventsCap() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        for i in 0..<2100 {
+            store.record(articleId: "cap-\(i)", title: "t", source: "新闻", durationSeconds: 60)
+        }
+        XCTAssertEqual(store.events.count, 2000, "应裁剪至 2000 条")
+        XCTAssertEqual(store.events.first?.articleId, "cap-100", "应保留最新 2000 条")
+        XCTAssertEqual(store.events.last?.articleId, "cap-2099")
+        store.clearAll()
+    }
+
+    // 4) 今日分钟聚合
+    func testTodayMinutes() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        store.record(articleId: "t1", title: "t", source: "新闻", durationSeconds: 600)
+        store.record(articleId: "t2", title: "t", source: "机构", durationSeconds: 300)
+        XCTAssertEqual(store.todayMinutes, 15, "600+300 秒 = 15 分钟")
+        XCTAssertEqual(store.todayArticleCount, 2)
+        store.clearAll()
+    }
+
+    // 5) 连击：今天有记录 → streak>=1；无记录 → streak>=0 不崩
+    func testStreakSanity() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        store.record(articleId: "s1", title: "t", source: "新闻", durationSeconds: 60)
+        XCTAssertGreaterThanOrEqual(store.currentStreak, 1, "今天有记录应有连击")
+        store.clearAll()
+        XCTAssertGreaterThanOrEqual(store.currentStreak, 0, "清空后连击归零不崩")
+    }
+
+    // 6) 周聚合：本周/上周/变化率（无崩溃）
+    func testWeekAggregation() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        _ = store.thisWeekMinutes
+        _ = store.lastWeekMinutes
+        _ = store.weekChangePercent()
+        XCTAssertNotNil(store.weekInterval(containing: Date()))
+        store.clearAll()
+    }
+
+    // 7) 清除
+    func testClearAll() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.record(articleId: "c1", title: "t", source: "新闻", durationSeconds: 60)
+        XCTAssertEqual(store.events.count, 1)
+        store.clearAll()
+        XCTAssertEqual(store.events.count, 0)
+        XCTAssertEqual(store.todayMinutes, 0)
+    }
+}
