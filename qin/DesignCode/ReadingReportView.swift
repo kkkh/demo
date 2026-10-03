@@ -24,6 +24,7 @@ enum ReadingReportGoals {
 struct ReadingReportView: View {
     @ObservedObject private var store = ReadingReportStore.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @State private var mode: ReadingReportMode = .daily
     @State private var showClearConfirm = false
     /// 卡片错峰入场（阶段推进）
@@ -101,33 +102,34 @@ struct ReadingReportView: View {
         reduceMotion || entrance >= index ? 1 : 0
     }
 
-    // MARK: - 时段氛围背景
+    // MARK: - 时段氛围背景（跟随系统深浅色，杜绝深色模式发白）
 
     private var ambientBackground: some View {
         let palette = ReadingReportPalette.forNow()
+        let isDark = colorScheme == .dark
         return ZStack {
             LinearGradient(
-                colors: [
-                    palette.ambientTop,
-                    palette.ambientBottom,
-                    Color(.systemGroupedBackground)
-                ],
+                colors: isDark
+                    ? [palette.colors.first?.opacity(0.22) ?? Color(hex: "141A2C"),
+                       Color(hex: "111827"),
+                       Color(.systemGroupedBackground)]
+                    : [palette.ambientTop, palette.ambientBottom, Color(.systemGroupedBackground)],
                 startPoint: .top, endPoint: .bottom
             )
             .ignoresSafeArea()
 
-            // 顶部光晕（Hero 处聚焦）
+            // 顶部光晕（Hero 处聚焦；深色模式更明显）
             RadialGradient(
-                colors: [palette.colors.first?.opacity(0.16) ?? .clear, .clear],
+                colors: [palette.colors.first?.opacity(isDark ? 0.24 : 0.16) ?? .clear, .clear],
                 center: .top, startRadius: 10, endRadius: 320
             )
             .ignoresSafeArea()
 
-            // 深空时段：星点装饰
-            if palette.starry {
-                StarsField(count: 26)
+            // 星点：深色模式全天启用（氛围）；浅色模式仅深空时段
+            if palette.starry || isDark {
+                StarsField(count: isDark ? 30 : 26)
                     .ignoresSafeArea()
-                    .opacity(0.55)
+                    .opacity(isDark ? 0.65 : 0.55)
             }
         }
     }
@@ -292,7 +294,7 @@ struct ReadingReportView: View {
         VStack(spacing: 14) {
             sectionHeader(icon: "chart.pie.fill", title: "今日分布")
                 .opacity(reveal(2))
-            categoryRingCard(sources: store.categoryMinutes())
+            categoryRingCard(sources: store.todayCategoryMinutes())
                 .opacity(reveal(3))
             sectionHeader(icon: "clock.fill", title: "今日时段")
                 .opacity(reveal(4))
