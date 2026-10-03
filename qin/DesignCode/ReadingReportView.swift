@@ -297,7 +297,7 @@ struct ReadingReportView: View {
                 }
             } else {
                 VStack(spacing: 16) {
-                    HStack {
+                    HStack(spacing: 18) {
                         ZStack {
                             // 底环（浅色，衬托扇区）
                             Circle().stroke(Color.sjzLight.opacity(0.55), lineWidth: 22)
@@ -328,7 +328,8 @@ struct ReadingReportView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             ForEach(Array(sources.prefix(5).enumerated()), id: \.offset) { idx, item in
                                 HStack(spacing: 8) {
-                                    Circle().fill(paletteColor(idx)).frame(width: 9, height: 9)
+                                    Circle().fill(paletteColor(idx)).frame(width: 8, height: 8)
+                                        .overlay(Circle().strokeBorder(.white.opacity(0.6), lineWidth: 1))
                                     Text(item.source).displayFont(13).lineLimit(1)
                                     Spacer()
                                     Text("\(item.minutes)′").displayFont(13, weight: .medium).foregroundStyle(.secondary)
@@ -336,6 +337,7 @@ struct ReadingReportView: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
+                        .padding(.leading, 2)
                     }
                 }
             }
