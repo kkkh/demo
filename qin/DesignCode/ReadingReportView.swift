@@ -42,16 +42,18 @@ struct ReadingReportView: View {
                 ambientBackground
 
                 ScrollView {
-                    VStack(spacing: 18) {
-                        heroCard
-                            .opacity(reveal(0))
-                        modeCapsule
-                            .opacity(reveal(1))
-                        if mode == .daily { dailySection } else { weeklySection }
-                        privacyCard
-                            .opacity(reveal(6))
-                        footnote
-                            .opacity(reveal(6))
+                    GlassEffectContainer(spacing: 16) {
+                        VStack(spacing: 18) {
+                            heroCard
+                                .opacity(reveal(0))
+                            modeCapsule
+                                .opacity(reveal(1))
+                            if mode == .daily { dailySection } else { weeklySection }
+                            privacyCard
+                                .opacity(reveal(6))
+                            footnote
+                                .opacity(reveal(6))
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.bottom, 32)
@@ -274,8 +276,10 @@ struct ReadingReportView: View {
                         .padding(.horizontal, 26).padding(.vertical, 9)
                         .background {
                             if mode == m {
-                                Capsule().fill(Color.sjzCard)
-                                    .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
+                                Capsule()
+                                    .fill(Color.sjzCard.opacity(0.6))
+                                    .glassEffect()
+                                    .shadow(color: .black.opacity(0.10), radius: 6, y: 3)
                             }
                         }
                 }
@@ -284,8 +288,7 @@ struct ReadingReportView: View {
             }
         }
         .padding(4)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 0.6))
+        .background(Capsule().fill(.ultraThinMaterial).glassEffect())
     }
 
     // MARK: - 内容分区
@@ -603,7 +606,11 @@ struct ReadingReportView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.sjzCard.opacity(0.4))
+                .glassEffect()
+        }
     }
 
     private var footnote: some View {
@@ -661,22 +668,13 @@ private struct ReportCard<Content: View>: View {
         .padding(16)
         .background {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.sjzCard.opacity(0.94), Color.sjzLight.opacity(0.7)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(.white.opacity(0.06)))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [.white.opacity(0.55), .white.opacity(0.08)],
-                                startPoint: .top, endPoint: .bottom),
-                            lineWidth: 0.8))
+                .fill(Color.sjzCard.opacity(0.35))
+                .glassEffect()
         }
-        .shadow(color: .black.opacity(0.05), radius: 16, y: 8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(.white.opacity(0.18), lineWidth: 0.6))
+        .shadow(color: .black.opacity(0.06), radius: 16, y: 8)
     }
 }
 
