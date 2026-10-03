@@ -245,6 +245,12 @@ struct ReadingReportTrack: ViewModifier {
         content
             .onAppear { beginSegment() }
             .onDisappear { settle() }
+            .onChange(of: articleId) { _, _ in
+                // 同一视图实例就地换文（连续阅读/切换场景）：立即结算旧文并开启新计时，
+                // 让「篇数」跟随当前文章即时 +1
+                settle()
+                beginSegment()
+            }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
