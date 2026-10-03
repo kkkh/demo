@@ -1917,10 +1917,25 @@ final class ReadingReportTests: XCTestCase {
     func testClearAll() {
         let store = ReadingReportStore.shared
         store.setEnabled(true)
+        store.clearAll()   // 先清，避免真机持久化残留污染断言
         store.record(articleId: "c1", title: "t", source: "新闻", durationSeconds: 60)
         XCTAssertEqual(store.events.count, 1)
         store.clearAll()
         XCTAssertEqual(store.events.count, 0)
         XCTAssertEqual(store.todayMinutes, 0)
+    }
+
+    // 8) 短读至少计 1 分钟（回归：读了却显示 0 分钟）
+    func testShortReadCountsAtLeastOneMinute() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        store.record(articleId: "s1", title: "t", source: "新闻", durationSeconds: 50)
+        XCTAssertEqual(store.todayMinutes, 1, "50 秒应显示至少 1 分钟")
+        XCTAssertEqual(ReadingReportStore.displayMinutes(fromSeconds: 0), 0)
+        XCTAssertEqual(ReadingReportStore.displayMinutes(fromSeconds: 119), 1)
+        XCTAssertEqual(ReadingReportStore.displayMinutes(fromSeconds: 120), 2)
+        XCTAssertEqual(store.thisWeekMinutes, 1, "本周聚合同样至少计 1 分钟")
+        store.clearAll()
     }
 }

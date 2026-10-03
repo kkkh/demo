@@ -131,8 +131,13 @@ final class ReadingReportStore: ObservableObject {
     var todayMinutes: Int { minutes(on: Date()) }
     var todayArticleCount: Int { events(on: Date()).count }
 
+    /// 展示用分钟：任何正秒数至少计 1 分钟（避免「读了却显示 0 分钟」的体验断点）
+    static func displayMinutes(fromSeconds seconds: Int) -> Int {
+        seconds > 0 ? max(1, seconds / 60) : 0
+    }
+
     func minutes(on day: Date) -> Int {
-        events(on: day).reduce(0) { $0 + $1.durationSeconds } / 60
+        Self.displayMinutes(fromSeconds: events(on: day).reduce(0) { $0 + $1.durationSeconds })
     }
 
     /// 近 n 天逐日聚合（含今天，昨天在前）
@@ -144,7 +149,7 @@ final class ReadingReportStore: ObservableObject {
             return ReadingReportDay(
                 key: Self.key(for: day, calendar: calendar),
                 date: day,
-                minutes: dayEvents.reduce(0) { $0 + $1.durationSeconds } / 60,
+                minutes: Self.displayMinutes(fromSeconds: dayEvents.reduce(0) { $0 + $1.durationSeconds }),
                 articleCount: dayEvents.count)
         }
     }
@@ -157,7 +162,7 @@ final class ReadingReportStore: ObservableObject {
     /// 本周专注分钟
     var thisWeekMinutes: Int {
         guard let interval = weekInterval() else { return 0 }
-        return events(in: interval).reduce(0) { $0 + $1.durationSeconds } / 60
+        return Self.displayMinutes(fromSeconds: events(in: interval).reduce(0) { $0 + $1.durationSeconds })
     }
 
     /// 上周专注分钟（本周起始往前推 7 天）
@@ -165,8 +170,8 @@ final class ReadingReportStore: ObservableObject {
         guard let interval = weekInterval(),
               let lastStart = calendar.date(byAdding: .day, value: -7, to: interval.start),
               let lastEnd = calendar.date(byAdding: .day, value: -7, to: interval.end) else { return 0 }
-        return events.filter { $0.endedAt >= lastStart && $0.endedAt < lastEnd }
-            .reduce(0) { $0 + $1.durationSeconds } / 60
+        return Self.displayMinutes(fromSeconds: events.filter { $0.endedAt >= lastStart && $0.endedAt < lastEnd }
+            .reduce(0) { $0 + $1.durationSeconds })
     }
 
     /// 连续阅读天数（streak）：自今天（或昨天）向前，逐日存在 >=1 分钟记录
@@ -190,7 +195,7 @@ final class ReadingReportStore: ObservableObject {
         for e in events(in: range) {
             map[e.source, default: 0] += e.durationSeconds
         }
-        return map.map { ($0.key, $0.value / 60) }.sorted { $0.minutes > $1.minutes }
+        return map.map { ($0.key, Self.displayMinutes(fromSeconds: $0.value)) }.sorted { $0.minutes > $1.minutes }
     }
 
     /// 24 小时专注分布（日报=今日，周报=本周），热力格数据源
@@ -207,7 +212,7 @@ final class ReadingReportStore: ObservableObject {
             let hour = calendar.component(.hour, from: e.endedAt)
             hourly[hour] += e.durationSeconds
         }
-        return hourly.map { $0 / 60 }
+        return hourly.map { Self.displayMinutes(fromSeconds: $0) }
     }
 
     /// 周对比变化率（%）：上周为 0 时返回 nil
