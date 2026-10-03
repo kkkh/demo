@@ -58,8 +58,8 @@ final class ReadingGoalStore: ObservableObject {
     }
 
     func setPeriod(_ p: ReadingGoalPeriod) { period = p }
-    func setDaily(_ v: Int) { dailyMinutes = clampDaily(v) }
-    func setWeekly(_ v: Int) { weeklyMinutes = clampWeekly(v) }
+    func setDaily(_ v: Int) { dailyMinutes = Self.clampDaily(v) }
+    func setWeekly(_ v: Int) { weeklyMinutes = Self.clampWeekly(v) }
 
     /// 重置为目标周期默认值
     func resetToDefault() {
