@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    participant V as 详情视图（13 处 .readingReportTrack 挂载点）
+    participant T as ReadingReportTrack(:546) · ViewModifier
+    participant S as ReadingReportStore(:70) 单例
+    participant UD as UserDefaults（events / rollups 两个 Blob）
+    participant R as ReadingReportView(:22) 报表页
+
+    V->>T: onAppear → beginSegment()(:580)
+    Note over T: segmentStart = now；articleId 就地变更先 settle 旧文再重开（篇数即时 +1）
+    V->>T: scenePhase .background → pauseSegment()(:585)
+    V->>T: scenePhase .active → resumeFromBackground()(:592)
+    Note over T: 后台 >300s：先结算「挂机段」再重开计时（≤300s 续播不丢）
+    V->>T: onDisappear → settle()(:605)
+    T->>T: finalSeconds = accumulated + 当前段时长
+    alt finalSeconds < 5s
+        T-->>V: 丢弃（噪声过滤；<5s 不计）
+    else ≥ 5s 且 enabled
+        T->>S: record(articleId:title:source:durationSeconds:)(:118)
+        S->>S: events.append + FIFO 裁剪（maxEvents = 2000）(:126)
+        S->>UD: save()(:139)
+        S->>S: applyToRollup()(:150) 当日 total / articleCount / category / hourly 累加
+        S->>UD: saveRollups()(:144)（按天永久保留，upsert 幂等）
+        S->>S: log debug（域 readingReport，:133）
+    end
+    R->>S: 打开报表 → todaySeconds / thisWeekSeconds / thisWeekArticleCount / 月·年聚合
+    S->>S: ensureRollups(in:)(:166) 惰性补建缺失天（只写缺失天）
+    S-->>R: 聚合结果 → Hero 环 / 趋势 / 分类环 / 热力（displayMinutes ≥1 分钟口径 :228）
