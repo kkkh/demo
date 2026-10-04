@@ -264,6 +264,12 @@ final class ReadingReportStore: ObservableObject {
         return events(in: interval).reduce(0) { $0 + $1.durationSeconds }
     }
 
+    /// 本周阅读篇数（Hero 周模式「篇数」与周报海报同源的唯一口径）
+    var thisWeekArticleCount: Int {
+        guard let interval = weekInterval() else { return 0 }
+        return events(in: interval).count
+    }
+
     /// 上周专注分钟（本周起始往前推 7 天）
     var lastWeekMinutes: Int {
         guard let interval = weekInterval(),

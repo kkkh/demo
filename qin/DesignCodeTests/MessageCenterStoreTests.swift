@@ -1915,6 +1915,20 @@ final class ReadingReportTests: XCTestCase {
         store.clearAll()
     }
 
+    // 6b) 本周篇数：Hero 周模式与周报同源口径（2026-10-04 新增）
+    func testWeekArticleCount() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        XCTAssertEqual(store.thisWeekArticleCount, 0, "空态本周篇数应归零")
+        store.record(articleId: "w1", title: "t", source: "新闻", durationSeconds: 60)
+        store.record(articleId: "w2", title: "t", source: "机构", durationSeconds: 60)
+        XCTAssertEqual(store.thisWeekArticleCount, 2, "本周篇数应含本周全部记录（与周报同源）")
+        XCTAssertEqual(store.thisWeekArticleCount, store.events.count, "全部记录都在本周内时应与事件数一致")
+        store.clearAll()
+        XCTAssertEqual(store.thisWeekArticleCount, 0, "清空后本周篇数应归零")
+    }
+
     // 7) 清除
     func testClearAll() {
         let store = ReadingReportStore.shared
