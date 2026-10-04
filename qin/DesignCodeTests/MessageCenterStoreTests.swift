@@ -1826,6 +1826,7 @@ final class ReadingReportTests: XCTestCase {
         let ud = UserDefaults.standard
         ud.removeObject(forKey: "readingReportEvents")
         ud.removeObject(forKey: "readingReportEnabled")
+        ud.removeObject(forKey: "readingReportRollups")
         // 通过 shared 强制重载（init 幂等）
         _ = ReadingReportStore.shared
         // 用内存直写方式模拟：通过 record 写入后取共享实例断言
@@ -1836,6 +1837,7 @@ final class ReadingReportTests: XCTestCase {
         // 恢复默认开启，避免影响后续真机行为
         UserDefaults.standard.set(true, forKey: "readingReportEnabled")
         UserDefaults.standard.removeObject(forKey: "readingReportEvents")
+        UserDefaults.standard.removeObject(forKey: "readingReportRollups")
         super.tearDown()
     }
 
@@ -1936,6 +1938,80 @@ final class ReadingReportTests: XCTestCase {
         XCTAssertEqual(ReadingReportStore.displayMinutes(fromSeconds: 119), 1)
         XCTAssertEqual(ReadingReportStore.displayMinutes(fromSeconds: 120), 2)
         XCTAssertEqual(store.thisWeekMinutes, 1, "本周聚合同样至少计 1 分钟")
+        store.clearAll()
+    }
+
+    // 9) 按天预聚合：record 同步写入当日 rollup（月报/年报数据源）
+    func testRollupWrite() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        store.record(articleId: "r1", title: "t", source: "新闻", durationSeconds: 120)
+        store.record(articleId: "r2", title: "t", source: "机构", durationSeconds: 60)
+        let key = ReadingReportStore.key(for: Date(), calendar: .current)
+        guard let r = store.rollups[key] else { XCTFail("当天 rollup 应存在"); return }
+        XCTAssertEqual(r.totalSeconds, 180)
+        XCTAssertEqual(r.articleCount, 2)
+        XCTAssertEqual(r.categorySeconds["新闻"], 120)
+        XCTAssertEqual(r.categorySeconds["机构"], 60)
+        XCTAssertEqual(r.hourlySeconds.reduce(0, +), 180, "24 格秒数和应等于总秒数")
+        store.clearAll()
+    }
+
+    // 10) 回填幂等：已有 rollup 时 ensureRollups 不重复累加
+    func testRollupBackfillIdempotent() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        store.record(articleId: "b1", title: "t", source: "新闻", durationSeconds: 90)
+        let key = ReadingReportStore.key(for: Date(), calendar: .current)
+        XCTAssertEqual(store.rollups[key]?.totalSeconds, 90)
+        store.ensureRollups(in: store.monthInterval())
+        XCTAssertEqual(store.rollups[key]?.totalSeconds, 90, "重复 ensure 不应累加")
+        store.clearAll()
+    }
+
+    // 11) 清除记录同时清空按天预聚合（隐私语义一致）
+    func testRollupClear() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        store.record(articleId: "c1", title: "t", source: "新闻", durationSeconds: 60)
+        XCTAssertFalse(store.rollups.isEmpty)
+        store.clearAll()
+        XCTAssertTrue(store.rollups.isEmpty)
+    }
+
+    // 12) 月聚合：本月秒/篇/趋势/分类/活跃天/最长连续
+    func testMonthAggregation() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        store.record(articleId: "m1", title: "t", source: "新闻", durationSeconds: 600)
+        store.record(articleId: "m2", title: "t", source: "机构", durationSeconds: 300)
+        XCTAssertEqual(store.thisMonthSeconds, 900)
+        XCTAssertEqual(store.thisMonthArticleCount, 2)
+        XCTAssertEqual(store.monthlyTrend(3).count, 3, "近 3 个月趋势应含 3 个点")
+        XCTAssertEqual(store.monthlyTrend(3).last?.seconds, 900, "当月（最后一点）应为 900 秒")
+        let cat = store.monthCategory()
+        XCTAssertEqual(cat.count, 2)
+        XCTAssertEqual(cat.first?.seconds, 600, "分类按秒降序")
+        XCTAssertEqual(store.activeDays(in: store.monthInterval()), 1)
+        XCTAssertEqual(store.longestStreak(in: store.monthInterval()), 1)
+        store.clearAll()
+    }
+
+    // 13) 年聚合 + 月时段热力/峰值
+    func testYearAggregation() {
+        let store = ReadingReportStore.shared
+        store.setEnabled(true)
+        store.clearAll()
+        store.record(articleId: "y1", title: "t", source: "新闻", durationSeconds: 360)
+        XCTAssertEqual(store.thisYearSeconds, 360)
+        XCTAssertEqual(store.thisYearArticleCount, 1)
+        let hourly = store.monthHourly()
+        XCTAssertEqual(hourly.reduce(0, +), 360, "月时段秒和应等于本月总秒")
+        XCTAssertNotNil(store.monthHourlyPeak(), "有记录时应有高峰")
         store.clearAll()
     }
 }
