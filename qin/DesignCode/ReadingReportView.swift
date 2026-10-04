@@ -22,10 +22,13 @@ struct ReadingReportView: View {
     @State private var mode: ReadingReportMode = .daily
     @State private var showClearConfirm = false
     @State private var showGoalEditor = false
-    /// Hero 目标环周期（日/周，跟随切换）
-    @State private var heroPeriod: ReadingGoalPeriod = .daily
-    /// 卡片错峰入场（阶段推进）
     @State private var entrance = 0
+    /// Hero 目标环周期（日/周），持久化：重启后保持上次选择
+    @AppStorage("readingReportHeroPeriod") private var heroPeriod: ReadingGoalPeriod = .daily
+    /// 目标达成庆祝标记（100% 只庆祝一次；回落低于 100% 后可再次庆祝）
+    @State private var goalCelebrated = false
+    /// 分享战报图片（打开/切换模式时生成一次，避免每次 body 重渲染）
+    @State private var shareImage: UIImage?
 
     enum ReadingReportMode: String, CaseIterable {
         case daily = "日报"
@@ -71,6 +74,16 @@ struct ReadingReportView: View {
                             .foregroundStyle(store.enabled ? Color.sjzGreen : Color.sjzOrange)
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if let shareImage {
+                        ShareLink(item: Image(uiImage: shareImage),
+                                  preview: SharePreview("阅读时光", image: Image(uiImage: shareImage))) {
+                            Image(systemName: "square.and.arrow.up")
+                                .displaySymbolFont(15, weight: .semibold)
+                        }
+                        .accessibilityLabel("分享阅读战报")
+                    }
+                }
             }
             .confirmationDialog("清除全部阅读记录？",
                                 isPresented: $showClearConfirm,
@@ -95,6 +108,10 @@ struct ReadingReportView: View {
                 } else {
                     entrance = 7
                 }
+                shareImage = renderSharePoster()
+            }
+            .onChange(of: mode) { _, _ in
+                shareImage = renderSharePoster()
             }
         }
     }
@@ -102,6 +119,15 @@ struct ReadingReportView: View {
     /// 错峰显示：index 前的卡片渐入
     private func reveal(_ index: Int) -> Double {
         reduceMotion || entrance >= index ? 1 : 0
+    }
+
+    /// 渲染当前模式的分享战报图（横幅 1200×630，ImageRenderer 离屏渲染，不触碰屏幕布局）
+    @MainActor
+    private func renderSharePoster() -> UIImage? {
+        let renderer = ImageRenderer(
+            content: SharePosterView(mode: mode, store: store, goalStore: goalStore))
+        renderer.scale = 2
+        return renderer.uiImage
     }
 
     // MARK: - 时段氛围背景（跟随系统深浅色，杜绝深色模式发白）
@@ -196,14 +222,30 @@ struct ReadingReportView: View {
                         )
                         .rotationEffect(.degrees(-90))
                         .animation(.spring(response: 0.9, dampingFraction: 0.8), value: progress)
-                        .shadow(color: palette.ringEnd.opacity(0.6), radius: 6)
+                        .shadow(color: palette.ringEnd.opacity(progress >= 1.0 ? 0.9 : 0.6),
+                                radius: progress >= 1.0 ? 10 : 6)
                     VStack(spacing: 1) {
-                        Text("\(Int(progress * 100))%")
-                            .displayFont(13, weight: .bold)
-                            .foregroundStyle(.white)
-                        Text("目标 \(goalMinutes)′")
-                            .displayFont(9, weight: .medium)
-                            .foregroundStyle(.white.opacity(0.75))
+                        if progress >= 1.0 {
+                            // 达成态：环中心切换为「达成」+ 对勾徽章
+                            HStack(spacing: 3) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .displaySymbolFont(11, weight: .semibold)
+                                    .foregroundStyle(palette.flame)
+                                Text("达成")
+                                    .displayFont(12, weight: .bold)
+                                    .foregroundStyle(.white)
+                            }
+                            Text("目标 \(goalMinutes)′")
+                                .displayFont(9, weight: .medium)
+                                .foregroundStyle(.white.opacity(0.75))
+                        } else {
+                            Text("\(Int(progress * 100))%")
+                                .displayFont(13, weight: .bold)
+                                .foregroundStyle(.white)
+                            Text("目标 \(goalMinutes)′")
+                                .displayFont(9, weight: .medium)
+                                .foregroundStyle(.white.opacity(0.75))
+                        }
                     }
                 }
                 .frame(width: 74, height: 74)
@@ -301,6 +343,15 @@ struct ReadingReportView: View {
                 .allowsHitTesting(false)  // 纯装饰，避免拦截右下「设定目标」按钮的点击
         }
         .shadow(color: palette.colors.first?.opacity(0.38) ?? .clear, radius: 22, y: 12)
+        .onChange(of: progress) { _, newValue in
+            // 目标达成庆祝：进入 100% 触发一次成功反馈；回落后可再次庆祝
+            if newValue >= 1.0 && !goalCelebrated {
+                goalCelebrated = true
+                HapticEngine.shared.success()
+            } else if newValue < 1.0 {
+                goalCelebrated = false
+            }
+        }
     }
 
     /// 今日专注精确文案
@@ -979,6 +1030,137 @@ struct ReadingReportView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - 分享战报（离屏渲染横幅 1200×630）
+
+private struct SharePosterView: View {
+    let mode: ReadingReportView.ReadingReportMode
+    let store: ReadingReportStore
+    let goalStore: ReadingGoalStore
+
+    private var palette: ReadingReportPalette { ReadingReportPalette.forNow() }
+    private var calendar: Calendar { .current }
+
+    private var seconds: Int {
+        switch mode {
+        case .daily: return store.todaySeconds
+        case .weekly: return store.thisWeekSeconds
+        case .monthly: return store.thisMonthSeconds
+        case .yearly: return store.thisYearSeconds
+        }
+    }
+
+    private var articleCount: Int {
+        switch mode {
+        case .daily: return store.todayArticleCount
+        case .weekly:
+            guard let iv = store.weekInterval() else { return 0 }
+            return store.events.filter { iv.contains($0.endedAt) }.count
+        case .monthly: return store.thisMonthArticleCount
+        case .yearly: return store.thisYearArticleCount
+        }
+    }
+
+    private var streakInfo: (value: String, unit: String) {
+        switch mode {
+        case .daily: return ("\(store.currentStreak)", "天连击")
+        case .weekly:
+            let iv = store.weekInterval() ?? DateInterval(start: Date(), end: Date())
+            return ("\(store.longestStreak(in: iv))", "天最长连续")
+        case .monthly: return ("\(store.longestStreak(in: store.monthInterval()))", "天最长连续")
+        case .yearly: return ("\(store.longestStreak(in: store.yearInterval()))", "天最长连续")
+        }
+    }
+
+    private var subtitle: String {
+        let now = Date()
+        switch mode {
+        case .daily:
+            let c = calendar.dateComponents([.month, .day], from: now)
+            return "日报 · \(c.month ?? 0)月\(c.day ?? 0)日"
+        case .weekly:
+            let c = calendar.dateComponents([.month, .day], from: now)
+            return "周报 · \(c.month ?? 0)月\(c.day ?? 0)日"
+        case .monthly:
+            let c = calendar.dateComponents([.year, .month], from: now)
+            return "月报 · \(c.year ?? 0)年\(c.month ?? 0)月"
+        case .yearly:
+            return "年报 · \(calendar.component(.year, from: now))年"
+        }
+    }
+
+    private var durationText: String {
+        let s = seconds
+        if s >= 3600 { return "\(s / 3600) 小时 \((s % 3600) / 60) 分" }
+        return "\(max(0, s / 60)) 分钟"
+    }
+
+    /// 目标完成%（仅日/周有目标；月/年无目标不展示）
+    private var goalText: String {
+        let goalMin = mode == .daily ? goalStore.dailyMinutes : goalStore.weeklyMinutes
+        guard goalMin > 0 else { return "" }
+        let base = mode == .daily ? store.todaySeconds : store.thisWeekSeconds
+        return "\(min(100, Int(Double(base) / Double(goalMin * 60) * 100)))"
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: palette.colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+            Image(systemName: "book.closed.fill")
+                .displaySymbolFont(220)
+                .foregroundStyle(.white.opacity(0.08))
+                .rotationEffect(.degrees(12))
+                .offset(x: 410, y: 235)
+            RadialGradient(colors: [.white.opacity(0.18), .clear], center: .top, startRadius: 0, endRadius: 420)
+
+            VStack(spacing: 0) {
+                Text("阅读时光")
+                    .displayFont(44, weight: .bold)
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .displayFont(24, weight: .medium)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .padding(.top, 8)
+                Spacer()
+                Text(durationText)
+                    .displayFont(92, weight: .bold)
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                Text("专注时长")
+                    .displayFont(20, weight: .medium)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .padding(.top, 4)
+                Spacer()
+                HStack(spacing: 40) {
+                    statView(value: "\(articleCount)", unit: "篇")
+                    if !goalText.isEmpty {
+                        statView(value: goalText, unit: "目标 %")
+                    }
+                    statView(value: streakInfo.value, unit: streakInfo.unit)
+                }
+                Spacer()
+                Text("数据仅存本机 · 园枢")
+                    .displayFont(18, weight: .medium)
+                    .foregroundStyle(.white.opacity(0.65))
+            }
+            .padding(60)
+        }
+        .frame(width: 1200, height: 630)
+    }
+
+    private func statView(value: String, unit: String) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .displayFont(40, weight: .bold)
+                .monospacedDigit()
+                .foregroundStyle(.white)
+            Text(unit)
+                .displayFont(18, weight: .medium)
+                .foregroundStyle(.white.opacity(0.75))
+        }
     }
 }
 

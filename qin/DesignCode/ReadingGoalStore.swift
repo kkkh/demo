@@ -16,6 +16,9 @@ enum ReadingGoalPeriod: String, Codable, CaseIterable {
     case weekly = "每周"
 }
 
+/// @AppStorage 存储支持（存 RawValue 字符串）
+extension ReadingGoalPeriod: RawRepresentable {}
+
 @MainActor
 final class ReadingGoalStore: ObservableObject {
     static let shared = ReadingGoalStore()
