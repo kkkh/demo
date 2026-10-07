@@ -121,7 +121,7 @@ qin/
 - [ARCHITECTURE.md](qin/ARCHITECTURE.md) - 完整架构文档
 - [CODE_WIKI.md](qin/CODE_WIKI.md) - 代码百科与模块详解
 - [DEBUG_REPORT.md](qin/DEBUG_REPORT.md) - 数据同步故障排查报告
-- `.trae/documents/` - 各类实施计划与规格书
+- `.trae/documents/` - 各类实施计划与规格书（**本地保留、不入库**）
 
 ## 注意事项
 

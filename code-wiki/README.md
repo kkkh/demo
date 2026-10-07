@@ -184,7 +184,7 @@ grep -oh 'LogManager\.shared\.' qin/DesignCode/*.swift | wc -l   # 日志调用�
 | `qin/CODE_WIKI.md`、`qin/CODE_WIKI_副本.md` | 更早的单文件合并版，历史快照 |
 | `qin/ARCHITECTURE.md`、`qin/项目技术全景报告.md` | 历史架构文档，行号可能失真 |
 | `qin/PROJECT_UNDERSTANDING.md` | **项目理解档案**（隐性知识、锁死的决定、红线），与本 Wiki 互补，建议一并阅读 |
-| `.trae/documents/`、`.trae/specs/` | 各模块**上游规格书与设计稿**（校园日历 / 显示设置 / 使用帮助 / 消息中心 / 网络监测 / 机构升级） |
+| `.trae/documents/`、`.trae/specs/` | 各模块**上游规格书与设计稿**（校园日历 / 显示设置 / 使用帮助 / 消息中心 / 网络监测 / 机构升级）；**本地保留、不入库**（2026-10-07 起 .gitignore，克隆不含此目录） |
 | `qin/docs/departments-api-inventory.md` + `departments-api-evidence/` | 机构设置页接口**全量摸查与原始报文取证**（89KB + 200+ JSON） |
 | `qin/docs/wechat-integration/` | 微信接入文档与 AASA 部署材料 |
 | `code-wiki/mermaid/` | [06 §6.4](06-接口契约与调用链.md) 的 **10 条调用链时序图 Mermaid 源码**（A–J，逐字同步，J 为 2026-10-03 阅读时光新增）与目录索引 |
