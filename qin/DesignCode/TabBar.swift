@@ -11603,6 +11603,8 @@ struct SettingsView: View {
 struct ZSWHomeView: View {
     @ObservedObject private var data = DataService.shared
     @State private var selectedGuideTab = 0
+    /// 录取查询（站内直查）sheet（2026-10-07 RSA 契约取证后由「跳 Safari」改为站内表单）
+    @State private var showRecruitQuery = false
     
 
     var body: some View {
@@ -11657,6 +11659,10 @@ struct ZSWHomeView: View {
             }
         }
         .refreshable { await data.loadZSWHomeData() }
+        .sheet(isPresented: $showRecruitQuery) {
+            RecruitQuerySheet(department: "招生网", entry: "zsw_home_card")
+                .sjzPresentationChrome()
+        }
     }
 
     // MARK: - 首页三栏目
@@ -11668,7 +11674,19 @@ struct ZSWHomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(items) { item in
-                        if !item.articles.isEmpty {
+                        if item.titleCn.contains("录取查询") {
+                            // 录取查询：站内直查（2026-10-07 RSA 契约取证后，由「跳 Safari」改为站内表单）
+                            Button {
+                                LogManager.shared.info("ui", "招生网·录取查询站内直查打开", context: [
+                                    "title": item.titleCn, "entry": "zsw_home_card"
+                                ])
+                                showRecruitQuery = true
+                            } label: {
+                                recruitCard(item: item)
+                            }
+                            .displayFont(13)
+                            .buttonStyle(.plain)
+                        } else if !item.articles.isEmpty {
                             // 有文章列表（历年分数线）：导航到列表页，禁用分页
                             NavigationLink {
                                 ZSWArticleListView(
