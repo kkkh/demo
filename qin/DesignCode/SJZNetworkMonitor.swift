@@ -453,6 +453,8 @@ final class SJZNetworkMonitor: ObservableObject {
     private var lastHighLatencyBannerTime = Date(timeIntervalSince1970: 0)
     /// 媒体宿主慢观测日志节流时间
     private var lastMediaObservationLogTime = Date(timeIntervalSince1970: 0)
+    /// 媒体宿主 / 大负载的慢请求观测日志节流时间（与告警节流分离，避免互相抑制）
+    private var lastSlowObservationLogTime = Date(timeIntervalSince1970: 0)
 
     /// 媒体宿主判定：图片镜像 / CDN 类宿主的大图 TTFB 天然偏高（实测 www2 3.99MB 图 ≈2.55s），
     /// 单宿主慢属正常观测，不得升级为「链路异常」横幅
@@ -460,6 +462,18 @@ final class SJZNetworkMonitor: ObservableObject {
         let value = host.lowercased()
         return value.hasPrefix("www2.") || value.contains("img") || value.contains("pic")
             || value.contains("image") || value.contains("cdn")
+    }
+
+    /// 大负载阈值（字节）：镜像站大图 / 附件类传输的 TTFB 天然偏高（现场样本 www2 9.8MB ≈ 2.08s）
+    nonisolated static let bulkBytesThreshold = 1_000_000
+
+    /// 慢请求日志分级（纯函数，契约锚点）：
+    /// 媒体宿主（图片镜像 / CDN）或**大负载**（≥1MB）的慢 = **正常观测**（INFO）；
+    /// 其余（小负载的 API / 页面慢）= 待处理真异常（WARNING）
+    nonisolated static func isObservationalSlowRequest(host: String?, bytes: Int) -> Bool {
+        if bytes >= bulkBytesThreshold { return true }
+        guard let host, !host.isEmpty else { return false }   // 无宿主按异常处理（fail-closed）
+        return isMediaHost(host)
     }
 
     /// 慢请求聚合判定（纯函数）：
@@ -1198,7 +1212,20 @@ final class SJZNetworkMonitor: ObservableObject {
 
         if effectiveLatency >= 1000 {
             let now = Date()
-            if now.timeIntervalSince(lastSlowRequestLogTime) >= 10 {
+            // 分级（2026-09-28 现场：www2 9.8MB 大图 TTFB 2.08s 被记为 WARNING）：
+            // 媒体宿主 / 大负载的慢属**正常观测**（INFO，60s 节流）；小负载非媒体宿主慢才是待处理真异常（WARNING，10s 节流）
+            if Self.isObservationalSlowRequest(host: entry.host, bytes: Int(entry.bytes)) {
+                if now.timeIntervalSince(lastSlowObservationLogTime) >= 60 {
+                    lastSlowObservationLogTime = now
+                    LogManager.shared.info("netmon", "慢请求观测（媒体宿主 / 大负载，属正常）", context: [
+                        "host": entry.host ?? "unknown",
+                        "latencyMs": String(format: "%.0f", effectiveLatency),
+                        "bytes": "\(entry.bytes)",
+                        "preview": ByteCountFormatter.string(fromByteCount: entry.bytes, countStyle: .file),
+                        "sessionSlowCount": "\(latencyHistogram[3])"
+                    ])
+                }
+            } else if now.timeIntervalSince(lastSlowRequestLogTime) >= 10 {
                 lastSlowRequestLogTime = now
                 LogManager.shared.warning("netmon", "慢请求告警（首字节 ≥ 1s）", context: [
                     "host": entry.host ?? "unknown",
