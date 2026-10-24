@@ -183,14 +183,6 @@ struct ReadingReportView: View {
                     }
                 }
                 .frame(width: 74, height: 74)
-                .overlay(alignment: .bottom) {
-                    Text("设定")
-                        .displayFont(8, weight: .medium)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(.white.opacity(0.2), in: Capsule())
-                        .offset(y: -14)
-                }
                 .onTapGesture {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     showGoalEditor = true
@@ -229,18 +221,34 @@ struct ReadingReportView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("今日专注 \(todayDurationText)，阅读 \(store.todayArticleCount) 篇")
 
-            // 进度条细线（进度环的线性版本，强化层次）
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.white.opacity(0.18)).frame(height: 5)
-                    Capsule()
-                        .fill(palette.ringEnd)
-                        .frame(width: max(0, geo.size.width * progress), height: 5)
-                        .animation(.spring(response: 0.9, dampingFraction: 0.8), value: progress)
+            // 进度条细线 + 设定目标入口（独立于环，避免环内重叠）
+            HStack(spacing: 12) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.white.opacity(0.18)).frame(height: 5)
+                        Capsule()
+                            .fill(palette.ringEnd)
+                            .frame(width: max(0, geo.size.width * progress), height: 5)
+                            .animation(.spring(response: 0.9, dampingFraction: 0.8), value: progress)
+                    }
                 }
+                .frame(height: 5)
+                .accessibilityHidden(true)
+
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showGoalEditor = true
+                } label: {
+                    Label("设定目标", systemImage: "target")
+                        .displayLabelFont(11, weight: .semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(.white.opacity(0.22), in: Capsule())
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 0.6))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("设定阅读目标")
             }
-            .frame(height: 5)
-            .accessibilityHidden(true)
         }
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
