@@ -45,6 +45,13 @@ struct LogListView: View {
     @State private var followLatest = true
     @State private var pendingNewCount = 0
     @State private var lastSeenTopID: String?
+    /// 用户是否位于列表顶部（顶部哨兵行可见性）：跟随最新仅在此状态下自动滚顶，
+    /// 避免「向上翻阅历史时被新日志反复拽回顶部」的体验侵害（2026-09-28 复核修复）
+    @State private var isAtTop = true
+    /// 跟随滚顶节流（日志洪峰时每 0.25s 最多一次，防动画排队导致抖动）
+    @State private var lastFollowScrollAt = Date.distantPast
+    /// 滚顶请求计数（胶囊/开关触发；由 ScrollViewReader 内部消费）
+    @State private var scrollToTopRequest = 0
 
     // MARK: 反馈与确认
 
@@ -126,13 +133,17 @@ struct LogListView: View {
         return sections
     }
 
+    private static let dayTitleFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年MM月dd日"
+        return formatter
+    }()
+
     private func dayTitle(for date: Date) -> String {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) { return "今天" }
         if calendar.isDateInYesterday(date) { return "昨天" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月dd日"
-        return formatter.string(from: date)
+        return Self.dayTitleFormatter.string(from: date)
     }
 
     // MARK: Body
@@ -237,14 +248,14 @@ struct LogListView: View {
         .onReceive(minuteTimer) { tick in
             now = tick
         }
-        // 新日志到达：跟随模式自动滚顶；暂停模式累计「N 条新日志」
+        // 新日志到达：位于顶部且开启跟随时自动滚顶；否则累计「N 条新日志」
         .onChange(of: logManager.entries.first?.id) { _, newTopID in
             guard let newTopID else {
                 lastSeenTopID = nil
                 pendingNewCount = 0
                 return
             }
-            if followLatest {
+            if followLatest && isAtTop {
                 lastSeenTopID = newTopID
                 pendingNewCount = 0
             } else if let lastSeenTopID,
@@ -254,6 +265,15 @@ struct LogListView: View {
                 pendingNewCount = 0
                 lastSeenTopID = newTopID
             }
+        }
+        // 回到顶部：视为已读最新（清空累计并重置基线）
+        .onChange(of: isAtTop) { _, atTop in
+            guard atTop else { return }
+            pendingNewCount = 0
+            lastSeenTopID = logManager.entries.first?.id
+            LogManager.shared.debugLog("log", "滚动回到顶部", context: [
+                "total": "\(logManager.entries.count)"
+            ])
         }
         .onChange(of: logManager.maxEntries) { _, _ in
             refreshStorageSnapshot()
@@ -306,7 +326,10 @@ struct LogListView: View {
         Button {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                 followLatest.toggle()
-                if followLatest { pendingNewCount = 0 }
+                if followLatest {
+                    pendingNewCount = 0
+                    scrollToTopRequest += 1   // 恢复跟随即跳回最新
+                }
             }
             LogManager.shared.info("log", "跟随最新切换", context: ["follow": "\(followLatest)"])
         } label: {
@@ -324,19 +347,21 @@ struct LogListView: View {
         .accessibilityLabel(followLatest ? "跟随最新已开启，点按暂停" : "跟随最新已暂停，点按恢复")
     }
 
-    /// 悬浮「N 条新日志」胶囊（暂停模式下累计；点按恢复跟随并滚顶）
+    /// 悬浮「N 条新日志」胶囊（未跟随/已翻阅历史时累计；点按恢复跟随并滚顶）
     @ViewBuilder
     private var newLogsPill: some View {
-        if !followLatest, pendingNewCount > 0 {
+        if pendingNewCount > 0 {
             Button {
+                let pending = pendingNewCount
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     followLatest = true
                     pendingNewCount = 0
+                    scrollToTopRequest += 1
                 }
                 if let top = logManager.entries.first?.id {
                     lastSeenTopID = top
                 }
-                LogManager.shared.info("log", "跳转最新日志", context: ["pending": "\(pendingNewCount)"])
+                LogManager.shared.info("log", "跳转最新日志", context: ["pending": "\(pending)"])
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.up.circle.fill")
@@ -528,6 +553,15 @@ struct LogListView: View {
         } else {
             ScrollViewReader { proxy in
                 List {
+                    // 顶部哨兵：可见 = 用户位于顶部（跟随最新仅在此状态自动滚顶，翻阅历史时不被拽回）
+                    Color.clear
+                        .frame(height: 1)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .accessibilityHidden(true)
+                        .onAppear { isAtTop = true }
+                        .onDisappear { isAtTop = false }
                     ForEach(daySections) { section in
                         Section {
                             ForEach(Array(section.entries.enumerated()), id: \.element.id) { index, entry in
@@ -541,11 +575,16 @@ struct LogListView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .onChange(of: logManager.entries.first?.id) { _, newTopID in
-                    guard followLatest, let newTopID else { return }
+                    // 仅在「开启跟随 + 位于顶部」时自动滚顶；并做 0.25s 节流防动画排队抖动
+                    guard followLatest, isAtTop, let newTopID else { return }
+                    let now = Date()
+                    guard now.timeIntervalSince(lastFollowScrollAt) > 0.25 else { return }
+                    lastFollowScrollAt = now
                     withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) {
                         proxy.scrollTo(newTopID, anchor: .top)
                     }
                 }
+                .onChange(of: scrollToTopRequest) { _, _ in scrollToTop(proxy) }
                 .onChange(of: selectedLevel) { _, _ in scrollToTop(proxy) }
                 .onChange(of: selectedModule) { _, _ in scrollToTop(proxy) }
             }

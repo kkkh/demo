@@ -449,6 +449,46 @@ final class LogManagerTests: XCTestCase {
         XCTAssertTrue(messages(from: manager.entries).contains("风暴结束后的新日志"))
     }
 
+    /// 跨键交替型自反馈（每轮换不同 message）由全局速率防线兜底
+    func testGlobalStormFoldCapsTotalRate() async {
+        let manager = makeManager()
+        let attempted = LogManager.globalStormLimit + 60
+        for index in 1...attempted {
+            manager.info("floodGlobal", "G\(index)")
+        }
+        let recorded = messages(from: manager.entries).filter { $0.hasPrefix("G") }.count
+        XCTAssertLessThanOrEqual(recorded, LogManager.globalStormLimit, "全局速率上限必须生效")
+        XCTAssertGreaterThanOrEqual(recorded, LogManager.globalStormLimit - 5, "正常日志不应被过度折叠")
+        XCTAssertTrue(manager.entries.contains { $0.message.contains("日志全局限流") },
+                      "全局限流应留痕告警")
+
+        // 跨过窗口后结算留痕
+        try? await Task.sleep(nanoseconds: 1_050_000_000)
+        manager.info("floodGlobal", "窗口后的新日志")
+        XCTAssertTrue(manager.entries.contains { $0.message.contains("日志全局限流结束") },
+                      "限流结束应留痕统计")
+    }
+
+    /// 复核修复：删除「尚未落盘」的条目后，防抖落盘不得把它写回磁盘（复活竞态）
+    func testDeletePendingEntryDoesNotResurrect() async {
+        let manager = makeManager()
+        manager.info("ghost", "幽灵日志")
+        guard let id = manager.entries.first(where: { $0.message == "幽灵日志" })?.id else {
+            XCTFail("未找到目标日志")
+            return
+        }
+        // 尚未 flush 即删除（条目仍在待落盘缓冲中）
+        XCTAssertTrue(manager.removeEntry(id: id))
+        manager.flushPendingNow()
+        XCTAssertFalse(messages(from: readDiskEntries()).contains("幽灵日志"),
+                       "删除后防抖落盘不得复活该条")
+
+        let reader = makeManager()
+        _ = await waitUntil { reader.entries.count >= 1 }
+        XCTAssertFalse(messages(from: reader.entries).contains("幽灵日志"),
+                       "重新加载后不应出现已删除条目")
+    }
+
     // MARK: 模型辅助
 
     func testEntryHelpers() {
