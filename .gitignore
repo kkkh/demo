@@ -18,3 +18,7 @@ DesignCode_backup_*/
 .secrets/
 qin/.secrets/
 *appsecret*
+
+# ---- Python 工具产物（Scripts/ 下取证与护栏脚本的运行残留）----
+__pycache__/
+*.pyc
