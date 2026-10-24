@@ -1,0 +1,70 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: linear-gradient(160deg, #EEF2FA 0%, #E7ECF7 60%, #EFF3FB 100%);
+       font-family: "PingFang SC", "Hiragino Sans GB", sans-serif; color: #1E293B; }
+.page { margin: 34px 40px; background: #FFFFFF; border-radius: 26px; padding: 30px 34px 26px;
+        box-shadow: 0 18px 46px rgba(11,31,75,.10); }
+.head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.h-no { font-size: 15px; font-weight: 700; color: #C9A227; letter-spacing: 2px; }
+.h-cn { font-size: 30px; font-weight: 800; color: #0B1F4B; }
+.h-en { font-size: 13px; color: #8A97B1; letter-spacing: 1.4px; text-transform: uppercase; }
+.h-intro { font-size: 14.5px; color: #5A6B8C; margin: 8px 0 20px; line-height: 1.55; }
+.flow { display: flex; flex-direction: column; gap: 0; }
+.row { display: flex; gap: 12px; align-items: stretch; }
+.row.center { justify-content: center; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.node { background: #F8FAFE; border: 1.5px solid #E2E8F4; border-top: 4px solid var(--c, #2B5BD7);
+        border-radius: 14px; padding: 11px 14px; display: flex; gap: 12px; align-items: center; }
+.node .ic { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 12px; display: flex; align-items: center;
+           justify-content: center; font-size: 21px; background: var(--cb, #EAF1FE); }
+.node .t { font-size: 16px; font-weight: 700; color: #172A4D; line-height: 1.3; }
+.node .s { font-size: 12.5px; color: #64748B; margin-top: 3px; line-height: 1.45; }
+.ar { display: flex; align-items: center; justify-content: center; color: #C9A227; font-size: 26px;
+      font-weight: 800; height: 34px; }
+.ar.x { flex-direction: row; flex: 0 0 44px; font-size: 22px; height: auto; }
+.ar small { font-size: 12px; color: #8A97B1; font-weight: 600; margin: 0 6px; }
+.lane { border: 1.5px solid #E2E8F4; border-left: 6px solid var(--c, #2B5BD7); border-radius: 14px;
+        padding: 12px 14px; background: #FBFCFE; flex: 1; }
+.lane .lt { font-size: 14.5px; font-weight: 800; color: var(--c, #2B5BD7); margin-bottom: 9px; }
+.branch { display: grid; grid-template-columns: 1fr .12fr 1fr .12fr 1fr; gap: 8px; align-items: stretch; }
+.tag { align-self: center; text-align: center; font-size: 12px; font-weight: 800; color: #FFFFFF;
+       background: #64748B; border-radius: 999px; padding: 5px 8px; margin: 0 2px; }
+.tag.yes { background: #16A34A; } .tag.no { background: #C8102E; }
+.legend { margin-top: 18px; background: #F4F7FC; border: 1px dashed #C7D2E8; border-radius: 12px;
+          padding: 10px 16px; font-size: 12.5px; color: #5A6B8C; line-height: 1.6; }
+.legend b { color: #0B1F4B; }
+.hint { margin-top: 10px; background: #FFF9E8; border: 1px solid #F1DFA6; border-radius: 12px;
+        padding: 10px 16px; font-size: 12.5px; color: #8A6D1B; line-height: 1.6; }
+.mini { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.mini span { font-size: 11.5px; background:#EAF1FE; color:#2B5BD7; border-radius:999px; padding:3px 9px; font-weight:600; }
+</style></head>
+<body><div class="page">
+<div class="head"><div><span class="h-no">FIG 2 / 10</span> &nbsp;·&nbsp; <span class="h-cn">冷启动与安全门流程</span></div>
+<span class="h-en">COLD START & SECURITY GATE</span></div>
+<div class="h-intro">覆盖：启动 → 隐私同意门 → 可选 Face ID 安全锁 → 主界面 → 同步/轮询/预热三段并行 → 首页就绪的全过程与分支判定。</div>
+
+<div class="flow">
+<div class="node" style="--c:#0B1F4B;--cb:#0B1F4B18"><div class="ic">🚀</div><div><div class="t">用户点击 App 图标 / 点按通知</div></div></div>
+<div class="ar">↓</div>
+<div class="node" style="--c:#2B5BD7;--cb:#2B5BD718"><div class="ic">🌟</div><div><div class="t">LaunchScreen 静态启动页</div><div class="s">校徽 · 校名 · 校训 · SINCE 2002 · 与 SplashView 视觉对齐</div></div></div>
+<div class="ar">↓</div>
+<div class="branch">
+  <div class="node" style="--c:#EA7B2C;--cb:#EA7B2C18"><div class="ic">📜</div><div><div class="t">未同意隐私协议</div><div class="s">弹出 PrivacyConsentView<br>不同意 → 受限模式 RestrictedModeView</div></div></div>
+  <div class="tag no">否</div>
+  <div class="node" style="--c:#C9A227;--cb:#C9A22718"><div class="ic">🔑</div><div><div class="t">首次启动判定</div><div class="s">本地标记<br>是否已同意隐私协议</div></div></div>
+  <div class="tag yes">是</div>
+  <div class="node" style="--c:#16A34A;--cb:#16A34A18"><div class="ic">✅</div><div><div class="t">已同意 · 进入主流程</div></div></div>
+</div>
+<div class="ar"><small>可选安全门（用户已开启时）</small>↓</div>
+<div class="node" style="--c:#7C3AED;--cb:#7C3AED18"><div class="ic">🔐</div><div><div class="t">生物识别安全锁</div><div class="s">Face ID 验证 · 锁定策略（即时/1分钟）· 失败记日志<br>验证通过或未启用 → 放行主界面</div></div></div>
+<div class="ar">↓</div>
+<div class="row">
+<div class="lane" style="--c:#2B5BD7"><div class="lt">主线任务</div><div class="flow"><div class="node" style="--c:#2B5BD7;--cb:#2B5BD718"><div class="ic">🏗️</div><div><div class="t">主界面渲染</div><div class="s">五大 Tab · 主题/字体即时应用</div></div></div><div class="ar">↓</div><div class="node" style="--c:#0D9488;--cb:#0D948818"><div class="ic">🔄</div><div><div class="t">DataService 首轮同步</div><div class="s">首页/栏目/资讯全拉 · 失败三级降级</div></div></div><div class="ar">↓</div><div class="node" style="--c:#C9A227;--cb:#C9A22718"><div class="ic">✨</div><div><div class="t">首页骨架 → 内容渐进揭示</div><div class="s">Apple News 式闪烁骨架 · SJZRevealOnce 错峰入场</div></div></div></div></div>
+<div class="lane" style="--c:#7C3AED"><div class="lt">并行支线</div><div class="flow"><div class="node" style="--c:#7C3AED;--cb:#7C3AED18"><div class="ic">🔔</div><div><div class="t">通知轮询启动</div><div class="s">四通道首查 + 周期轮询（15-120 分钟）</div></div></div><div class="ar">↓</div><div class="node" style="--c:#EA7B2C;--cb:#EA7B2C18"><div class="ic">🖼️</div><div><div class="t">热点图片预热</div><div class="s">缓存模式预取 · SJZImagePrefetcher ≤20 张</div></div></div><div class="ar">↓</div><div class="node" style="--c:#64748B;--cb:#64748B18"><div class="ic">📡</div><div><div class="t">网络监测中枢初始化</div><div class="s">链路/吞吐采样器启动</div></div></div></div></div>
+</div>
+<div class="ar">↓</div>
+<div class="node" style="--c:#16A34A;--cb:#16A34A18"><div class="ic">🏁</div><div><div class="t">首页就绪</div><div class="s">模块区可见 · 同步状态胶囊提示 · 全程启动日志留痕</div></div></div>
+</div>
+<div class="legend"><b>读图方式：</b>黄=判定点（是/否分支）；<b>并行支线</b>与主线同时开工，任一失败不影响主界面呈现。</div>
+⚠️ 设计要点：隐私协议为红线区域；通知点击深链在「让出系统回调同步链」后才弹窗（防闪退原则）。
+</div></body></html>
