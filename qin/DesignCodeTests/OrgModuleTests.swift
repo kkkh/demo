@@ -214,6 +214,158 @@ final class OrgModuleTests: XCTestCase {
         XCTAssertLessThanOrEqual(peak, 3, "并发上限必须 ≤3")
         XCTAssertEqual(current, 0, "全部完成后活跃数必须归零")
     }
+
+    // MARK: - 正文图片查看桥（阶段三 A）
+
+    func testGalleryPayloadRemapsTappedIndexAfterFilteringInvalidURLs() throws {
+        let urls = [
+            "https://a.example.com/1.jpg",
+            "",                                  // 空串跳过
+            "https://a.example.com/3.jpg",
+            "not-a-url",                         // 非 http(s) 跳过
+            "https://a.example.com/5.jpg"
+        ]
+        let alts = ["一", "二", "三", "四", "五"]
+
+        let payload = try XCTUnwrap(OrgGalleryPayloadBuilder.make(index: 2, urls: urls, alts: alts))
+
+        XCTAssertEqual(payload.count, 3, "非法 URL 必须被跳过")
+        XCTAssertEqual(payload.clampedStartIndex, 1, "被点第 3 项（原始 index=2）应重映射到过滤后的第 2 项")
+        XCTAssertEqual(payload.urls[1].absoluteString, "https://a.example.com/3.jpg")
+        XCTAssertEqual(payload.alts[1], "三", "alt 必须与被点图同序透传")
+        XCTAssertEqual(payload.source, "organization_detail")
+    }
+
+    func testGalleryPayloadRejectsEmptyOrNonHTTPInput() {
+        XCTAssertNil(OrgGalleryPayloadBuilder.make(index: 0, urls: [], alts: []), "空图集必须返回 nil")
+        XCTAssertNil(OrgGalleryPayloadBuilder.make(index: 0, urls: ["", "   "], alts: []), "全非法图集必须返回 nil")
+        XCTAssertNil(OrgGalleryPayloadBuilder.make(index: 0, urls: ["file:///tmp/a.png"], alts: []),
+                     "非 http(s) 协议（file://）必须被拒绝")
+    }
+
+    func testGalleryPayloadAltShortageFallsBackToEmptyString() throws {
+        let payload = try XCTUnwrap(OrgGalleryPayloadBuilder.make(
+            index: 1,
+            urls: ["https://a.example.com/1.jpg", "https://a.example.com/2.jpg"],
+            alts: ["唯一 alt"]
+        ))
+        XCTAssertEqual(payload.alts.count, payload.count, "alts 必须与 urls 等长")
+        XCTAssertEqual(payload.alts[0], "唯一 alt")
+        XCTAssertEqual(payload.alts[1], "", "alt 缺位补空串（VoiceOver 安全）")
+    }
+
+    func testGalleryPayloadOutOfRangeIndexFallsBackToFirst() throws {
+        let payload = try XCTUnwrap(OrgGalleryPayloadBuilder.make(
+            index: 99,
+            urls: ["https://a.example.com/1.jpg"],
+            alts: []
+        ))
+        XCTAssertEqual(payload.clampedStartIndex, 0, "越界索引安全回落首张（clampedStartIndex 防护）")
+    }
+
+    // MARK: - 正文视频探针（阶段三 A）
+
+    func testVideoSourceCountMatchesVideoAndSourceTags() {
+        let html = """
+        <p>正文</p>
+        <video src="https://a.example.com/v1.mp4" controls></video>
+        <video poster="p.jpg"><source src="https://a.example.com/v2.mp4"></video>
+        <audio><source src="https://a.example.com/a.mp3"></audio>
+        <img src="https://a.example.com/1.jpg">
+        """
+        XCTAssertEqual(OrgMediaProbe.videoSourceCount(in: html), 3,
+                       "video[src] 2 处 + source[src] 2 处（含 audio 内）——探针只做数量取证")
+    }
+
+    func testVideoSourceCountZeroForPlainArticle() {
+        XCTAssertEqual(OrgMediaProbe.videoSourceCount(in: "<p>纯文字 <img src=\"a.jpg\"></p>"), 0)
+    }
+
+    // MARK: - 关注清单（阶段三 C）
+
+    func testFollowedOrgEncodeDecodeRoundTrip() throws {
+        let orgs = [
+            FollowedOrg(siteKey: "jwc", name: "教务处",
+                        categoryRaw: OrganizationCategory.administrative.rawValue, siteId: "12"),
+            FollowedOrg(siteKey: "tw", name: "团委",
+                        categoryRaw: OrganizationCategory.massOrg.rawValue, siteId: "1")
+        ]
+        let raw = try XCTUnwrap(OrgFollowStore.encode(orgs))
+        let decoded = OrgFollowStore.decode(raw)
+        XCTAssertEqual(decoded, orgs, "编解码必须无损往返")
+        XCTAssertEqual(decoded[0].category, .administrative, "分类回解必须命中 OrganizationCategory")
+    }
+
+    func testFollowedOrgDecodeToleratesGarbage() {
+        XCTAssertEqual(OrgFollowStore.decode(nil), [], "无数据 → 空清单")
+        XCTAssertEqual(OrgFollowStore.decode("not json"), [], "损坏数据 → 空清单（不拖垮模块）")
+        XCTAssertEqual(OrgFollowStore.decode("[{\"siteKey\":\"a\"}]"), [], "字段缺失 → 空清单")
+    }
+
+    @MainActor
+    func testFollowStoreToggleAndPersistence() throws {
+        let suiteName = "org-follow-tests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = OrgFollowStore(defaults: defaults)
+        let org = FollowedOrg(siteKey: "sxy", name: "商学院",
+                              categoryRaw: OrganizationCategory.teaching.rawValue, siteId: "9")
+
+        XCTAssertFalse(store.isFollowing(siteKey: "sxy"))
+        XCTAssertTrue(store.toggle(org), "首次切换 = 关注")
+        XCTAssertTrue(store.isFollowing(siteKey: "sxy"))
+        XCTAssertEqual(store.count, 1)
+
+        // 同一 defaults 新建实例 → 关注清单必须恢复（持久化闭环）
+        let reloaded = OrgFollowStore(defaults: defaults)
+        XCTAssertEqual(reloaded.followed, [org])
+
+        XCTAssertFalse(store.toggle(org), "再次切换 = 取关")
+        XCTAssertEqual(store.count, 0)
+        XCTAssertFalse(OrgFollowStore(defaults: defaults).isFollowing(siteKey: "sxy"),
+                       "取关同样必须落盘")
+    }
+
+    // MARK: - 机构动态扫描（阶段三 C：第五通道数据源）
+
+    func testFollowScannerSortsByTimeDescending() throws {
+        let json = """
+        {"nav":[{"title_cn":"首页","data":{"hero":{"articles":{"total":2,"list":[
+            {"id":"a1","title":"旧文","update_time":"2026-09-01 10:00:00"},
+            {"id":"a2","title":"新文","update_time":"2026-09-30 09:00:00"}]},
+            "children":{"list":[{"id":"c1","title_cn":"子栏目","articles":{"list":[
+            {"id":"a3","title":"子文","update_time":"2026-09-20 08:00:00"}]}}]}}}}]}
+        """
+        let data = try JSONDecoder().decode(NetworkService.DeptHome2DTO.self, from: Data(json.utf8))
+        let candidates = OrgFollowArticleScanner.candidates(from: data)
+        XCTAssertEqual(candidates.map(\.articleId), ["a2", "a3", "a1"], "必须按 update_time 降序")
+        XCTAssertEqual(candidates.first?.title, "新文", "标题必须随行透传")
+    }
+
+    func testFollowScannerDedupesAndLimits() throws {
+        let json = """
+        {"nav":[
+          {"title_cn":"首页","data":{"a":{"articles":{"list":[
+            {"id":"dup","title":"重复","update_time":"2026-09-30 09:00:00"},
+            {"id":"x2","title":"第二","update_time":"2026-09-29 09:00:00"}]}}}},
+          {"title_cn":"新闻","articles":{"list":[
+            {"id":"dup","title":"重复副本","update_time":"2026-09-30 09:00:00"},
+            {"id":"x3","title":"第三","update_time":"2026-09-28 09:00:00"}]}}
+        ]}
+        """
+        let data = try JSONDecoder().decode(NetworkService.DeptHome2DTO.self, from: Data(json.utf8))
+        let all = OrgFollowArticleScanner.candidates(from: data)
+        XCTAssertEqual(all.map(\.articleId), ["dup", "x2", "x3"], "跨区块重复 id 必须去重且保序")
+
+        let limited = OrgFollowArticleScanner.candidates(from: data, limit: 2)
+        XCTAssertEqual(limited.map(\.articleId), ["dup", "x2"], "上限必须生效")
+    }
+
+    func testFollowScannerEmptyNavYieldsNoCandidates() throws {
+        let data = try JSONDecoder().decode(NetworkService.DeptHome2DTO.self, from: Data("{}".utf8))
+        XCTAssertTrue(OrgFollowArticleScanner.candidates(from: data).isEmpty, "空响应不得产出候补")
+    }
 }
 
 // MARK: - 并发计数辅助

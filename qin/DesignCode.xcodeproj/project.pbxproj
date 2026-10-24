@@ -31,6 +31,7 @@
 		DC0000F1000000000000F001 /* OrgContentIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000F1000000000000F002 /* OrgContentIndex.swift */; };
 		DC0000F3000000000000F001 /* OrgTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000F3000000000000F002 /* OrgTheme.swift */; };
 		DC0000F3000000000000F003 /* OrgHaptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000F3000000000000F004 /* OrgHaptics.swift */; };
+		DC0000F5000000000000F001 /* OrgFollowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000F5000000000000F002 /* OrgFollowStore.swift */; };
 		DC00002322D74F5700D209BE /* OrganizationDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003222D74F5700D209BE /* OrganizationDetailView.swift */; };
 		DC00002422D74F5700D209BE /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003322D74F5700D209BE /* PrivacyPolicyView.swift */; };
 		DC00002522D74F5700D209BE /* PrivacyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003422D74F5700D209BE /* PrivacyManager.swift */; };
@@ -106,6 +107,7 @@
 		DC0000F1000000000000F002 /* OrgContentIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgContentIndex.swift; sourceTree = "<group>"; };
 		DC0000F3000000000000F002 /* OrgTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgTheme.swift; sourceTree = "<group>"; };
 		DC0000F3000000000000F004 /* OrgHaptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgHaptics.swift; sourceTree = "<group>"; };
+		DC0000F5000000000000F002 /* OrgFollowStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgFollowStore.swift; sourceTree = "<group>"; };
 		DC00003222D74F5700D209BE /* OrganizationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizationDetailView.swift; sourceTree = "<group>"; };
 		DC00003322D74F5700D209BE /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		DC00003422D74F5700D209BE /* PrivacyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyManager.swift; sourceTree = "<group>"; };
@@ -210,6 +212,7 @@
 				DC0000F1000000000000F002 /* OrgContentIndex.swift */,
 				DC0000F3000000000000F002 /* OrgTheme.swift */,
 				DC0000F3000000000000F004 /* OrgHaptics.swift */,
+				DC0000F5000000000000F002 /* OrgFollowStore.swift */,
 				DC00003222D74F5700D209BE /* OrganizationDetailView.swift */,
 				DC00003322D74F5700D209BE /* PrivacyPolicyView.swift */,
 				DC00003422D74F5700D209BE /* PrivacyManager.swift */,
@@ -418,6 +421,7 @@
 				DC0000F1000000000000F001 /* OrgContentIndex.swift in Sources */,
 				DC0000F3000000000000F001 /* OrgTheme.swift in Sources */,
 				DC0000F3000000000000F003 /* OrgHaptics.swift in Sources */,
+				DC0000F5000000000000F001 /* OrgFollowStore.swift in Sources */,
 				DC00002322D74F5700D209BE /* OrganizationDetailView.swift in Sources */,
 				DC00002422D74F5700D209BE /* PrivacyPolicyView.swift in Sources */,
 				DC00002522D74F5700D209BE /* PrivacyManager.swift in Sources */,
