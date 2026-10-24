@@ -34,7 +34,7 @@
 | **App 标识** | 显示名 `园枢`（工程名沿用模板 `DesignCode`）；Bundle ID `com.qinchao`；Team `F2JL9GNLCC`；版本 `1.0 (Build 1)`（Info.plist 直写） |
 | **部署目标** | ⚠️ **冲突**：project 层 `13.0`，target 层 `26.0`（target 覆盖 project，实际生效 26.0） |
 | **Target** | `DesignCode`（主 App）+ `DesignCodeTests`（单元测试） |
-| **代码规模** | 48 个 Swift 文件共 **59,083 行**（主 target 46 文件 57,377 行 + 测试 3 文件 1,706 行）；**102 个单元用例**（2026-09-27 真机复测 102/102 通过，日志 `build/verify/wechat_test_20260927.log`） |
+| **代码规模** | 48 个 Swift 文件共 **59,121 行**（主 target 46 文件 57,377 行 + 测试 3 文件 1,744 行）；**104 个单元用例**（2026-09-27 真机复测 104/104 通过，日志 `build/verify/wechat_test_20260927b.log`） |
 | **日志** | 自研 `LogManager`：**37 个日志域、1,077 处带域埋点**（`LogManager.shared` 调用点 1,106 处；其中 `wechat` 域 51 处）、日轮转、崩溃捕获、可导出 |
 
 关键文件：
