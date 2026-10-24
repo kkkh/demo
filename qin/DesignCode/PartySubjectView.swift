@@ -1884,6 +1884,7 @@ struct PartyArticleDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .readingReportTrack(articleId: ref.article.id, title: ref.article.title, source: "党建")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 14) {

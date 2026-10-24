@@ -4003,6 +4003,7 @@ struct OrganizationArticleDetailView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .readingReportTrack(articleId: article.id, title: article.title, source: "机构")
         .toolbar {
             ToolbarItem(placement: .principal) {
                 // 自定义标题视图，完整显示标题（支持动态字号和多行）

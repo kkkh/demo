@@ -3356,6 +3356,7 @@ struct EnhancedNewsDetailView: View {
             }
         }
         .navigationTitle("资讯详情").navigationBarTitleDisplayMode(.inline)
+        .readingReportTrack(articleId: news.id, title: news.title, source: "新闻")
         .overlay(alignment: .top) {
             // E7 弱网提示（顶部滑入胶囊，3s 后自动消失）
             if let slowNetworkMessage {
@@ -5513,6 +5514,7 @@ struct HonorDetailView: View {
             }
         }
         .navigationTitle("荣誉详情").navigationBarTitleDisplayMode(.inline)
+        .readingReportTrack(articleId: honor.id, title: honor.title, source: "荣誉")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
@@ -5937,6 +5939,7 @@ struct SceneryDetailView: View {
             }
         }
         .navigationTitle("校园风光").navigationBarTitleDisplayMode(.inline)
+        .readingReportTrack(articleId: scenery.id, title: scenery.title, source: "风光")
         .onAppear {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                 contentAppear = true
@@ -6148,6 +6151,7 @@ struct TeacherDetailView: View {
             }
         }
         .navigationTitle("教师风采").navigationBarTitleDisplayMode(.inline)
+        .readingReportTrack(articleId: teacher.id, title: teacher.title, source: "教师")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
@@ -6713,6 +6717,7 @@ struct StoryDetailView: View {
             }
         }
         .navigationTitle("学生故事").navigationBarTitleDisplayMode(.inline)
+        .readingReportTrack(articleId: story.id, title: story.title, source: "故事")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
@@ -7282,6 +7287,7 @@ struct ActivityDetailView: View {
             }
         }
         .navigationTitle("校园活动").navigationBarTitleDisplayMode(.inline)
+        .readingReportTrack(articleId: activity.id, title: activity.title, source: "活动")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
@@ -10159,6 +10165,7 @@ struct ProfileView: View {
     @State private var showAbout = false
     @State private var showBookmarks = false
     @State private var showLogs = false
+    @State private var showReadingReport = false
     @State private var showMessageCenter = false
     @State private var showAnnouncementDetail = false
     @ObservedObject private var messageCenterStore = MessageCenterStore.shared
@@ -10190,6 +10197,16 @@ struct ProfileView: View {
         guard total > 0 else { return "收藏文章，支持离线阅读与更新提醒" }
         let unread = bookmarkUnreadCount
         return unread > 0 ? "已收藏 \(total) 篇 · \(unread) 篇未读" : "已收藏 \(total) 篇文章"
+    }
+
+    /// 阅读时光入口副标题：今日专注 + 连击（低频状态，直接读共享 Store）
+    private var readingReportEntrySubtitle: String {
+        let store = ReadingReportStore.shared
+        if !store.enabled { return "记录已暂停 · 点击开启" }
+        let minutes = store.todayMinutes
+        let streak = store.currentStreak
+        if minutes <= 0 { return "今日专注 0 分钟 · 去读一篇吧" }
+        return streak > 0 ? "今日 \(minutes) 分钟 · 连续 \(streak) 天" : "今日专注 \(minutes) 分钟"
     }
 
     /// 日志入口副标题快照：总量 + 今日新增 + 今日异常（状态直观可见，且不观察高频对象）
@@ -10275,6 +10292,9 @@ struct ProfileView: View {
         .sheet(isPresented: $showAbout) { AboutView().preferredColorScheme(resolvedColorScheme).sjzPresentationChrome() }
         .sheet(isPresented: $showBookmarks) {
             NavigationStack { BookmarkListView() }.preferredColorScheme(resolvedColorScheme).sjzPresentationChrome()
+        }
+        .sheet(isPresented: $showReadingReport) {
+            ReadingReportView().preferredColorScheme(resolvedColorScheme).sjzPresentationChrome()
         }
         .sheet(isPresented: $showLogs) {
             NavigationStack { LogListView() }.preferredColorScheme(resolvedColorScheme).sjzPresentationChrome()
@@ -10385,6 +10405,19 @@ struct ProfileView: View {
                     "unread": "\(bookmarkUnreadCount)"
                 ])
                 showBookmarks = true
+            }
+            Divider().padding(.leading, 60)
+            MenuCard(
+                icon: "chart.bar.xaxis",
+                title: "阅读时光",
+                subtitle: readingReportEntrySubtitle,
+                color: Color.sjzSkyBlue
+            ) {
+                LogManager.shared.info("readingReport", "阅读时光入口点击（我的页）", context: [
+                    "todayMinutes": "\(ReadingReportStore.shared.todayMinutes)",
+                    "streak": "\(ReadingReportStore.shared.currentStreak)"
+                ])
+                showReadingReport = true
             }
             Divider().padding(.leading, 60)
             AboutEntryCell { showAbout = true }
@@ -12212,6 +12245,7 @@ struct ZSWArticleDetailView: View {
         // 拆分为独立属性，降低超大视图表达式的类型检查复杂度
         .overlay(alignment: .top) { zswTopProgressBar }
         .navigationTitle("文章详情").navigationBarTitleDisplayMode(.inline)
+        .readingReportTrack(articleId: article.id, title: article.title, source: "招生")
         .fullScreenCover(item: $imageViewerPayload) { payload in
             FullScreenImageView(payload: payload, fallbackTitle: fullDetail?.title ?? article.title)
                 .sjzPresentationChrome()
