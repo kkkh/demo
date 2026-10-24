@@ -88,7 +88,8 @@ def main():
             # 规则二：弹出层呈现链
             m = re.search(r'\.(sheet|fullScreenCover)\(', line)
             if m:
-                window = '\n'.join(lines[i:i + 80])
+                # 判定窗口剔除注释行：防止注释中提及 sjzPresentationChrome()/ShareSheet 稀释真实缺口（2026-09-29 硬化）
+                window = '\n'.join(l for l in lines[i:i + 80] if not is_comment(l))
                 if not presentation_allowed_for(name, i + 1, window, allow_presentation):
                     violations.append(
                         f'[弹出层缺口] {name}:{i + 1} .{m.group(1)}(...)\n'
