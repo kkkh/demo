@@ -16,7 +16,7 @@
 - 禁写 `@AppStorage + didSet`、`@Sendable Task` 捕获 `inout`
 - 禁在通知回调同步链中弹 sheet（走 pendingDeepLink 延迟调度，TabBar.swift L82）
 - 改动需先单独确认的文件：[PrivacyPolicyView.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/PrivacyPolicyView.swift)（L763 有 `exit(0)` 审核红线）、[PrivacyLegalTexts.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/PrivacyLegalTexts.swift)（与实现矛盾，改法未定）、[project.pbxproj](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode.xcodeproj/project.pbxproj)（`-disable-sandbox`、部署目标 13/26 不一致）、[RefererHeaderURLProtocol.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/RefererHeaderURLProtocol.swift)（全局网络拦截）、NotificationManager delegate 区（闪退根因区）、OrganizationDetailView 下拉刷新区（已修，回归敏感）
-- git 仓库：2026-09-27 已在 `~/Downloads/designcode-swiftui` 重建（main 分支，初始提交 b88e430；原 `~/Pictures` 主仓库悬空指针已移除；构建产物/备份快照/Xcode 用户态已入 .gitignore）
+- git 仓库：2026-09-27 已在 `~/Downloads/designcode-swiftui` 重建（main 分支，初始提交 b88e430；远端 origin = GitHub 私有仓 kkkh/Garden-iOS，已推送；原 `~/Pictures` 主仓库悬空指针已移除；构建产物/备份快照/Xcode 用户态已入 .gitignore）
 
 **风格与协作**：改动前先出方案文档并确认（根因优先，不搞模糊正确）；所有代码注释中文；任何功能点接 LogManager 埋点（模块短名）；回复要点式、行号/出处必备。
 
