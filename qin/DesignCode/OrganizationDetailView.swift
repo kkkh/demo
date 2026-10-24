@@ -52,7 +52,7 @@ struct OrgChildSection: Identifiable {
 }
 
 /// 机构文章
-struct OrgArticle: Identifiable {
+struct OrgArticle: Identifiable, Hashable {
     let id: String
     let title: String
     let description: String
@@ -125,7 +125,7 @@ private final class CachedArticleDetailWrapper {
 // MARK: - 文章导航标识（用于 sheet(item:) 安全状态管理）
 
 /// 文章导航包装，确保 sheet 捕获正确的 siteId
-struct ArticleNavigation: Identifiable {
+struct ArticleNavigation: Identifiable, Hashable {
     let id: String
     let article: OrgArticle
     let siteId: String
@@ -258,6 +258,17 @@ struct OrganizationDetailView: View {
     /// 单文章型机构（无独立子站）解析出的全文条目
     @State private var singleArticleEntry: SingleArticleEntry?
 
+    // MARK: 阶段二 · 视觉动效状态（详情页）
+
+    /// 滚动中（图片加载挂起，复用既有基建）
+    @State private var isScrolling: Bool = false
+    /// 滚动偏移（头图视差，系数 0.35）
+    @State private var scrollOffsetY: CGFloat = 0
+    /// 滚动超过阈值（栏目 chips 玻璃吸顶，>8pt）
+    @State private var isScrolledPastThreshold: Bool = false
+    /// zoom 转场命名空间（卡片 → 文章详情，连续放大）
+    @Namespace private var articleZoomNamespace
+
     var body: some View {
         ZStack {
             Group {
@@ -305,15 +316,14 @@ struct OrganizationDetailView: View {
                 refreshButton
             }
         }
-        .sheet(item: $articleNavigation) { nav in
-            NavigationStack {
-                OrganizationArticleDetailView(
-                    article: nav.article,
-                    siteId: nav.siteId,
-                    color: nav.color
-                )
-            }
-            .sjzPresentationChrome()
+        .navigationDestination(item: $articleNavigation) { nav in
+            // 阶段二：卡片 → 详情连续放大转场（zoom，系统 ≈0.35s；返回为系统返回键）
+            OrganizationArticleDetailView(
+                article: nav.article,
+                siteId: nav.siteId,
+                color: nav.color
+            )
+            .navigationTransition(.zoom(sourceID: nav.article.articleId, in: articleZoomNamespace))
         }
         .sheet(item: $childNavigation) { nav in
             NavigationStack {
@@ -380,15 +390,25 @@ struct OrganizationDetailView: View {
     // MARK: 加载视图
 
     private var loadingView: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .scaleEffect(1.2)
-            Text("加载部门数据中...")
-                .displayFont(15)
-                .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Spacer()
+                    OrgSkeletonBlock(height: 64, width: 64, cornerRadius: OrgTheme.Radius.card)
+                    Spacer()
+                }
+                HStack {
+                    Spacer()
+                    OrgSkeletonBlock(height: 22, width: 160, cornerRadius: 6)
+                    Spacer()
+                }
+                OrgSkeletonBlock(height: 44, cornerRadius: OrgTheme.Radius.row)
+                OrgSkeletonBlock(height: 72, cornerRadius: OrgTheme.Radius.card)
+                OrgSkeletonBlock(height: 72, cornerRadius: OrgTheme.Radius.card)
+                OrgSkeletonBlock(height: 72, cornerRadius: OrgTheme.Radius.card)
+            }
+            .padding(16)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(GradientBackground())
     }
 
     // MARK: 错误视图
@@ -1076,7 +1096,7 @@ struct OrganizationDetailView: View {
 
     private var contentView: some View {
         ScrollView {
-            LazyVStack(spacing: 20) {
+            LazyVStack(spacing: 20, pinnedViews: [.sectionHeaders]) {
                 departmentHeader
 
                 if columnSpecs.isEmpty {
@@ -1088,79 +1108,125 @@ struct OrganizationDetailView: View {
                     if !toolChildren.isEmpty {
                         toolEntriesRow
                     }
-                    columnChipsSection
-                    columnArticlesSection
+                    Section {
+                        columnArticlesSection
+                    } header: {
+                        // 玻璃吸顶：栏目 chips（滚动 >8pt 启用材质）
+                        columnChipsSection
+                    }
                 }
             }
             .padding(.vertical, 16)
             .frame(minHeight: screenHeight)
         }
         .scrollBounceBehavior(.always)
-        .background(GradientBackground())
+        .modifier(SJZIdleTimerRepairOnScrollStop())
+        .sjzScrollSuspendTrack($isScrolling)
+        .environment(\.sjzImageLoadingSuspended, isScrolling)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y
+        } action: { _, offset in
+            scrollOffsetY = offset
+            let past = offset > 8
+            guard past != isScrolledPastThreshold else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                isScrolledPastThreshold = past
+            }
+        }
+        .background(OrgTheme.backgroundGradient)
         .refreshable {
+            // 下拉刷新：触发 = 柔级；完成 = 结果级（设计稿 §7）
+            OrgHaptics.soft()
             await performDetailRefresh(source: "下拉刷新")
+            if refreshToastSuccess {
+                OrgHaptics.success()
+            } else {
+                OrgHaptics.error()
+            }
         }
     }
 
     // MARK: 部门头部
 
     private var departmentHeader: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                unit.category.color,
-                                unit.category.color.opacity(0.6)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.card)
+                    .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
+                    .frame(width: 64, height: 64)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: OrgTheme.Radius.card)
+                            .stroke(unit.category.color.opacity(colorScheme == .dark ? 0.30 : 0.16), lineWidth: 1)
                     )
-                    .frame(width: 80, height: 80)
-                    .shadow(color: unit.category.color.opacity(0.3), radius: 14, y: 8)
 
-                Image(systemName: unit.icon)
-                    .displaySymbolFont(32, weight: .medium)
-                    .foregroundStyle(.white)
+                Image(systemName: OrgTheme.linearIcon(unit.icon))
+                    .displaySymbolFont(28, weight: .medium)
+                    .foregroundStyle(unit.category.color)
             }
 
             Text(unit.name)
-                .displayFont(22, weight: .bold)
-                .foregroundStyle(.primary)
+                .displayFont(28, weight: .bold)
+                .foregroundStyle(OrgTheme.textPrimary)
+                .multilineTextAlignment(.center)
 
-            Text(unit.category.rawValue)
-                .displayFont(12, weight: .medium)
-                .foregroundStyle(unit.category.color)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(unit.category.color.opacity(colorScheme == .dark ? 0.2 : 0.12))
-                )
+            HStack(spacing: 8) {
+                Text(unit.category.rawValue)
+                    .displayFont(12, weight: .medium)
+                    .foregroundStyle(unit.category.color)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
+                    )
+
+                if !columnSpecs.isEmpty {
+                    Text(headerStatText)
+                        .displayFont(12)
+                        .monospacedDigit()
+                        .foregroundStyle(OrgTheme.textSecondary)
+                }
+            }
 
             if let banner = homeData?.topBanners, let imgSrc = banner.imgSrc, !imgSrc.isEmpty {
-                SJZCachedImage(url: safeURL(from: imgSrc)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    case .failure:
-                        EmptyView()
-                    default:
-                        ProgressView()
-                            .frame(height: 120)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 4)
+                headerBanner(imgSrc)
             }
         }
         .padding(.top, 8)
+    }
+
+    /// 身份头统计条：「N 个栏目」（全部栏目 total 均已确证时补「共 M 篇」——逐栏目惰性取得，不猜数）
+    private var headerStatText: String {
+        let listColumns = columnSpecs.filter { $0.kind == .list }
+        let knownTotals = listColumns.compactMap { spec in
+            pagerCache[spec.id]?.total ?? columnSeedTotals[spec.columnId]
+        }
+        if !knownTotals.isEmpty, knownTotals.count == listColumns.count {
+            return "\(listColumns.count) 个栏目 · 共 \(knownTotals.reduce(0, +)) 篇"
+        }
+        return "\(listColumns.count) 个栏目"
+    }
+
+    /// 头图（16:9 圆角 + 视差 0.35；未就绪显示骨架，避免硬闪）
+    private func headerBanner(_ imgSrc: String) -> some View {
+        SJZCachedImage(url: safeURL(from: imgSrc)) { phase in
+            switch phase {
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFill()
+            case .failure:
+                Color.clear
+            default:
+                OrgSkeletonBlock(height: 160, cornerRadius: OrgTheme.Radius.card)
+            }
+        }
+        .frame(height: 160)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: OrgTheme.Radius.card))
+        .offset(y: scrollOffsetY * 0.35)
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
     }
 
     // MARK: 阶段一 · 工具入口行（专业介绍 / 分数线 / 录取查询）
@@ -1227,13 +1293,28 @@ struct OrganizationDetailView: View {
     // MARK: 阶段一 · 栏目标签（真实篇数 + 选中态）
 
     private var columnChipsSection: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(columnSpecs) { column in
-                    columnChip(column)
+        GlassEffectContainer(spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(columnSpecs) { column in
+                        columnChip(column)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
-            .padding(.horizontal, 16)
+        }
+        .background {
+            if isScrolledPastThreshold {
+                Rectangle().fill(.ultraThinMaterial)
+            } else {
+                Rectangle().fill(OrgTheme.bg.opacity(0))
+            }
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(OrgTheme.separator)
+                .frame(height: isScrolledPastThreshold ? 1 : 0)
         }
     }
 
@@ -1243,7 +1324,7 @@ struct OrganizationDetailView: View {
 
         return Button {
             guard !isSelected else { return }
-            UISelectionFeedbackGenerator().selectionChanged()
+            OrgHaptics.selection()
             Task { await selectColumn(column, reset: true) }
         } label: {
             HStack(spacing: 6) {
@@ -1256,28 +1337,15 @@ struct OrganizationDetailView: View {
                         .foregroundStyle(isSelected ? unit.category.color : Color.secondary)
                 }
             }
-            .foregroundStyle(isSelected ? unit.category.color : Color.primary.opacity(0.85))
+            .foregroundStyle(isSelected ? unit.category.color : OrgTheme.textPrimary.opacity(0.85))
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(isSelected ? unit.category.color.opacity(colorScheme == .dark ? 0.24 : 0.14) : Color.clear)
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        isSelected
-                            ? unit.category.color.opacity(0.45)
-                            : unit.category.color.opacity(colorScheme == .dark ? 0.15 : 0.08),
-                        lineWidth: isSelected ? 1 : 0.5
-                    )
+            .glassEffect(
+                .regular.tint(OrgTheme.glassTint(unit.category.color, active: isSelected)).interactive(),
+                in: .rect(cornerRadius: 14)
             )
         }
-        .buttonStyle(OrganizationCardButtonStyle())
+        .buttonStyle(.plain)
         .contentShape(Rectangle())
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .accessibilityLabel(knownTotal.map { "\(column.title)，\($0) 篇" } ?? column.title)
@@ -1629,6 +1697,11 @@ struct OrganizationDetailView: View {
             let added = pager.apply(page: page, list: mapped, total: total)
             pagerCache[column.id] = pager
 
+            // 加载更多到达：轻级触觉（首屏不振动，避免页面打开即打扰）
+            if page > 1 && added > 0 {
+                OrgHaptics.light()
+            }
+
             let elapsed = Int(Date().timeIntervalSince(started) * 1000)
             LogManager.shared.info("organization", "栏目分页加载完成", context: [
                 "department": unit.name,
@@ -1645,6 +1718,7 @@ struct OrganizationDetailView: View {
             if pager.isExhausted && !pager.reachedEndNotified {
                 pager.reachedEndNotified = true
                 pagerCache[column.id] = pager
+                OrgHaptics.rigid()   // 翻到底：锐级（边界·干脆，设计稿 §7）
                 LogManager.shared.info("organization", "栏目已翻到底", context: [
                     "department": unit.name,
                     "column": column.title,
@@ -1669,6 +1743,7 @@ struct OrganizationDetailView: View {
             }
             pager.fail(message)
             pagerCache[column.id] = pager
+            OrgHaptics.error()   // 结果级：加载失败
             LogManager.shared.warning("organization", "栏目分页加载失败", context: [
                 "department": unit.name,
                 "column": column.title,
@@ -1901,6 +1976,7 @@ struct OrganizationDetailView: View {
     private func articleCard(_ article: OrgArticle, sectionSiteId: String) -> some View {
         Button {
             let actualSiteId = article.sectionSiteId ?? sectionSiteId
+            OrgHaptics.light()
             LogManager.shared.info("organization", "文章点击", context: [
                 "department": unit.name,
                 "articleId": article.articleId,
@@ -1924,8 +2000,8 @@ struct OrganizationDetailView: View {
                             image
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: 60, height: 60)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .frame(width: 72, height: 72)
+                                .clipShape(RoundedRectangle(cornerRadius: OrgTheme.Radius.row))
                         case .failure:
                             placeholderIcon
                         default:
@@ -1938,15 +2014,15 @@ struct OrganizationDetailView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(article.title)
-                        .displayFont(14, weight: .medium)
-                        .foregroundStyle(.primary)
+                        .displayFont(15, weight: .semibold)
+                        .foregroundStyle(OrgTheme.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
                     if !article.description.isEmpty {
                         Text(article.description)
                             .displayFont(12)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(OrgTheme.textSecondary)
                             .lineLimit(2)
                     }
 
@@ -1959,13 +2035,14 @@ struct OrganizationDetailView: View {
                                 .padding(.vertical, 2)
                                 .background(
                                     Capsule()
-                                        .fill(unit.category.color.opacity(0.1))
+                                        .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
                                 )
                         }
                         Spacer()
                         Text(formatDate(article.updateTime))
                             .displayFont(10)
-                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                            .foregroundStyle(OrgTheme.textTertiary)
                     }
                 }
 
@@ -1973,31 +2050,29 @@ struct OrganizationDetailView: View {
 
                 Image(systemName: "chevron.right")
                     .displaySymbolFont(10, weight: .semibold)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(OrgTheme.textTertiary)
             }
             .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(.ultraThinMaterial)
-            )
+            .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.row))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(unit.category.color.opacity(colorScheme == .dark ? 0.12 : 0.06), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.row)
+                    .stroke(OrgTheme.separator, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.12 : 0.03), radius: 6, y: 3)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.05), radius: 6, y: 3)
         }
-        .buttonStyle(OrganizationCardButtonStyle())
+        .buttonStyle(OrgPressStyle())
         .contentShape(Rectangle())
+        .matchedTransitionSource(id: article.articleId, in: articleZoomNamespace)
     }
 
     private var placeholderIcon: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(unit.category.color.opacity(0.12))
-                .frame(width: 60, height: 60)
+            RoundedRectangle(cornerRadius: OrgTheme.Radius.row)
+                .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
+                .frame(width: 72, height: 72)
             Image(systemName: "doc.text.image")
-                .displaySymbolFont(18)
-                .foregroundStyle(unit.category.color.opacity(0.4))
+                .displaySymbolFont(20)
+                .foregroundStyle(unit.category.color.opacity(0.5))
         }
     }
 
@@ -2770,19 +2845,8 @@ struct OrganizationArticleDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: screenWidth * 0.75)
             }
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    dismiss()
-                    LogManager.shared.debugLog("organization", "文章详情页关闭", context: [
-                        "articleId": article.articleId
-                    ])
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .displaySymbolFont(20)
-                        .foregroundStyle(.secondary)
-                }
-                .contentShape(Rectangle())
-            }
+            // 阶段二：文章详情改为 push 呈现 —— 移除自绘关闭按钮，使用系统返回键
+            // （系统返回键自带滑动返回、长按历史菜单；符合「原生返回体验」偏好）
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
                     // 收藏按钮
