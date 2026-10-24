@@ -12,13 +12,6 @@
 import SwiftUI
 import Charts
 
-// MARK: - 阅读目标（每日专注分钟）
-
-enum ReadingReportGoals {
-    /// 每日阅读目标（分钟）——未来可做成设置项
-    static let dailyMinutes = 30
-}
-
 // MARK: - 报告页
 
 struct ReadingReportView: View {
@@ -37,6 +30,8 @@ struct ReadingReportView: View {
     enum ReadingReportMode: String, CaseIterable {
         case daily = "日报"
         case weekly = "周报"
+        case monthly = "月报"
+        case yearly = "年报"
     }
 
     var body: some View {
@@ -51,7 +46,7 @@ struct ReadingReportView: View {
                             .opacity(reveal(0))
                         modeCapsule
                             .opacity(reveal(1))
-                        if mode == .daily { dailySection } else { weeklySection }
+                        contentSection
                         privacyCard
                             .opacity(reveal(6))
                         footnote
@@ -327,9 +322,9 @@ struct ReadingReportView: View {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { mode = m }
                 } label: {
                     Text(m.rawValue)
-                        .displayFont(14, weight: .semibold)
+                        .displayFont(13, weight: .semibold)
                         .foregroundStyle(mode == m ? Color.sjzPrimary : .secondary)
-                        .padding(.horizontal, 26).padding(.vertical, 9)
+                        .padding(.horizontal, 17).padding(.vertical, 8)
                         .background {
                             if mode == m {
                                 Capsule()
@@ -348,7 +343,17 @@ struct ReadingReportView: View {
         .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 0.6))
     }
 
-    // MARK: - 内容分区
+    // MARK: - 内容分区（日/周/月/年）
+
+    @ViewBuilder
+    private var contentSection: some View {
+        switch mode {
+        case .daily: dailySection
+        case .weekly: weeklySection
+        case .monthly: monthlySection
+        case .yearly: yearlySection
+        }
+    }
 
     private var dailySection: some View {
         VStack(spacing: 14) {
@@ -358,7 +363,8 @@ struct ReadingReportView: View {
                 .opacity(reveal(3))
             sectionHeader(icon: "clock.fill", title: "今日时段")
                 .opacity(reveal(4))
-            hourlyHeatCard(title: "", hourly: store.hourlyMinutes(week: false))
+            hourlyHeatCard(title: "", hourly: store.hourlyMinutes(week: false),
+                           peak: store.hourlyPeak(week: false), showsDay: false)
                 .opacity(reveal(5))
         }
     }
@@ -375,7 +381,43 @@ struct ReadingReportView: View {
                 .opacity(reveal(4))
             sectionHeader(icon: "clock.fill", title: "本周时段")
                 .opacity(reveal(5))
-            hourlyHeatCard(title: "", hourly: store.hourlyMinutes(week: true))
+            hourlyHeatCard(title: "", hourly: store.hourlyMinutes(week: true),
+                           peak: store.hourlyPeak(week: true), showsDay: true)
+                .opacity(reveal(5))
+        }
+    }
+
+    private var monthlySection: some View {
+        VStack(spacing: 14) {
+            monthSummaryCard
+                .opacity(reveal(2))
+            monthCompareCard
+                .opacity(reveal(3))
+            monthTrendCard
+                .opacity(reveal(4))
+            sectionHeader(icon: "chart.pie.fill", title: "本月分布")
+                .opacity(reveal(5))
+            categoryRingCard(sources: store.monthCategory())
+                .opacity(reveal(5))
+            sectionHeader(icon: "clock.fill", title: "本月时段")
+                .opacity(reveal(6))
+            hourlyHeatCard(title: "", hourly: store.monthHourly(),
+                           peak: store.monthHourlyPeak(), showsDay: true)
+                .opacity(reveal(6))
+        }
+    }
+
+    private var yearlySection: some View {
+        VStack(spacing: 14) {
+            yearSummaryCard
+                .opacity(reveal(2))
+            yearMonthBarsCard
+                .opacity(reveal(3))
+            yearCompareCard
+                .opacity(reveal(4))
+            sectionHeader(icon: "chart.pie.fill", title: "全年分布")
+                .opacity(reveal(5))
+            categoryRingCard(sources: store.yearCategory())
                 .opacity(reveal(5))
         }
     }
@@ -397,17 +439,21 @@ struct ReadingReportView: View {
     private var trendCard: some View {
         let days = store.recentDays(7)
         let maxVal = max(4, days.map(\.minutes).max() ?? 0)
+        let palette = ReadingReportPalette.forNow()
+        let accent = palette.colors.first ?? Color.sjzAccent
         return ReportCard(title: "近 7 天专注趋势", caption: "分钟 / 天") {
             Chart {
-                // 每日目标参考线（读取用户设定目标）
-                RuleMark(y: .value("目标", Double(goalStore.dailyMinutes)))
-                    .foregroundStyle(Color.sjzOrange.opacity(0.55))
-                    .lineStyle(StrokeStyle(lineWidth: 1.4, dash: [5, 5]))
-                    .annotation(position: .top, alignment: .trailing) {
-                        Text("目标 \(goalStore.dailyMinutes)′")
-                            .displayFont(9, weight: .medium)
-                            .foregroundStyle(Color.sjzOrange)
-                    }
+                // 每日目标参考线：仅在量程内可见时绘制，避免目标远超量程时被裁剪出怪异的顶部标注
+                if goalStore.dailyMinutes <= maxVal + 2 {
+                    RuleMark(y: .value("目标", Double(goalStore.dailyMinutes)))
+                        .foregroundStyle(Color.sjzOrange.opacity(0.55))
+                        .lineStyle(StrokeStyle(lineWidth: 1.4, dash: [5, 5]))
+                        .annotation(position: .top, alignment: .trailing) {
+                            Text("目标 \(goalStore.dailyMinutes)′")
+                                .displayFont(9, weight: .medium)
+                                .foregroundStyle(Color.sjzOrange)
+                        }
+                }
 
                 ForEach(days) { day in
                     AreaMark(
@@ -427,13 +473,16 @@ struct ReadingReportView: View {
                     .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                     .interpolationMethod(.catmullRom)
                     .symbol {
-                        Circle().fill(Color.sjzAccent.opacity(0.16)).frame(width: 16, height: 16)
-                            .overlay(Circle().fill(.white).frame(width: 8, height: 8))
-                            .overlay(Circle().stroke(Color.sjzAccent, lineWidth: 2).frame(width: 8, height: 8))
+                        // 0 值日不画圆点：避免连续零值日多个圆点完全重叠
+                        if day.minutes > 0 {
+                            Circle().fill(Color.sjzAccent.opacity(0.16)).frame(width: 16, height: 16)
+                                .overlay(Circle().fill(.white).frame(width: 8, height: 8))
+                                .overlay(Circle().stroke(Color.sjzAccent, lineWidth: 2).frame(width: 8, height: 8))
+                        }
                     }
                 }
 
-                // 今日高亮点
+                // 今日高亮点（标注加大间距，避免与折线顶点贴近交叠）
                 if let today = days.last, today.key == ReadingReportStore.key(for: Date(), calendar: .current) {
                     PointMark(
                         x: .value("日期", today.date, unit: .day),
@@ -446,12 +495,15 @@ struct ReadingReportView: View {
                             Circle().fill(.white).frame(width: 4, height: 4)
                         }
                     }
-                    .annotation(position: .top, spacing: 6) {
-                        Text("\(today.minutes)′")
-                            .displayFont(11, weight: .bold)
-                            .foregroundStyle(Color.sjzAccent)
-                            .padding(.horizontal, 7).padding(.vertical, 3)
-                            .background(.ultraThinMaterial, in: Capsule())
+                    .annotation(position: .top, spacing: 14) {
+                        if today.minutes > 0 {
+                            Text("\(today.minutes)′")
+                                .displayFont(11, weight: .bold)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(accent, in: Capsule())
+                                .shadow(color: accent.opacity(0.45), radius: 6, y: 3)
+                        }
                     }
                 }
             }
@@ -470,36 +522,61 @@ struct ReadingReportView: View {
             }
             .chartYScale(domain: 0...(maxVal + 2))
             .frame(height: 180)
-            .accessibilityLabel("近 7 天每日专注分钟趋势，目标 \(ReadingReportGoals.dailyMinutes) 分钟")
+            .accessibilityLabel("近 7 天每日专注分钟趋势，目标 \(goalStore.dailyMinutes) 分钟")
             .accessibilityValue(days.map { "\($0.key) \($0.minutes) 分钟" }.joined(separator: "，"))
         }
     }
 
-    // MARK: - 图表 ②：周对比
+    // MARK: - 图表 ②：周期对比（本周/本月/本年通用）
 
     private var weekCompareCard: some View {
-        let this = store.thisWeekMinutes
-        let last = store.lastWeekMinutes
-        let top = max(1, max(this, last))
-        return ReportCard(title: "本周 vs 上周", caption: "分钟") {
+        compareBarsCard(title: "本周 vs 上周", caption: "分钟",
+                        left: "上周", right: "本周",
+                        leftValue: store.lastWeekMinutes, rightValue: store.thisWeekMinutes,
+                        delta: store.weekChangePercent())
+    }
+
+    private var monthCompareCard: some View {
+        compareBarsCard(title: "本月 vs 上月", caption: "分钟",
+                        left: "上月", right: "本月",
+                        leftValue: ReadingReportStore.displayMinutes(fromSeconds: store.lastMonthSeconds),
+                        rightValue: ReadingReportStore.displayMinutes(fromSeconds: store.thisMonthSeconds),
+                        delta: store.monthChangePercent())
+    }
+
+    private var yearCompareCard: some View {
+        compareBarsCard(title: "本年 vs 上年", caption: "分钟",
+                        left: "上年", right: "本年",
+                        leftValue: ReadingReportStore.displayMinutes(fromSeconds: store.lastYearSeconds),
+                        rightValue: ReadingReportStore.displayMinutes(fromSeconds: store.thisYearSeconds),
+                        delta: store.yearChangePercent())
+    }
+
+    /// 通用双柱对比卡（左=上一周期，右=当前周期）
+    private func compareBarsCard(title: String, caption: String,
+                                 left: String, right: String,
+                                 leftValue: Int, rightValue: Int,
+                                 delta: Int?) -> some View {
+        let top = max(1, max(leftValue, rightValue))
+        return ReportCard(title: title, caption: caption) {
             Chart {
-                BarMark(x: .value("周", "上周"), y: .value("分钟", Double(last)), width: 36)
+                BarMark(x: .value("周期", left), y: .value("分钟", Double(leftValue)), width: 36)
                     .foregroundStyle(LinearGradient(
                         colors: [Color.sjzTeal.opacity(0.85), Color.sjzTeal.opacity(0.42)],
                         startPoint: .top, endPoint: .bottom))
                     .cornerRadius(10, style: .continuous)
                     .annotation(position: .top) {
-                        Text("\(last)")
+                        Text("\(leftValue)")
                             .displayFont(11, weight: .semibold)
                             .foregroundStyle(Color.sjzTeal)
                     }
-                BarMark(x: .value("周", "本周"), y: .value("分钟", Double(this)), width: 36)
+                BarMark(x: .value("周期", right), y: .value("分钟", Double(rightValue)), width: 36)
                     .foregroundStyle(LinearGradient(
                         colors: [Color.sjzAccent, Color.sjzAccent.opacity(0.48)],
                         startPoint: .top, endPoint: .bottom))
                     .cornerRadius(10, style: .continuous)
                     .annotation(position: .top) {
-                        Text("\(this)")
+                        Text("\(rightValue)")
                             .displayFont(11, weight: .bold)
                             .foregroundStyle(Color.sjzAccent)
                     }
@@ -513,17 +590,202 @@ struct ReadingReportView: View {
             .chartYScale(domain: 0...(top + 2))
             .frame(height: 100)
             .overlay(alignment: .trailing) {
-                if let delta = store.weekChangePercent() {
+                if let delta {
                     Label(delta >= 0 ? "↑ \(delta)%" : "↓ \(-delta)%",
                           systemImage: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
                         .displayLabelFont(13, weight: .semibold)
                         .foregroundStyle(delta >= 0 ? Color.sjzGreen : Color.sjzOrange)
                         .padding(.horizontal, 9).padding(.vertical, 5)
                         .background(.ultraThinMaterial, in: Capsule())
-                        .accessibilityLabel(delta >= 0 ? "较上周增长 \(delta)%" : "较上周下降 \(-delta)%")
+                        .accessibilityLabel(delta >= 0 ? "较\(left)增长 \(delta)%" : "较\(left)下降 \(-delta)%")
                 }
             }
-            .accessibilityLabel("本周 \(this) 分钟，上周 \(last) 分钟")
+            .accessibilityLabel("\(right) \(rightValue) 分钟，\(left) \(leftValue) 分钟")
+        }
+    }
+
+    // MARK: - 月/年摘要与分布卡
+
+    /// 本月摘要（2×2 统计格）
+    private var monthSummaryCard: some View {
+        let minutes = ReadingReportStore.displayMinutes(fromSeconds: store.thisMonthSeconds)
+        let avg = ReadingReportStore.displayMinutes(fromSeconds: store.avgDailySeconds(in: store.monthInterval()))
+        return ReportCard(title: "本月专注", caption: "") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
+                statCell(value: "\(minutes)", unit: "分钟", icon: "timer", tint: Color.sjzAccent)
+                statCell(value: "\(store.thisMonthArticleCount)", unit: "篇", icon: "doc.text.fill", tint: Color.sjzTeal)
+                statCell(value: "\(avg)", unit: "日均分钟", icon: "chart.line.uptrend.xyaxis", tint: Color.sjzGold)
+                statCell(value: "\(store.longestStreak(in: store.monthInterval()))", unit: "最长连续天", icon: "flame.fill", tint: Color.sjzOrange)
+            }
+        }
+    }
+
+    /// 年度总结（大数字 + 统计格）
+    private var yearSummaryCard: some View {
+        let total = store.thisYearSeconds
+        let avg = ReadingReportStore.displayMinutes(fromSeconds: store.avgDailySeconds(in: store.yearInterval()))
+        return ReportCard(title: "本年度总结", caption: "") {
+            VStack(spacing: 16) {
+                HStack(alignment: .lastTextBaseline, spacing: 10) {
+                    Text(formatTotalHours(total))
+                        .displayFont(34, weight: .bold)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.sjzAccent)
+                        .contentTransition(.numericText(value: Double(total)))
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                    Spacer(minLength: 8)
+                    Text("\(Calendar.current.component(.year, from: Date())) 年")
+                        .displayFont(13, weight: .semibold)
+                        .foregroundStyle(.secondary)
+                }
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
+                    statCell(value: "\(store.thisYearArticleCount)", unit: "篇", icon: "doc.text.fill", tint: Color.sjzTeal)
+                    statCell(value: "\(avg)", unit: "日均分钟", icon: "chart.line.uptrend.xyaxis", tint: Color.sjzGold)
+                    statCell(value: "\(store.longestStreak(in: store.yearInterval()))", unit: "最长连续天", icon: "flame.fill", tint: Color.sjzOrange)
+                    statCell(value: "\(store.activeDays(in: store.yearInterval()))", unit: "有阅读天数", icon: "calendar", tint: Color.sjzSkyBlue)
+                }
+            }
+        }
+    }
+
+    private func statCell(value: String, unit: String, icon: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon)
+                .displaySymbolFont(13, weight: .semibold)
+                .foregroundStyle(tint)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .displayFont(22, weight: .bold)
+                    .monospacedDigit()
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                Text(unit)
+                    .displayFont(11, weight: .medium)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .background(Color.sjzCard.opacity(0.55), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    /// 秒 → 小时分（年报大数字）
+    private func formatTotalHours(_ seconds: Int) -> String {
+        guard seconds > 0 else { return "0 分钟" }
+        let h = seconds / 3600, m = (seconds % 3600) / 60
+        return h > 0 ? "\(h) 小时 \(m) 分" : "\(m) 分钟"
+    }
+
+    /// 近 6 个月趋势（面积图 + 当前月高亮标注胶囊，无目标线——月报无月目标）
+    private var monthTrendCard: some View {
+        let points = store.monthlyTrend(6)
+        let maxVal = max(4, points.map { ReadingReportStore.displayMinutes(fromSeconds: $0.seconds) }.max() ?? 0)
+        let palette = ReadingReportPalette.forNow()
+        let accent = palette.colors.first ?? Color.sjzAccent
+        return ReportCard(title: "近 6 个月专注趋势", caption: "分钟 / 月") {
+            Chart {
+                ForEach(points) { p in
+                    AreaMark(x: .value("月", p.date, unit: .month),
+                             y: .value("分钟", ReadingReportStore.displayMinutes(fromSeconds: p.seconds)))
+                        .foregroundStyle(LinearGradient(
+                            colors: [Color.sjzAccent.opacity(0.5), Color.sjzAccent.opacity(0.02)],
+                            startPoint: .top, endPoint: .bottom))
+                        .interpolationMethod(.catmullRom)
+                    LineMark(x: .value("月", p.date, unit: .month),
+                             y: .value("分钟", ReadingReportStore.displayMinutes(fromSeconds: p.seconds)))
+                        .foregroundStyle(Color.sjzAccent)
+                        .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                        .interpolationMethod(.catmullRom)
+                        .symbol {
+                            // 0 值月不画圆点：避免连续零值月多个圆点重叠
+                            if ReadingReportStore.displayMinutes(fromSeconds: p.seconds) > 0 {
+                                Circle().fill(Color.sjzAccent.opacity(0.16)).frame(width: 16, height: 16)
+                                    .overlay(Circle().fill(.white).frame(width: 8, height: 8))
+                                    .overlay(Circle().stroke(Color.sjzAccent, lineWidth: 2).frame(width: 8, height: 8))
+                            }
+                        }
+                }
+
+                // 当前月高亮点 + 标注胶囊（随时段主色；带月份标识，宽间距下清晰对应）
+                if let current = points.last {
+                    let minutes = ReadingReportStore.displayMinutes(fromSeconds: current.seconds)
+                    PointMark(x: .value("月", current.date, unit: .month),
+                              y: .value("分钟", minutes))
+                        .symbol {
+                            ZStack {
+                                Circle().fill(Color.sjzAccent.opacity(0.25)).frame(width: 24, height: 24)
+                                Circle().fill(Color.sjzAccent).frame(width: 12, height: 12)
+                                Circle().fill(.white).frame(width: 4, height: 4)
+                            }
+                        }
+                        .annotation(position: .top, spacing: 8) {
+                            if minutes > 0 {
+                                Text("\(monthLabel(current.date)) \(minutes)′")
+                                    .displayFont(11, weight: .bold)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(accent, in: Capsule())
+                                    .shadow(color: accent.opacity(0.45), radius: 6, y: 3)
+                            }
+                        }
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month)) { _ in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated))
+                        .font(DisplayFontFactory.font(size: 10, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading) { _ in
+                    AxisGridLine().foregroundStyle(.quaternary.opacity(0.5))
+                    AxisValueLabel().font(DisplayFontFactory.font(size: 10)).foregroundStyle(.secondary)
+                }
+            }
+            .chartYScale(domain: 0...(maxVal + 2))
+            .frame(height: 170)
+            .accessibilityLabel("近 6 个月专注分钟趋势")
+            .accessibilityValue(points.map { "\($0.key) \(ReadingReportStore.displayMinutes(fromSeconds: $0.seconds)) 分钟" }.joined(separator: "，"))
+        }
+    }
+
+    /// 年度 12 个月分布（柱状，当月高亮）
+    private var yearMonthBarsCard: some View {
+        let points = store.monthlyTrend(12)   // 旧在前，最后一个=当月
+        let maxVal = max(4, points.map { ReadingReportStore.displayMinutes(fromSeconds: $0.seconds) }.max() ?? 0)
+        return ReportCard(title: "月度分布", caption: "分钟 / 月") {
+            Chart {
+                ForEach(points) { p in
+                    let minutes = ReadingReportStore.displayMinutes(fromSeconds: p.seconds)
+                    let isCurrent = p.date == points.last?.date
+                    BarMark(x: .value("月", p.date, unit: .month), y: .value("分钟", minutes))
+                        .foregroundStyle(isCurrent
+                            ? LinearGradient(colors: [Color.sjzAccent, Color.sjzAccent.opacity(0.5)], startPoint: .top, endPoint: .bottom)
+                            : LinearGradient(colors: [Color.sjzTeal.opacity(0.8), Color.sjzTeal.opacity(0.35)], startPoint: .top, endPoint: .bottom))
+                        .cornerRadius(6, style: .continuous)
+                        .annotation(position: .top) {
+                            if minutes > 0 {
+                                Text("\(minutes)")
+                                    .displayFont(10, weight: .medium)
+                                    .foregroundStyle(isCurrent ? Color.sjzAccent : Color.sjzTeal)
+                            }
+                        }
+                }
+            }
+            .chartXAxis {
+                // 每 2 个月一个标签，避免 12 个月份标签拥挤重叠
+                AxisMarks(values: .stride(by: .month, count: 2)) { _ in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated))
+                        .font(DisplayFontFactory.font(size: 10, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .chartYAxis(.hidden)
+            .chartYScale(domain: 0...(maxVal + 2))
+            .frame(height: 160)
+            .accessibilityLabel("本年度 12 个月专注分钟分布")
+            .accessibilityValue(points.map { "\($0.key) \(ReadingReportStore.displayMinutes(fromSeconds: $0.seconds)) 分钟" }.joined(separator: "，"))
         }
     }
 
@@ -610,40 +872,69 @@ struct ReadingReportView: View {
 
     // MARK: - 图表 ④：时段热力
 
-    private func hourlyHeatCard(title: String, hourly: [Int]) -> some View {
-        let maxMin = max(1, hourly.max() ?? 0)
-        let peakHour = hourly.firstIndex(of: hourly.max() ?? 0) ?? -1
+    private func hourlyHeatCard(title: String, hourly: [Int],
+                                peak: (hour: Int, seconds: Int, day: Date)?, showsDay: Bool) -> some View {
         return ReportCard(title: title, caption: "") {
             VStack(spacing: 10) {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 12), spacing: 7) {
                     ForEach(0..<24, id: \.self) { hour in
-                        let minutes = hourly[hour]
+                        let seconds = hourly[hour]
+                        let minutes = ReadingReportStore.displayMinutes(fromSeconds: seconds)
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(intensityColor(minutes: minutes, maxMin: maxMin))
+                            .fill(intensityColor(seconds: seconds, maxSec: max(1, hourly.max() ?? 0)))
                             .frame(height: 26)
                             .overlay(
                                 Text("\(hour)")
                                     .displayFont(9, weight: minutes >= 10 ? .bold : .regular)
                                     .foregroundStyle(minutes >= 10 ? .white : .secondary))
-                            .accessibilityLabel("\(hour) 点，\(minutes) 分钟")
+                            .accessibilityLabel("\(hour) 点，专注 \(compactDuration(seconds))")
                     }
                 }
-                if peakHour >= 0 {
-                    Label("阅读高峰 \(peakHour) 点 · \(hourly[peakHour]) 分钟",
-                          systemImage: "sparkles")
-                        .displayLabelFont(12, weight: .medium)
-                        .foregroundStyle(Color.sjzAccent)
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(Color.sjzAccent.opacity(0.1), in: Capsule())
-                        .accessibilityLabel("阅读高峰 \(peakHour) 点，\(hourly[peakHour]) 分钟")
+                if let peak {
+                    let timeText = showsDay ? "\(dayLabel(peak.day)) \(peak.hour) 点" : "\(peak.hour) 点"
+                    HStack(spacing: 10) {
+                        Image(systemName: "sparkles")
+                            .displaySymbolFont(13, weight: .semibold)
+                            .foregroundStyle(.white)
+                            .frame(width: 26, height: 26)
+                            .background(Color.sjzAccent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .shadow(color: Color.sjzAccent.opacity(0.35), radius: 6, y: 3)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("阅读高峰 · \(timeText)")
+                                .displayFont(12, weight: .semibold)
+                                .foregroundStyle(.primary)
+                            Text("专注 \(compactDuration(peak.seconds))")
+                                .displayFont(11, weight: .medium)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Color.sjzAccent.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Color.sjzAccent.opacity(0.18), lineWidth: 0.6))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("阅读高峰 \(timeText)，专注 \(compactDuration(peak.seconds))")
                 }
             }
         }
     }
 
-    private func intensityColor(minutes: Int, maxMin: Int) -> Color {
-        guard minutes > 0 else { return Color(.systemGray6).opacity(0.6) }
-        let ratio = Double(minutes) / Double(maxMin)
+    /// 日期标签（中文，如「10月3日」），供周报跨天高峰消歧
+    private func dayLabel(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.month, .day], from: date)
+        return "\(c.month ?? 0)月\(c.day ?? 0)日"
+    }
+
+    /// 月份标签（如「10月」），供月报趋势标注消歧
+    private func monthLabel(_ date: Date) -> String {
+        "\(Calendar.current.component(.month, from: date))月"
+    }
+
+    /// 热力强度：按真实秒数占比分级（93 秒与 9 秒不再同为满格）
+    private func intensityColor(seconds: Int, maxSec: Int) -> Color {
+        guard seconds > 0 else { return Color(.systemGray6).opacity(0.6) }
+        let ratio = Double(seconds) / Double(maxSec)
         if ratio >= 0.75 { return Color.sjzAccent }
         if ratio >= 0.4 { return Color.sjzAccent.opacity(0.72) }
         if ratio >= 0.12 { return Color.sjzSkyBlue.opacity(0.5) }
