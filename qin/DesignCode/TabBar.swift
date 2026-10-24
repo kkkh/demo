@@ -9228,6 +9228,8 @@ struct ProfileView: View {
     @State private var showMessageCenter = false
     @State private var showAnnouncementDetail = false
     @ObservedObject private var messageCenterStore = MessageCenterStore.shared
+    @ObservedObject private var bookmarkManager = BookmarkManager.shared
+    @ObservedObject private var bookmarkReadManager = ReadStatusManager.shared
     @AppStorage("colorSchemePreference") private var colorSchemePreference: String = "system"
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.openURL) private var openURL
@@ -9238,6 +9240,19 @@ struct ProfileView: View {
         case "dark": return .dark
         default: return systemColorScheme  // 跟随系统时，使用实际系统设置
         }
+    }
+
+    /// 收藏中的未读数（入口状态直观可见）
+    private var bookmarkUnreadCount: Int {
+        bookmarkManager.unreadCount(readKeys: bookmarkReadManager.snapshot)
+    }
+
+    /// 收藏入口副标题：总数 + 未读提示
+    private var bookmarkEntrySubtitle: String {
+        let total = bookmarkManager.count
+        guard total > 0 else { return "收藏文章，支持离线阅读与更新提醒" }
+        let unread = bookmarkUnreadCount
+        return unread > 0 ? "已收藏 \(total) 篇 · \(unread) 篇未读" : "已收藏 \(total) 篇文章"
     }
 
     var body: some View {
@@ -9326,9 +9341,15 @@ struct ProfileView: View {
             MenuCard(
                 icon: "bookmark.fill",
                 title: "我的收藏",
-                subtitle: "已收藏 \(BookmarkManager.shared.count) 篇文章",
+                subtitle: bookmarkEntrySubtitle,
                 color: Color.sjzGold
-            ) { showBookmarks = true }
+            ) {
+                LogManager.shared.info("favorite", "收藏入口点击（我的页）", context: [
+                    "count": "\(bookmarkManager.count)",
+                    "unread": "\(bookmarkUnreadCount)"
+                ])
+                showBookmarks = true
+            }
             Divider().padding(.leading, 60)
             AboutEntryCell { showAbout = true }
             Divider().padding(.leading, 60)

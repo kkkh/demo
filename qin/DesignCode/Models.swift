@@ -1467,7 +1467,7 @@ struct ZSWHomeData: Codable {
 // MARK: - 收藏文章
 
 /// 收藏文章数据模型 —— 本地持久化，仅缓存基础信息 + 缩略图
-struct BookmarkItem: Identifiable, Codable, Equatable {
+struct BookmarkItem: Identifiable, Codable, Equatable, Hashable {
     var id: String { readKey }
     let title: String
     let date: String
@@ -1482,6 +1482,13 @@ struct BookmarkItem: Identifiable, Codable, Equatable {
     let bookmarkDate: Date          // 收藏时间
     var cachedContent: String?     // 离线缓存的正文（可选）
     var contentCached: Bool        // 正文是否已缓存
+    /// 最近一次打开时间（「最近阅读」排序 / 状态展示；旧数据缺省为 nil）
+    var lastViewedAt: Date?
+    /// 检测到官网原文更新、尚未打开确认的时间（非空 → 展示「内容有更新」徽标）
+    var updateDetectedAt: Date?
+
+    /// 是否有待确认的内容更新（派生展示状态）
+    var hasPendingUpdate: Bool { updateDetectedAt != nil }
 
     /// 已读状态唯一键
     var readKey: String { articleId ?? title + date }
@@ -1516,9 +1523,11 @@ struct BookmarkItem: Identifiable, Codable, Equatable {
         self.bookmarkDate = Date()
         self.cachedContent = nil
         self.contentCached = false
+        self.lastViewedAt = nil
+        self.updateDetectedAt = nil
     }
 
-    init(title: String, date: String, category: String, summary: String, imageUrl: String? = nil, articleId: String? = nil, href: String? = nil, author: String? = nil, source: String? = nil, columnId: String? = nil, bookmarkDate: Date = Date(), cachedContent: String? = nil, contentCached: Bool = false) {
+    init(title: String, date: String, category: String, summary: String, imageUrl: String? = nil, articleId: String? = nil, href: String? = nil, author: String? = nil, source: String? = nil, columnId: String? = nil, bookmarkDate: Date = Date(), cachedContent: String? = nil, contentCached: Bool = false, lastViewedAt: Date? = nil, updateDetectedAt: Date? = nil) {
         self.title = title
         self.date = date
         self.category = category
@@ -1532,6 +1541,8 @@ struct BookmarkItem: Identifiable, Codable, Equatable {
         self.bookmarkDate = bookmarkDate
         self.cachedContent = cachedContent
         self.contentCached = contentCached
+        self.lastViewedAt = lastViewedAt
+        self.updateDetectedAt = updateDetectedAt
     }
 
     /// 转换为 NewsItem（用于兼容现有详情页）
