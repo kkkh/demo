@@ -3831,7 +3831,9 @@ struct OrganizationArticleDetailView: View {
             let isVeryShortContent = strippedContent.count < 50 && !trimmedContent.hasImageContent
             let isExtremelyShortContent = strippedContent.count < 20 && !trimmedContent.hasImageContent
             if isShortContent {
-                LogManager.shared.warning("organization", "文章内容异常短，尝试额外数据源", context: [
+                // 短内容 = 附件/表单型文章的常见正常形态（下载型条目正文即短文本），
+                // 此处是「尝试额外数据源」的状态流转而非待处理异常 → INFO（警告栏只留真异常）
+                LogManager.shared.info("organization", "文章内容异常短，尝试额外数据源", context: [
                     "articleId": article.articleId,
                     "siteId": siteId,
                     "strippedLength": "\(strippedContent.count)",
@@ -3842,7 +3844,7 @@ struct OrganizationArticleDetailView: View {
                 // 关键修复：对于短内容，优先尝试 ZSW siteId 获取完整内容
                 // 不仅限于极短内容，对于任何短于200字符的内容都尝试
                 if siteId != zswSiteId {
-                    LogManager.shared.warning("organization", "文章内容短，尝试ZSW siteId获取完整内容", context: [
+                    LogManager.shared.info("organization", "文章内容短，尝试ZSW siteId获取完整内容", context: [
                         "articleId": article.articleId,
                         "title": article.title,
                         "currentSiteId": siteId,
@@ -3944,8 +3946,8 @@ struct OrganizationArticleDetailView: View {
                 let combinedContent = "\(supplemented)\(rawContent)"
                 
                 if isExtremelyShortContent && supplemented.isEmpty {
-                    // 内容极少且无补充：ZSW siteId已在上方尝试过，尝试从主站搜索同名文章
-                    LogManager.shared.warning("organization", "文章内容极少，尝试主站搜索同标题文章", context: [
+                    // 内容极少且无补充：ZSW siteId已在上方尝试过，尝试从主站搜索同名文章（尝试动作 → INFO）
+                    LogManager.shared.info("organization", "文章内容极少，尝试主站搜索同标题文章", context: [
                         "articleId": article.articleId,
                         "title": article.title,
                         "strippedLength": "\(strippedContent.count)"
