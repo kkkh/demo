@@ -43,7 +43,7 @@
 - 数据从哪来：学校公开 API `https://gwqietap.sxjzit.edu.cn/mapi`（GET 只读）+ 开发者博客 `https://www.43322.cn/blog`（公告/隐私协议），失败时降级本地 JSON 缓存 → 静态兜底数据。
 - 最核心的特色：无服务端条件下，用官网指纹轮询自建了一套本属于服务端的本地推送体系（新闻/信箱/概况/党建四通道 + 收藏第五通道）与站内信消息中心；并以 `URLProtocol` 埋点自建全 App 网络遥测（链路/吞吐/延迟/诊断/测速）。
 - 规模（2026-09-27 `wc -l` 实测）：48 个 Swift 源文件共 59,121 行——主 target 46 文件 57,377 行 + 测试 3 文件 1,744 行；主视图集全在单文件 [TabBar.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/TabBar.swift)（12,169 行，60+ View）。单元测试 104 例（MessageCenterStore 系 65 + NetworkServiceDTO 系 22 + WeChatSDK 系 17）；2026-09-27 真机复测 104/104 通过（0 失败，日志 `qin/build/verify/wechat_test_20260927b.log`）。
-- 日志：自研 `LogManager`，全工程 37 个日志域、1,077 处带域埋点（`LogManager.shared` 调用点共 1,106 处），可在「我的 → 应用日志」查看；网络监测独占 `netmon` 域 47 处、显示设置独占 `display` 域 40 处、微信集成独占 `wechat` 域 51 处。
+- 日志：自研 `LogManager`，全工程 37 个日志域、1,078 处带域埋点（`LogManager.shared` 调用点共 1,107 处），可在「我的 → 应用日志」查看；网络监测独占 `netmon` 域 47 处、显示设置独占 `display` 域 40 处、微信集成独占 `wechat` 域 52 处。
 - 构建环境：Xcode 27.0（27A266a）+ iOS 26 SDK；真机「秦超的iPhone」（iPhone 13 Pro Max，UDID `00008110-000411A40EC1401E`）为唯一调试目标。
 
 ## 设计目标与约束
