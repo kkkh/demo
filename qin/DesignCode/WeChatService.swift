@@ -316,6 +316,98 @@ actor WeChatSelfCheckCollector {
     }
 }
 
+// MARK: - 分享内容类型（回执归因：网页卡片 / 长图）
+
+/// 分享内容类型：用于回执文案与日志区分（分享动作共用 onResp 归因通道）
+enum WeChatShareKind: String {
+    /// 网页卡片（WXWebpageObject）
+    case webpage
+    /// 长图（WXImageObject）
+    case longImage
+
+    var logName: String { rawValue }
+
+    /// 发起/回执日志用词
+    var noun: String { self == .webpage ? "分享" : "长图分享" }
+
+    /// 成功横幅
+    func successText(scene: WeChatScene) -> String {
+        self == .webpage ? "已分享到\(scene.title)" : "长图已分享到\(scene.title)"
+    }
+
+    /// 取消横幅
+    var cancelText: String { self == .webpage ? "已取消分享" : "已取消长图分享" }
+}
+
+// MARK: - 长图编码器（官方 imageData ≤10MB，逐档降质/降采样并留痕）
+
+/// 官方约束（《分享与收藏 · iOS 开发手册》图片类型分享示例）：
+/// `WXImageObject.imageData` 内容大小不超过 10MB，`thumbData` 不超过 32KB。
+/// 本编码器把长图压入上限内：先按质量档位压缩，仍超限则等比降采样后重试。
+@MainActor
+enum WeChatImageEncoder {
+    /// 官方上限：10MB（SDK 头文件注记 25M，此处按更严格的官方文档口径执行）
+    /// nonisolated：默认参数在非隔离上下文求值（否则 Swift 6 语言模式下报隔离错误）
+    nonisolated static let maxImageBytes = 10 * 1024 * 1024
+
+    struct Result {
+        let data: Data
+        let pixelSize: CGSize
+        let quality: CGFloat
+        let scale: CGFloat
+        /// 是否触发了降档（用于 UI 提示与日志）
+        var adjusted: Bool { scale < 1.0 || quality < 0.92 }
+    }
+
+    /// 质量档位（首档与系统分享面板路径一致，保证观感统一）
+    private static let qualities: [CGFloat] = [0.92, 0.8, 0.68, 0.56, 0.44]
+    /// 降采样档位（1.0 为原尺寸）
+    private static let scales: [CGFloat] = [1.0, 0.75, 0.6, 0.45, 0.34]
+
+    static func encode(_ image: UIImage, maxBytes: Int = WeChatImageEncoder.maxImageBytes) -> Result? {
+        var lastBytes = 0
+        for scale in scales {
+            let candidate: UIImage?
+            if scale >= 1.0 {
+                candidate = image
+            } else {
+                candidate = downscaled(image, scale: scale)
+            }
+            guard let candidate else { continue }
+            for quality in qualities {
+                guard let data = candidate.jpegData(compressionQuality: quality) else { continue }
+                lastBytes = data.count
+                guard data.count <= maxBytes else { continue }
+                if scale < 1.0 || quality < 0.92 {
+                    LogManager.shared.info("wechat", "长图已自动压缩至官方上限内", context: [
+                        "scale": String(format: "%.2f", scale),
+                        "quality": String(format: "%.2f", quality),
+                        "bytes": "\(data.count)",
+                        "limit": "\(maxBytes)"
+                    ])
+                }
+                return Result(data: data, pixelSize: candidate.size, quality: quality, scale: scale)
+            }
+        }
+        LogManager.shared.warning("wechat", "长图压缩未达官方上限（放弃分享）", context: [
+            "bytes": "\(lastBytes)",
+            "limit": "\(maxBytes)"
+        ])
+        return nil
+    }
+
+    /// 等比降采样（pixel 级）
+    private static func downscaled(_ image: UIImage, scale: CGFloat) -> UIImage? {
+        let target = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: target, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+    }
+}
+
 // MARK: - 分享缩略图（命中内存缓存 → 统一图片管线下载 → 压缩至 ≤32KB JPEG）
 
 /// 官方缩略图硬限制：thumbData ≤ 64KB（历史文档 32KB），此处按更严格的 32KB 生成。
@@ -392,9 +484,25 @@ enum WeChatThumbnailProvider {
         }
     }
 
-    /// 等比缩放 + 居中裁方 + JPEG 分级压缩（官方缩略图方形展示）
-    static func compress(_ image: UIImage) -> Data? {
-        guard let scaled = squareScaled(image, side: thumbSide) else { return nil }
+    /// 缩略图取图对齐方式（长图取顶部标题区比居中裁方更具辨识度）
+    enum ThumbAlignment { case center, top }
+
+    /// 由 UIImage 直接生成缩略图（长图分享路径；官方限制 ≤32KB）
+    static func thumbData(from image: UIImage, alignment: ThumbAlignment = .center) -> Data? {
+        let data = compress(image, alignment: alignment)
+        if let data {
+            LogManager.shared.debugLog("wechat", "缩略图由长图生成", context: [
+                "alignment": alignment == .top ? "top" : "center",
+                "bytes": "\(data.count)",
+                "source": "\(Int(image.size.width))x\(Int(image.size.height))"
+            ])
+        }
+        return data
+    }
+
+    /// 等比缩放 + 裁方 + JPEG 分级压缩（官方缩略图方形展示）
+    static func compress(_ image: UIImage, alignment: ThumbAlignment = .center) -> Data? {
+        guard let scaled = squareScaled(image, side: thumbSide, alignment: alignment) else { return nil }
         var quality: CGFloat = 0.82
         while quality >= 0.2 {
             if let data = scaled.jpegData(compressionQuality: quality), data.count <= maxThumbBytes {
@@ -412,8 +520,8 @@ enum WeChatThumbnailProvider {
         return fallback
     }
 
-    /// 居中裁方 + 缩放
-    private static func squareScaled(_ image: UIImage, side: CGFloat) -> UIImage? {
+    /// 居中/顶部裁方 + 缩放（top 用于长图：优先展示标题区）
+    private static func squareScaled(_ image: UIImage, side: CGFloat, alignment: ThumbAlignment = .center) -> UIImage? {
         guard image.size.width > 0, image.size.height > 0 else { return nil }
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 1
@@ -423,7 +531,12 @@ enum WeChatThumbnailProvider {
         return renderer.image { _ in
             let scale = max(side / image.size.width, side / image.size.height)
             let drawSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-            let origin = CGPoint(x: (side - drawSize.width) / 2, y: (side - drawSize.height) / 2)
+            let originY: CGFloat
+            switch alignment {
+            case .center: originY = (side - drawSize.height) / 2
+            case .top:    originY = 0
+            }
+            let origin = CGPoint(x: (side - drawSize.width) / 2, y: originY)
             image.draw(in: CGRect(origin: origin, size: drawSize))
         }
     }
@@ -463,6 +576,8 @@ final class WeChatService: NSObject, ObservableObject {
 
     /// 待回执的分享场景（onResp 归因）
     private var pendingScene: WeChatScene?
+    /// 待回执的分享内容类型（网页卡片 / 长图；回执文案与日志区分）
+    private var pendingShareKind: WeChatShareKind = .webpage
     /// 待回执的登录 state（防 CSRF 校验）
     private var pendingAuthState: String?
     /// 日志桥是否已挂载（SDK 会强引用 block，杜绝重复挂载）
@@ -623,8 +738,10 @@ final class WeChatService: NSObject, ObservableObject {
         let prepareMs = Int(Date().timeIntervalSince(prepareStarted) * 1000)
         if sent {
             pendingScene = scene
+            pendingShareKind = .webpage
             lastShareScene = scene
             LogManager.shared.info("wechat", "分享已发起（等待微信回执）", context: [
+                "kind": WeChatShareKind.webpage.logName,
                 "scene": scene.logName,
                 "title": payload.clippedTitle,
                 "url": payload.urlString,
@@ -638,6 +755,91 @@ final class WeChatService: NSObject, ObservableObject {
                 "scene": scene.logName,
                 "availability": availability.rawValue,
                 "installed": "\(isWeChatInstalled)",
+                "prepareMs": "\(prepareMs)"
+            ])
+            showBanner("未能唤起微信，请稍后重试", kind: .failure)
+        }
+        return sent
+    }
+
+    // MARK: - 长图分享（WXImageObject；官方示例即覆盖三场景，含朋友圈）
+
+    /// 分享长图到微信（官方 WXImageObject 图片消息）
+    /// - 官方约束：`imageData ≤ 10MB`、`thumbData ≤ 32KB`（超限自动降质/降采样并留痕）
+    /// - Parameter entry: 入口标识（用于日志归因，如 "news_detail"）
+    /// - Returns: 是否成功把请求交给微信（用户侧发送结果由 onResp 回执，经全局横幅呈现）
+    @discardableResult
+    func shareImage(_ image: UIImage, title: String, to scene: WeChatScene, entry: String) async -> Bool {
+        refreshAvailability()
+        guard availability.canOperate else {
+            LogManager.shared.warning("wechat", "长图分享未发起：微信不可用", context: [
+                "kind": WeChatShareKind.longImage.logName,
+                "scene": scene.logName,
+                "entry": entry,
+                "availability": availability.rawValue
+            ])
+            showBanner(availability.userHint, kind: .failure)
+            return false
+        }
+        let clipTitle = WeChatText.clip(title, maxBytes: 512, fallback: "园枢 · 山西晋中理工学院")
+        let prepareStarted = Date()
+        guard let encoded = WeChatImageEncoder.encode(image) else {
+            LogManager.shared.error("wechat", "长图分享未发起：编码未达官方上限", context: [
+                "kind": WeChatShareKind.longImage.logName,
+                "scene": scene.logName,
+                "entry": entry,
+                "pixelSize": "\(Int(image.size.width))x\(Int(image.size.height))",
+                "limit": "\(WeChatImageEncoder.maxImageBytes)B"
+            ])
+            showBanner("长图过大，未能压缩到微信限制内", kind: .failure)
+            return false
+        }
+        let thumbData = WeChatThumbnailProvider.thumbData(from: image, alignment: .top)
+
+        let imageObject = WXImageObject()
+        imageObject.imageData = encoded.data
+
+        let message = WXMediaMessage()
+        message.title = clipTitle
+        if let thumbData { message.thumbData = thumbData }
+        message.mediaObject = imageObject
+
+        let req = SendMessageToWXReq()
+        req.bText = false
+        req.message = message
+        req.scene = scene.sceneValue
+
+        let sent: Bool = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            WXApi.send(req) { success in
+                cont.resume(returning: success)
+            }
+        }
+
+        let prepareMs = Int(Date().timeIntervalSince(prepareStarted) * 1000)
+        if sent {
+            pendingScene = scene
+            pendingShareKind = .longImage
+            lastShareScene = scene
+            LogManager.shared.info("wechat", "长图分享已发起（等待微信回执）", context: [
+                "kind": WeChatShareKind.longImage.logName,
+                "scene": scene.logName,
+                "entry": entry,
+                "title": clipTitle,
+                "bytes": "\(encoded.data.count)",
+                "pixelSize": "\(Int(encoded.pixelSize.width))x\(Int(encoded.pixelSize.height))",
+                "quality": String(format: "%.2f", encoded.quality),
+                "scale": String(format: "%.2f", encoded.scale),
+                "thumb": thumbData.map { "\($0.count)B" } ?? "none",
+                "prepareMs": "\(prepareMs)"
+            ])
+        } else {
+            LogManager.shared.warning("wechat", "长图分享发起失败（SDK 返回 false）", context: [
+                "kind": WeChatShareKind.longImage.logName,
+                "scene": scene.logName,
+                "entry": entry,
+                "availability": availability.rawValue,
+                "installed": "\(isWeChatInstalled)",
+                "bytes": "\(encoded.data.count)",
                 "prepareMs": "\(prepareMs)"
             ])
             showBanner("未能唤起微信，请稍后重试", kind: .failure)
@@ -1013,39 +1215,47 @@ extension WeChatService: WXApiDelegate {
             LogManager.shared.info("wechat", "收到微信回执（无待归因场景）", context: context)
             return
         }
+        let shareKind = pendingShareKind
         pendingScene = nil
+        pendingShareKind = .webpage
         lastShareScene = scene
 
         switch errCode {
         case WeChatErrCode.success:
-            LogManager.shared.info("wechat", "分享成功：已发送到\(scene.title)", context: context.merging([
+            LogManager.shared.info("wechat", "\(shareKind.noun)成功：已发送到\(scene.title)", context: context.merging([
+                "kind": shareKind.logName,
                 "scene": scene.logName
             ]) { _, new in new })
-            showBanner("已分享到\(scene.title)", kind: .success)
+            showBanner(shareKind.successText(scene: scene), kind: .success)
         case WeChatErrCode.userCancel:
             // 取消属用户正常行为：INFO 记录，不计失败（对齐工程取消语义红线）
-            LogManager.shared.info("wechat", "用户取消分享（\(scene.title)）", context: context.merging([
+            LogManager.shared.info("wechat", "用户取消\(shareKind.noun)（\(scene.title)）", context: context.merging([
+                "kind": shareKind.logName,
                 "scene": scene.logName
             ]) { _, new in new })
-            showBanner("已取消分享", kind: .info)
+            showBanner(shareKind.cancelText, kind: .info)
         case WeChatErrCode.sentFail:
-            LogManager.shared.warning("wechat", "分享失败：发送失败（\(scene.title)）", context: context.merging([
+            LogManager.shared.warning("wechat", "\(shareKind.noun)失败：发送失败（\(scene.title)）", context: context.merging([
+                "kind": shareKind.logName,
                 "scene": scene.logName
             ]) { _, new in new })
             showBanner("分享发送失败，请重试", kind: .failure)
         case WeChatErrCode.authDeny:
-            LogManager.shared.warning("wechat", "分享失败：微信拒绝授权（\(scene.title)）", context: context.merging([
+            LogManager.shared.warning("wechat", "\(shareKind.noun)失败：微信拒绝授权（\(scene.title)）", context: context.merging([
+                "kind": shareKind.logName,
                 "scene": scene.logName,
                 "hint": "应用未获微信平台授权或签名不匹配"
             ]) { _, new in new })
             showBanner("微信拒绝本次分享（应用未获授权）", kind: .failure)
         case WeChatErrCode.unsupport:
-            LogManager.shared.warning("wechat", "分享失败：当前微信版本不支持（\(scene.title)）", context: context.merging([
+            LogManager.shared.warning("wechat", "\(shareKind.noun)失败：当前微信版本不支持（\(scene.title)）", context: context.merging([
+                "kind": shareKind.logName,
                 "scene": scene.logName
             ]) { _, new in new })
             showBanner("当前微信版本不支持该功能", kind: .failure)
         default:
-            LogManager.shared.warning("wechat", "分享返回未知结果（\(scene.title)）", context: context.merging([
+            LogManager.shared.warning("wechat", "\(shareKind.noun)返回未知结果（\(scene.title)）", context: context.merging([
+                "kind": shareKind.logName,
                 "scene": scene.logName
             ]) { _, new in new })
             showBanner("微信返回异常（\(errCode)），请重试", kind: .failure)
