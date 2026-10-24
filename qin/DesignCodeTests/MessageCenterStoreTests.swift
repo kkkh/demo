@@ -525,6 +525,25 @@ final class NetworkMonitorLogicTests: XCTestCase {
         XCTAssertNil(SJZNetworkMonitor.resolvableSchoolURL(""))
     }
 
+    // MARK: 慢请求聚合判定（2026-09-28 现场：www2 图片镜像被误报「延迟持续偏高」横幅）
+
+    /// 契约：单一媒体宿主慢 = 正常观测（不打横幅）；多宿主同时慢 = 链路级；非媒体宿主连续慢 = 服务级
+    func testSlowStreakClassification() {
+        XCTAssertEqual(SJZNetworkMonitor.classifySlowStreak(hosts: []), .none)
+        XCTAssertEqual(SJZNetworkMonitor.classifySlowStreak(hosts: ["www2.sxjzit.edu.cn", "www2.sxjzit.edu.cn"]),
+                       .none, "两条尚不足以判定")
+        XCTAssertEqual(SJZNetworkMonitor.classifySlowStreak(hosts: ["www2.sxjzit.edu.cn", "www2.sxjzit.edu.cn", "www2.sxjzit.edu.cn"]),
+                       .mediaObservation, "单一媒体宿主慢不得升级为链路异常（现场误报根因）")
+        XCTAssertEqual(SJZNetworkMonitor.classifySlowStreak(hosts: ["gwqietap.sxjzit.edu.cn", "gwqietap.sxjzit.edu.cn", "gwqietap.sxjzit.edu.cn"]),
+                       .hostService, "非媒体宿主连续慢 = 该主机服务异常")
+        XCTAssertEqual(SJZNetworkMonitor.classifySlowStreak(hosts: ["www2.sxjzit.edu.cn", "gwqietap.sxjzit.edu.cn"]),
+                       .linkWide, "多宿主同时慢 = 链路级")
+        XCTAssertTrue(SJZNetworkMonitor.isMediaHost("www2.sxjzit.edu.cn"))
+        XCTAssertFalse(SJZNetworkMonitor.isMediaHost("gwqietap.sxjzit.edu.cn"))
+        XCTAssertEqual(SJZNetworkMonitor.slowWindow, 60, accuracy: 0.001, "判定必须限定 60s 时间窗")
+        XCTAssertEqual(SJZNetworkMonitor.bannerCooldown, 300, accuracy: 0.001, "同异常必须有 5 分钟冷却")
+    }
+
     // MARK: 今日流量日键
 
     func testTrafficDayKeyFormat() {
