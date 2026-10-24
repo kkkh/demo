@@ -241,6 +241,23 @@ struct OrganizationDetailView: View {
         return scene.screen.bounds.width
     }
 
+    // MARK: 阶段一 · 全量栏目链路状态（栏目索引 + 分页）
+
+    /// 栏目规格（真值源 = /dept/home2 响应的 nav 数组，见 02-设计稿 §5.2）
+    @State private var columnSpecs: [OrgColumnSpec] = []
+    /// 首页嵌套区块的 total 种子（columnId → total），chips 首屏即显示真实篇数
+    @State private var columnSeedTotals: [String: Int] = [:]
+    /// 特殊工具入口（专业介绍 / 历年分数线 / 录取查询，保留原交互路由）
+    @State private var toolChildren: [OrgColumnIndexBuilder.ToolChild] = []
+    /// 当前选中栏目 columnId
+    @State private var selectedColumnId: String?
+    /// 当前栏目分页状态机
+    @State private var pager = OrgPagerState()
+    /// 栏目会话缓存（切回不重拉）
+    @State private var pagerCache: [String: OrgPagerState] = [:]
+    /// 单文章型机构（无独立子站）解析出的全文条目
+    @State private var singleArticleEntry: SingleArticleEntry?
+
     var body: some View {
         ZStack {
             Group {
@@ -406,6 +423,12 @@ struct OrganizationDetailView: View {
         ScrollView {
             VStack(spacing: 24) {
                 departmentHeader
+
+                // 阶段一：单文章型机构（无独立子站）→ 解析到的全文入口卡
+                if let entry = singleArticleEntry {
+                    singleArticleCard(entry)
+                        .padding(.horizontal, 16)
+                }
 
                 VStack(spacing: 16) {
                     // 子站加载状态提示（当有 errorMessage 且 siteKey 存在时显示）
@@ -1056,8 +1079,17 @@ struct OrganizationDetailView: View {
             LazyVStack(spacing: 20) {
                 departmentHeader
 
-                ForEach(sections) { section in
-                    sectionView(section)
+                if columnSpecs.isEmpty {
+                    // 兜底：栏目索引为空时沿用旧区块渲染（保持既有行为，不引入回归）
+                    ForEach(sections) { section in
+                        sectionView(section)
+                    }
+                } else {
+                    if !toolChildren.isEmpty {
+                        toolEntriesRow
+                    }
+                    columnChipsSection
+                    columnArticlesSection
                 }
             }
             .padding(.vertical, 16)
@@ -1129,6 +1161,584 @@ struct OrganizationDetailView: View {
             }
         }
         .padding(.top, 8)
+    }
+
+    // MARK: 阶段一 · 工具入口行（专业介绍 / 分数线 / 录取查询）
+
+    private var toolEntriesRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(toolChildren, id: \.title) { tool in
+                    toolEntryCard(tool)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func toolEntryCard(_ tool: OrgColumnIndexBuilder.ToolChild) -> some View {
+        Button {
+            routeToolEntry(tool)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up.right.square")
+                    .displaySymbolFont(12, weight: .semibold)
+                    .foregroundStyle(unit.category.color)
+                Text(tool.title)
+                    .displayFont(13, weight: .semibold)
+                    .foregroundStyle(.primary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(unit.category.color.opacity(colorScheme == .dark ? 0.15 : 0.08), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(OrganizationCardButtonStyle())
+        .contentShape(Rectangle())
+    }
+
+    /// 工具入口路由（与既有 childTabCard 的特殊分支保持一致）
+    private func routeToolEntry(_ tool: OrgColumnIndexBuilder.ToolChild) {
+        LogManager.shared.info("organization", "工具入口点击", context: [
+            "department": unit.name,
+            "tool": tool.title,
+            "columnId": tool.columnId ?? "nil",
+            "href": tool.href ?? "nil"
+        ])
+        if tool.title.contains("专业介绍") {
+            showSpecialtyList = true
+            return
+        }
+        if tool.title.contains("分数线") {
+            showScoreLine = true
+            return
+        }
+        if tool.title.contains("录取查询") {
+            if let url = URL(string: "https://www.sxjzit.edu.cn/#/zsw-query") {
+                admissionQueryURL = url
+            }
+            return
+        }
+    }
+
+    // MARK: 阶段一 · 栏目标签（真实篇数 + 选中态）
+
+    private var columnChipsSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(columnSpecs) { column in
+                    columnChip(column)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func columnChip(_ column: OrgColumnSpec) -> some View {
+        let isSelected = column.id == selectedColumnId
+        let knownTotal: Int? = pagerCache[column.id]?.total ?? columnSeedTotals[column.columnId]
+
+        return Button {
+            guard !isSelected else { return }
+            UISelectionFeedbackGenerator().selectionChanged()
+            Task { await selectColumn(column, reset: true) }
+        } label: {
+            HStack(spacing: 6) {
+                Text(column.title)
+                    .displayFont(13, weight: .semibold)
+                if let knownTotal, knownTotal > 0, column.kind == .list {
+                    Text("\(knownTotal)")
+                        .displayFont(11, weight: .medium)
+                        .monospacedDigit()
+                        .foregroundStyle(isSelected ? unit.category.color : Color.secondary)
+                }
+            }
+            .foregroundStyle(isSelected ? unit.category.color : Color.primary.opacity(0.85))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(isSelected ? unit.category.color.opacity(colorScheme == .dark ? 0.24 : 0.14) : Color.clear)
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected
+                            ? unit.category.color.opacity(0.45)
+                            : unit.category.color.opacity(colorScheme == .dark ? 0.15 : 0.08),
+                        lineWidth: isSelected ? 1 : 0.5
+                    )
+            )
+        }
+        .buttonStyle(OrganizationCardButtonStyle())
+        .contentShape(Rectangle())
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityLabel(knownTotal.map { "\(column.title)，\($0) 篇" } ?? column.title)
+    }
+
+    // MARK: 阶段一 · 栏目文章全量列表（分页 + 骨架 + 四态）
+
+    @ViewBuilder
+    private var columnArticlesSection: some View {
+        if let column = selectedColumn {
+            VStack(alignment: .leading, spacing: 12) {
+                columnProgressRow(column)
+
+                if column.kind != .list {
+                    columnWebFallbackRow(column)
+                } else if pager.isLoading && pager.articles.isEmpty {
+                    columnListSkeleton
+                } else if let error = pager.errorText, pager.articles.isEmpty {
+                    columnErrorRow(error, column: column)
+                } else if pager.articles.isEmpty {
+                    columnEmptyRow
+                } else {
+                    LazyVStack(spacing: 10) {
+                        ForEach(pager.articles) { article in
+                            articleCard(article, sectionSiteId: column.siteId)
+                                .onAppear { loadMoreIfNeeded(currentArticle: article) }
+                        }
+                    }
+                    columnLoadMoreFooter(column)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func columnProgressRow(_ column: OrgColumnSpec) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(column.title)
+                .displayFont(17, weight: .bold)
+                .foregroundStyle(.primary)
+            if column.kind == .list {
+                Text(pager.progressText)
+                    .displayFont(11)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
+    private var columnListSkeleton: some View {
+        VStack(spacing: 10) {
+            ForEach(0..<3, id: \.self) { _ in
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(.tertiarySystemFill))
+                        .frame(width: 60, height: 60)
+                    VStack(alignment: .leading, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color(.tertiarySystemFill))
+                            .frame(height: 14)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color(.tertiarySystemFill))
+                            .frame(height: 12)
+                            .padding(.trailing, 60)
+                    }
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var columnEmptyRow: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "tray")
+                .displaySymbolFont(24)
+                .foregroundStyle(.tertiary)
+            Text("这个栏目还没有内容")
+                .displayFont(14, weight: .medium)
+                .foregroundStyle(.primary)
+            Text("切换其他栏目看看")
+                .displayFont(12)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+    }
+
+    private func columnErrorRow(_ message: String, column: OrgColumnSpec) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .displaySymbolFont(22)
+                .foregroundStyle(Color.sjzOrange)
+            Text("内容加载失败")
+                .displayFont(14, weight: .medium)
+                .foregroundStyle(.primary)
+            Text(message)
+                .displayFont(12)
+                .foregroundStyle(.secondary)
+            Button {
+                Task { await loadPage(for: column, page: 1, reset: true) }
+            } label: {
+                Text("重试")
+                    .displayFont(13, weight: .semibold)
+                    .foregroundStyle(unit.category.color)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(unit.category.color.opacity(colorScheme == .dark ? 0.2 : 0.12)))
+            }
+            .buttonStyle(OrganizationCardButtonStyle())
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+    }
+
+    private func columnWebFallbackRow(_ column: OrgColumnSpec) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: column.kind == .calendar ? "calendar" : "safari")
+                .displaySymbolFont(24)
+                .foregroundStyle(.tertiary)
+            Text(column.title)
+                .displayFont(15, weight: .semibold)
+                .foregroundStyle(.primary)
+            Text("该栏目需在官网查看")
+                .displayFont(12)
+                .foregroundStyle(.secondary)
+            if let url = unit.detailURL {
+                Button {
+                    LogManager.shared.info("organization", "非列表栏目·官网兜底打开", context: [
+                        "department": unit.name,
+                        "column": column.title,
+                        "url": url.absoluteString
+                    ])
+                    openURL(url)
+                } label: {
+                    Text("在官网打开")
+                        .displayFont(13, weight: .semibold)
+                        .foregroundStyle(unit.category.color)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(unit.category.color.opacity(colorScheme == .dark ? 0.2 : 0.12)))
+                }
+                .buttonStyle(OrganizationCardButtonStyle())
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+    }
+
+    private func columnLoadMoreFooter(_ column: OrgColumnSpec) -> some View {
+        VStack(spacing: 8) {
+            if pager.isLoadingMore {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("加载中…")
+                        .displayFont(12)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+            } else if pager.hasMore {
+                Button {
+                    Task { await loadPage(for: column, page: pager.nextPage, reset: false) }
+                } label: {
+                    Text("加载更多")
+                        .displayFont(13, weight: .semibold)
+                        .foregroundStyle(unit.category.color)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+                }
+                .buttonStyle(OrganizationCardButtonStyle())
+            } else if pager.isExhausted {
+                Text("已全部加载 · 共 \(pager.displayedCount) 篇")
+                    .displayFont(11)
+                    .monospacedDigit()
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+            } else {
+                Color.clear.frame(height: 1)
+            }
+        }
+    }
+
+    // MARK: 阶段一 · 单文章型机构入口卡
+
+    private func singleArticleCard(_ entry: SingleArticleEntry) -> some View {
+        Button {
+            openSingleArticle(entry)
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(unit.category.color.opacity(colorScheme == .dark ? 0.2 : 0.12))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "doc.richtext")
+                        .displaySymbolFont(18, weight: .medium)
+                        .foregroundStyle(unit.category.color)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(entry.title)
+                        .displayFont(15, weight: .semibold)
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Text("查看全文")
+                        .displayFont(12)
+                        .foregroundStyle(unit.category.color)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .displaySymbolFont(11, weight: .semibold)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(unit.category.color.opacity(colorScheme == .dark ? 0.15 : 0.08), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(OrganizationCardButtonStyle())
+        .contentShape(Rectangle())
+    }
+
+    // MARK: 阶段一 · 栏目链路数据方法
+
+    /// 构建栏目索引并写入状态（nav 数组 = 栏目真值源）
+    @MainActor
+    private func applyColumnIndex(from data: NetworkService.DeptHome2DTO) {
+        let index = OrgColumnIndexBuilder.build(nav: data.nav ?? [], defaultSiteId: deptSiteId)
+        columnSpecs = index.columns
+        columnSeedTotals = index.seedTotals
+        toolChildren = index.toolChildren
+        pagerCache = [:]
+        selectedColumnId = nil
+        pager = OrgPagerState()
+
+        LogManager.shared.info("organization", "栏目索引构建完成", context: [
+            "name": unit.name,
+            "columnCount": "\(index.columns.count)",
+            "listCount": "\(index.columns.filter { $0.kind == .list }.count)",
+            "seedCount": "\(index.seedTotals.count)",
+            "toolCount": "\(index.toolChildren.count)",
+            "columns": index.columns.map { "\($0.title)[\($0.kind.rawValue)]" }.joined(separator: " | ")
+        ])
+    }
+
+    /// 当前选中栏目
+    private var selectedColumn: OrgColumnSpec? {
+        columnSpecs.first { $0.id == selectedColumnId }
+    }
+
+    /// 选中栏目（首屏 / 切换；非列表类不发起请求）
+    @MainActor
+    private func selectColumn(_ column: OrgColumnSpec, reset: Bool) async {
+        guard column.kind == .list else {
+            selectedColumnId = column.id
+            pager = OrgPagerState()
+            LogManager.shared.info("organization", "非列表栏目选中", context: [
+                "department": unit.name,
+                "column": column.title,
+                "componentType": column.componentType ?? "nil"
+            ])
+            return
+        }
+
+        if !reset, selectedColumnId == column.id { return }
+
+        selectedColumnId = column.id
+
+        if let cached = pagerCache[column.id], !cached.articles.isEmpty {
+            pager = cached
+            LogManager.shared.info("organization", "栏目切换（会话缓存命中）", context: [
+                "department": unit.name,
+                "column": column.title,
+                "displayed": "\(cached.displayedCount)",
+                "total": "\(cached.total.map(String.init) ?? "nil")"
+            ])
+            return
+        }
+
+        pager = OrgPagerState()
+        if let seed = columnSeedTotals[column.columnId] {
+            pager.seedTotal(seed)
+        }
+        LogManager.shared.info("organization", "栏目切换", context: [
+            "department": unit.name,
+            "column": column.title,
+            "columnId": column.columnId,
+            "siteId": column.siteId,
+            "kind": column.kind.rawValue,
+            "seedTotal": "\(columnSeedTotals[column.columnId].map(String.init) ?? "nil")"
+        ])
+        await loadPage(for: column, page: 1, reset: true)
+    }
+
+    /// 加载栏目某一页（经 OrgRequestGate 闸控，≤3 并发）
+    @MainActor
+    private func loadPage(for column: OrgColumnSpec, page: Int, reset: Bool) async {
+        guard !Task.isCancelled else { return }
+        pager.beginLoad(reset: reset)
+        let started = Date()
+        do {
+            let result = try await OrgRequestGate.shared.withPermit {
+                try await withTimeout(seconds: 12) {
+                    try await NetworkService.shared.fetchArticles(
+                        columnId: column.columnId,
+                        siteId: column.siteId,
+                        page: page,
+                        size: OrgPagerState.pageSize
+                    )
+                }
+            }
+            let dtos = result.articles?.list ?? []
+            let total = result.articles?.total
+            let mapped = dtos.compactMap { dto -> OrgArticle? in
+                guard let id = dto.id, let title = dto.resolvedTitle, !title.isEmpty else { return nil }
+                return OrgArticle(
+                    id: id,
+                    title: title,
+                    description: dto.description ?? "",
+                    imageUrl: dto.imageUrl,
+                    updateTime: dto.updateTime ?? "",
+                    tag: dto.tag ?? "",
+                    articleId: id,
+                    sectionSiteId: column.siteId
+                )
+            }
+
+            // 防串栏：响应落地前确认仍是当前选中栏目；否则归入该栏目的会话缓存（切回秒开）
+            guard selectedColumnId == column.id else {
+                var discarded = OrgPagerState()
+                discarded.apply(page: page, list: mapped, total: total)
+                pagerCache[column.id] = discarded
+                LogManager.shared.info("organization", "栏目分页响应归入缓存（期间已切换栏目）", context: [
+                    "department": unit.name,
+                    "column": column.title,
+                    "page": "\(page)",
+                    "cached": "\(discarded.displayedCount)"
+                ])
+                return
+            }
+
+            let added = pager.apply(page: page, list: mapped, total: total)
+            pagerCache[column.id] = pager
+
+            let elapsed = Int(Date().timeIntervalSince(started) * 1000)
+            LogManager.shared.info("organization", "栏目分页加载完成", context: [
+                "department": unit.name,
+                "column": column.title,
+                "page": "\(page)",
+                "size": "\(OrgPagerState.pageSize)",
+                "got": "\(mapped.count)",
+                "added": "\(added)",
+                "total": "\(total.map(String.init) ?? "nil")",
+                "displayed": "\(pager.displayedCount)",
+                "elapsed": "\(elapsed)ms"
+            ])
+
+            if pager.isExhausted && !pager.reachedEndNotified {
+                pager.reachedEndNotified = true
+                pagerCache[column.id] = pager
+                LogManager.shared.info("organization", "栏目已翻到底", context: [
+                    "department": unit.name,
+                    "column": column.title,
+                    "displayed": "\(pager.displayedCount)"
+                ])
+            }
+        } catch {
+            let message: String
+            if let urlError = error as? URLError {
+                switch urlError.code {
+                case .timedOut:
+                    message = "网络较慢，加载超时"
+                case .notConnectedToInternet, .networkConnectionLost:
+                    message = "当前无网络连接"
+                default:
+                    message = "网络异常"
+                }
+            } else if error is TimeoutError {
+                message = "网络较慢，加载超时"
+            } else {
+                message = "内容加载失败"
+            }
+            pager.fail(message)
+            pagerCache[column.id] = pager
+            LogManager.shared.warning("organization", "栏目分页加载失败", context: [
+                "department": unit.name,
+                "column": column.title,
+                "page": "\(page)",
+                "error": error.localizedDescription,
+                "message": message
+            ])
+        }
+    }
+
+    /// 滚动到底部行出现时自动加载下一页
+    private func loadMoreIfNeeded(currentArticle: OrgArticle) {
+        guard let column = selectedColumn, column.kind == .list else { return }
+        guard pager.articles.last?.articleId == currentArticle.articleId else { return }
+        guard pager.hasMore, !pager.isLoading, !pager.isLoadingMore else { return }
+        let next = pager.nextPage
+        LogManager.shared.debugLog("organization", "触底自动加载下一页", context: [
+            "department": unit.name,
+            "column": column.title,
+            "page": "\(next)",
+            "displayed": "\(pager.displayedCount)"
+        ])
+        Task { await loadPage(for: column, page: next, reset: false) }
+    }
+
+    /// 单文章型机构：解析 article_id 并预取标题
+    @MainActor
+    private func resolveSingleArticle() async {
+        guard let articleId = await OrgSingleArticleResolver.articleId(forOrgName: unit.name) else {
+            singleArticleEntry = nil
+            LogManager.shared.warning("organization", "单文章型机构未解析到 article_id", context: [
+                "name": unit.name
+            ])
+            return
+        }
+        var title = unit.name
+        var updateTime = ""
+        if let detail = try? await OrgRequestGate.shared.withPermit({
+            try await NetworkService.shared.fetchArticleDetail(articleId: articleId, siteId: "1", useCache: true)
+        }) {
+            if let resolvedTitle = detail.title, !resolvedTitle.isEmpty {
+                title = resolvedTitle
+            }
+            updateTime = detail.updateTime ?? ""
+        }
+        singleArticleEntry = SingleArticleEntry(articleId: articleId, title: title, updateTime: updateTime)
+        LogManager.shared.info("organization", "单文章型机构解析完成", context: [
+            "name": unit.name,
+            "articleId": articleId,
+            "title": title
+        ])
+    }
+
+    /// 打开单文章全文（复用既有文章详情 sheet）
+    private func openSingleArticle(_ entry: SingleArticleEntry) {
+        let article = OrgArticle(
+            id: entry.articleId,
+            title: entry.title,
+            description: "",
+            imageUrl: nil,
+            updateTime: entry.updateTime,
+            tag: unit.name,
+            articleId: entry.articleId,
+            sectionSiteId: "1"
+        )
+        LogManager.shared.info("organization", "单文章型机构打开全文", context: [
+            "name": unit.name,
+            "articleId": entry.articleId
+        ])
+        articleNavigation = ArticleNavigation(article: article, siteId: "1", color: unit.category.color)
     }
 
     // MARK: 区块视图
@@ -1405,9 +2015,12 @@ struct OrganizationDetailView: View {
             fallbackError = nil
             isFallbackLoading = false
             hasAttemptedFallback = false
+            // 阶段一：单文章型机构（无独立子站）→ 运行时解析 article_id，呈现全文入口
+            await resolveSingleArticle()
             LogManager.shared.info("organization", "部门无独立子站，显示降级页面", context: [
                 "name": unit.name,
-                "category": unit.category.rawValue
+                "category": unit.category.rawValue,
+                "singleArticleResolved": "\(singleArticleEntry != nil)"
             ])
             return
         }
@@ -1496,23 +2109,28 @@ struct OrganizationDetailView: View {
                     "attempt": "\(attempt + 1)"
                 ])
 
-                // 后台补充加载：为每个有 columnId 的 section 加载更多文章
-                let enrichedCount = await enrichSectionsWithMoreArticles()
+                // 阶段一：构建栏目索引（nav 数组 = 栏目真值源），替代旧「板块恒 8 条 + 阈值恒不触发」链路
+                applyColumnIndex(from: data)
 
                 isLoading = false
 
-                let finalArticleCount = sections.reduce(0) { $0 + $1.articles.count }
-                LogManager.shared.info("organization", "部门数据加载成功（含补充）", context: [
+                LogManager.shared.info("organization", "部门数据加载成功", context: [
                     "name": unit.name,
                     "siteKey": siteKey,
                     "sectionCount": "\(sections.count)",
                     "initialArticleCount": "\(initialArticleCount)",
-                    "finalArticleCount": "\(finalArticleCount)",
-                    "enrichedCount": "\(enrichedCount)",
                     "childCount": "\(initialChildCount)",
+                    "columnCount": "\(columnSpecs.count)",
+                    "listColumnCount": "\(columnSpecs.filter { $0.kind == .list }.count)",
+                    "seedTotalCount": "\(columnSeedTotals.count)",
                     "siteId": deptSiteId,
                     "attempt": "\(attempt + 1)"
                 ])
+
+                // 默认栏目首屏（不阻塞页面呈现：pager.isLoading 自带骨架态）
+                if let firstColumn = OrgColumnIndexBuilder.defaultColumn(in: columnSpecs, seedTotals: columnSeedTotals) {
+                    await selectColumn(firstColumn, reset: true)
+                }
                 return
             } catch let error as TimeoutError {
                 lastError = error
@@ -1936,8 +2554,10 @@ struct OrganizationDetailView: View {
 
     // MARK: 文章补充加载
 
-    /// 为每个有 columnId 的 section 加载更多文章（第 2-3 页），确保数据完整性
-    /// - Returns: 新增的文章总数
+    /// ⚠️ 阶段一已废弃（不再被调用）：原阈值 `articles.count >= 10` 恒不触发（板块恒 8 条），
+    /// 是「每机构只能看到 2~4×8 篇」的根因之一（见 01-报告 §5 根因①）。
+    /// 现由「栏目全量分页链路」取代：applyColumnIndex → selectColumn → loadPage（size 40、翻到底）。
+    /// 按「只增不改」原则暂留函数体作历史对照，阶段二清理时整体删除。
     private func enrichSectionsWithMoreArticles() async -> Int {
         var enrichedCount = 0
 

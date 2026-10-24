@@ -28,6 +28,7 @@
 		DC00001E22D74F5700D209BE /* AnnouncementDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00000F22D74F5700D209BE /* AnnouncementDetailView.swift */; };
 		DC00001F22D74F5700D209BE /* OrganizationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003022D74F5700D209BE /* OrganizationView.swift */; };
 		DC00002222D74F5700D209BE /* OrganizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003122D74F5700D209BE /* OrganizationManager.swift */; };
+		DC0000F1000000000000F001 /* OrgContentIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000F1000000000000F002 /* OrgContentIndex.swift */; };
 		DC00002322D74F5700D209BE /* OrganizationDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003222D74F5700D209BE /* OrganizationDetailView.swift */; };
 		DC00002422D74F5700D209BE /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003322D74F5700D209BE /* PrivacyPolicyView.swift */; };
 		DC00002522D74F5700D209BE /* PrivacyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003422D74F5700D209BE /* PrivacyManager.swift */; };
@@ -50,6 +51,7 @@
 		DC00009B00000000000001 /* MessageCenterStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00009C00000000000001 /* MessageCenterStoreTests.swift */; };
 		DC0000D1000000000000D001 /* BookmarkManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000D1000000000000D002 /* BookmarkManagerTests.swift */; };
 		DC0000E1000000000000E001 /* LogManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000E1000000000000E002 /* LogManagerTests.swift */; };
+		DC0000F2000000000000F001 /* OrgModuleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000F2000000000000F002 /* OrgModuleTests.swift */; };
 		DC00009B22D74F5700D209BE /* HelpGuideStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00009C22D74F5700D209BE /* HelpGuideStore.swift */; };
 		DC00009D22D74F5700D209BE /* HelpGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00009E22D74F5700D209BE /* HelpGuideView.swift */; };
 		DC00009F22D74F5700D209BE /* CampusCalendarStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000A122D74F5700D209BE /* CampusCalendarStore.swift */; };
@@ -99,6 +101,7 @@
 		DC00000F22D74F5700D209BE /* AnnouncementDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnouncementDetailView.swift; sourceTree = "<group>"; };
 		DC00003022D74F5700D209BE /* OrganizationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizationView.swift; sourceTree = "<group>"; };
 		DC00003122D74F5700D209BE /* OrganizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizationManager.swift; sourceTree = "<group>"; };
+		DC0000F1000000000000F002 /* OrgContentIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgContentIndex.swift; sourceTree = "<group>"; };
 		DC00003222D74F5700D209BE /* OrganizationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizationDetailView.swift; sourceTree = "<group>"; };
 		DC00003322D74F5700D209BE /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		DC00003422D74F5700D209BE /* PrivacyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyManager.swift; sourceTree = "<group>"; };
@@ -131,6 +134,7 @@
 		DC0000C1000000000000C002 /* WeChatSDKTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatSDKTests.swift; sourceTree = "<group>"; };
 		DC0000D1000000000000D002 /* BookmarkManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkManagerTests.swift; sourceTree = "<group>"; };
 		DC0000E1000000000000E002 /* LogManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogManagerTests.swift; sourceTree = "<group>"; };
+		DC0000F2000000000000F002 /* OrgModuleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgModuleTests.swift; sourceTree = "<group>"; };
 		DC7A000422D74F5700D209B1 /* SJZNetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SJZNetworkMonitor.swift; sourceTree = "<group>"; };
 		DC7A000822D74F5700D209B1 /* NetworkMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitorView.swift; sourceTree = "<group>"; };
 		DC7A000C22D74F5700D209B1 /* PrincipalMailboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrincipalMailboxView.swift; sourceTree = "<group>"; };
@@ -199,6 +203,7 @@
 				DC00000F22D74F5700D209BE /* AnnouncementDetailView.swift */,
 				DC00003022D74F5700D209BE /* OrganizationView.swift */,
 				DC00003122D74F5700D209BE /* OrganizationManager.swift */,
+				DC0000F1000000000000F002 /* OrgContentIndex.swift */,
 				DC00003222D74F5700D209BE /* OrganizationDetailView.swift */,
 				DC00003322D74F5700D209BE /* PrivacyPolicyView.swift */,
 				DC00003422D74F5700D209BE /* PrivacyManager.swift */,
@@ -260,6 +265,7 @@
 				DC0000C1000000000000C002 /* WeChatSDKTests.swift */,
 				DC0000D1000000000000D002 /* BookmarkManagerTests.swift */,
 				DC0000E1000000000000E002 /* LogManagerTests.swift */,
+				DC0000F2000000000000F002 /* OrgModuleTests.swift */,
 			);
 			path = DesignCodeTests;
 			sourceTree = "<group>";
@@ -403,6 +409,7 @@
 				DC00001E22D74F5700D209BE /* AnnouncementDetailView.swift in Sources */,
 				DC00001F22D74F5700D209BE /* OrganizationView.swift in Sources */,
 				DC00002222D74F5700D209BE /* OrganizationManager.swift in Sources */,
+				DC0000F1000000000000F001 /* OrgContentIndex.swift in Sources */,
 				DC00002322D74F5700D209BE /* OrganizationDetailView.swift in Sources */,
 				DC00002422D74F5700D209BE /* PrivacyPolicyView.swift in Sources */,
 				DC00002522D74F5700D209BE /* PrivacyManager.swift in Sources */,
@@ -443,6 +450,7 @@
 				DC0000C1000000000000C001 /* WeChatSDKTests.swift in Sources */,
 				DC0000D1000000000000D001 /* BookmarkManagerTests.swift in Sources */,
 				DC0000E1000000000000E001 /* LogManagerTests.swift in Sources */,
+				DC0000F2000000000000F001 /* OrgModuleTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
