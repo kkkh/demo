@@ -81,6 +81,7 @@ enum BookmarkContentOutcome: Equatable {
     case updated     // 检测到官网更新并刷新缓存
     case unchanged   // 与缓存一致，无更新
     case skipped     // 无 articleId / 已缓存 / 条目已删除
+    case cancelled   // 用户取消 / 任务取消（非失败，不告警）
     case failed      // 网络或解析失败
 }
 
@@ -203,14 +204,23 @@ final class BookmarkManager: ObservableObject {
     private var updateCheckTimer: Timer?
     private let updateCheckInterval: TimeInterval = 3600 // 每小时检查一次
 
-    // MARK: 派生统计
+    // MARK: 派生统计（判定源加固：一律以实际内容 hasCachedContent 为准，标志位不一致可自愈）
 
-    /// 已缓存正文的收藏数
-    var contentCachedCount: Int { bookmarks.filter { $0.contentCached }.count }
+    /// 已缓存正文的收藏数（以实际内容为准，标志位漂移不会漏计）
+    var contentCachedCount: Int { bookmarks.filter { $0.hasCachedContent }.count }
 
-    /// 待缓存正文的收藏（有 articleId 且尚未缓存）
+    /// 待缓存正文的收藏（有 articleId 且实际未持有正文）
     var precacheCandidates: [BookmarkItem] {
-        bookmarks.filter { $0.articleId != nil && !$0.contentCached }
+        bookmarks.filter { $0.articleId != nil && !$0.hasCachedContent }
+    }
+
+    /// 「批量缓存可用性」诊断快照：菜单三态判定的唯一数据源（含原因，供日志对账）
+    var precacheAvailability: (candidates: Int, withoutArticleId: Int, cached: Int) {
+        (
+            candidates: bookmarks.filter { $0.articleId != nil && !$0.hasCachedContent }.count,
+            withoutArticleId: bookmarks.filter { $0.articleId == nil }.count,
+            cached: contentCachedCount
+        )
     }
 
     /// 收藏中出现过的分类（按数量降序，供筛选芯片动态生成）
@@ -491,7 +501,7 @@ final class BookmarkManager: ObservableObject {
         case .unread:
             result = result.filter { !readKeys.contains($0.readKey) }
         case .offlineReady:
-            result = result.filter { $0.contentCached }
+            result = result.filter { $0.hasCachedContent }
         case .category(let name):
             result = result.filter { $0.category == name }
         }
@@ -547,8 +557,8 @@ final class BookmarkManager: ObservableObject {
     @discardableResult
     private func cacheArticleContent(forKey key: String, articleId: String, isRefreshCheck: Bool) async -> BookmarkContentOutcome {
         guard let index = bookmarks.firstIndex(where: { $0.readKey == key }) else { return .skipped }
-        // 更新检测需要旧缓存可比对；首次填充仅需未缓存
-        if !isRefreshCheck && bookmarks[index].contentCached { return .skipped }
+        // 更新检测需要旧缓存可比对；首次填充仅需实际未持有正文（以内容为准，标志位漂移不拦截）
+        if !isRefreshCheck && bookmarks[index].hasCachedContent { return .skipped }
 
         let oldContent = bookmarks[index].cachedContent
         do {
@@ -589,6 +599,13 @@ final class BookmarkManager: ObservableObject {
                 return .cached
             }
         } catch {
+            // 取消语义红线：用户取消 / 任务取消一律静默（不告警、不重试），仅真实失败才 WARNING
+            if SJZImageKit.isCancellation(error) {
+                LogManager.shared.debugLog("favorite", "正文缓存已取消（静默）", context: [
+                    "readKey": key, "articleId": articleId, "refreshCheck": "\(isRefreshCheck)"
+                ])
+                return .cancelled
+            }
             LogManager.shared.warning("favorite", "正文缓存失败", context: [
                 "readKey": key, "articleId": articleId, "error": error.localizedDescription
             ])
@@ -608,10 +625,23 @@ final class BookmarkManager: ObservableObject {
 
     /// 批量预热全部未缓存正文（顺序执行 + 进度发布 + 可取消）
     func precacheAllContent() {
-        guard precacheTask == nil else { return }
+        guard precacheTask == nil else {
+            LogManager.shared.info("favorite", "批量缓存正文：已有任务进行中，本次忽略", context: [:])
+            return
+        }
+        let availability = precacheAvailability
         let candidates = precacheCandidates
+        // 可用性评估（菜单三态与任务启动共用同一判定源，日志可对账）
+        LogManager.shared.info("favorite", "批量缓存可用性评估", context: [
+            "candidates": "\(availability.candidates)",
+            "withoutArticleId": "\(availability.withoutArticleId)",
+            "cached": "\(availability.cached)",
+            "autoCache": "\(autoCacheContent)"
+        ])
         guard !candidates.isEmpty else {
-            LogManager.shared.info("favorite", "批量缓存正文：无可缓存条目", context: [:])
+            LogManager.shared.info("favorite", "批量缓存正文：无可缓存条目", context: [
+                "total": "\(bookmarks.count)", "withoutArticleId": "\(availability.withoutArticleId)"
+            ])
             return
         }
         LogManager.shared.info("favorite", "批量缓存正文开始", context: ["total": "\(candidates.count)"])
@@ -619,11 +649,12 @@ final class BookmarkManager: ObservableObject {
         precacheTask = Task { [weak self] in
             var cached = 0
             var failed = 0
+            var cancelledItems = 0
             let start = Date()
             for (index, item) in candidates.enumerated() {
                 if Task.isCancelled { break }
                 let outcome = await self?.cacheContent(for: item.readKey) ?? .skipped
-                if outcome == .cached { cached += 1 } else if outcome == .failed { failed += 1 }
+                if outcome == .cached { cached += 1 } else if outcome == .failed { failed += 1 } else if outcome == .cancelled { cancelledItems += 1 }
                 self?.precacheProgress = PrecacheProgress(done: index + 1, total: candidates.count)
                 // 进度采样（首条 / 每 5 条 / 末条，防刷屏且状态可对账）
                 let done = index + 1
@@ -638,7 +669,7 @@ final class BookmarkManager: ObservableObject {
             let elapsed = Date().timeIntervalSince(start)
             LogManager.shared.info("favorite", "批量缓存正文结束", context: [
                 "cached": "\(cached)", "failed": "\(failed)", "total": "\(candidates.count)",
-                "cancelled": "\(cancelled)",
+                "cancelled": "\(cancelled)", "cancelledItems": "\(cancelledItems)",
                 "elapsedMs": String(format: "%.0f", elapsed * 1000)
             ])
             self?.precacheProgress = nil
@@ -653,6 +684,61 @@ final class BookmarkManager: ObservableObject {
         precacheTask = nil
         precacheProgress = nil
         LogManager.shared.info("favorite", "批量缓存正文已取消", context: [:])
+    }
+
+    // MARK: 离线正文管理（离线中心）
+
+    /// 离线正文占用统计（篇数 / 字符数 / 预估字节，UTF-8 口径；口径与 hasCachedContent 严格一致）
+    var offlineContentStats: (count: Int, chars: Int, bytes: Int) {
+        let contents = bookmarks.filter { $0.hasCachedContent }.compactMap { $0.cachedContent }
+        let chars = contents.reduce(0) { $0 + $1.count }
+        let bytes = contents.reduce(0) { $0 + $1.utf8.count }
+        return (contents.count, chars, bytes)
+    }
+
+    /// 清理全部离线正文（保留收藏条目；返回清理篇数与释放字节数）
+    @discardableResult
+    func clearAllContent() -> (count: Int, bytes: Int) {
+        performContentClear(shouldKeep: { _ in false })
+    }
+
+    /// 仅保留最近 N 篇离线正文（按收藏时间倒序保留，其余清空；返回清理篇数与释放字节数）
+    @discardableResult
+    func clearAllContent(keepingLatest keep: Int) -> (count: Int, bytes: Int) {
+        let ordered = bookmarks.sorted { $0.bookmarkDate > $1.bookmarkDate }
+        let keepKeys = Set(ordered.prefix(max(0, keep)).map(\.readKey))
+        return performContentClear(shouldKeep: { keepKeys.contains($0.readKey) })
+    }
+
+    /// 清理离线正文公共实现（进行中的批量缓存先取消，避免与清理写入交叉）
+    private func performContentClear(shouldKeep: (BookmarkItem) -> Bool) -> (count: Int, bytes: Int) {
+        if precacheTask != nil {
+            cancelPrecache()
+        }
+        var clearedCount = 0
+        var freedBytes = 0
+        for index in bookmarks.indices {
+            guard bookmarks[index].hasCachedContent, !shouldKeep(bookmarks[index]),
+                  let content = bookmarks[index].cachedContent else { continue }
+            clearedCount += 1
+            freedBytes += content.utf8.count
+            bookmarks[index].cachedContent = nil
+            bookmarks[index].contentCached = false
+        }
+        guard clearedCount > 0 else {
+            LogManager.shared.info("favorite", "清理离线正文：无可清理条目", context: [
+                "total": "\(bookmarks.count)"
+            ])
+            return (0, 0)
+        }
+        save()
+        objectWillChange.send()
+        // 状态流转：离线正文清理完成（释放空间，收藏条目保留）
+        LogManager.shared.info("favorite", "清理离线正文完成", context: [
+            "cleared": "\(clearedCount)", "bytes": "\(freedBytes)",
+            "cachedRemain": "\(contentCachedCount)", "total": "\(bookmarks.count)"
+        ])
+        return (clearedCount, freedBytes)
     }
 
     // MARK: 图片缓存（内存 → 磁盘两级；磁盘读写均在后台线程）
@@ -924,7 +1010,7 @@ final class BookmarkManager: ObservableObject {
                 checked += 1
             case .failed:
                 failed += 1
-            case .skipped, .cached:
+            case .skipped, .cached, .cancelled:
                 skipped += 1
             }
         }
@@ -1015,12 +1101,18 @@ final class BookmarkManager: ObservableObject {
             let decoded = Self.decodeBookmarks(from: data)
             if let items = decoded.items {
                 bookmarks = items
+                var needsRewrite = false
                 if decoded.skipped > 0 {
                     LogManager.shared.warning("favorite", "收藏存储部分条目损坏，已抢救恢复", context: [
                         "rescued": "\(items.count)", "skipped": "\(decoded.skipped)"
                     ])
-                    save()
+                    needsRewrite = true
                 }
+                // 标志位自愈：以实际内容为单一事实源对齐（防历史漂移导致计数/候选失真）
+                if reconcileContentFlags() {
+                    needsRewrite = true
+                }
+                if needsRewrite { save() }
                 return
             }
             LogManager.shared.error("favorite", "收藏存储文件解析失败，尝试旧版数据恢复", context: [
@@ -1033,6 +1125,7 @@ final class BookmarkManager: ObservableObject {
             let decoded = Self.decodeBookmarks(from: legacy)
             if let items = decoded.items {
                 bookmarks = items
+                _ = reconcileContentFlags()
                 save()
                 defaults.removeObject(forKey: Self.legacyBookmarksKey)
                 LogManager.shared.info("favorite", "旧版收藏数据已迁移至文件存储", context: [
@@ -1046,6 +1139,28 @@ final class BookmarkManager: ObservableObject {
         }
 
         bookmarks = []
+    }
+
+    /// 标志位自愈：以实际内容（hasCachedContent）为单一事实源修正 contentCached，
+    /// 修复任何漂移（标志位失真会直接导致「可离线」计数、候选判定与筛选错误）。
+    /// - Returns: 是否存在修正（true 表示需要回写存储）
+    @discardableResult
+    private func reconcileContentFlags() -> Bool {
+        var fixedToTrue = 0
+        var fixedToFalse = 0
+        for index in bookmarks.indices {
+            let actual = bookmarks[index].hasCachedContent
+            if bookmarks[index].contentCached != actual {
+                if actual { fixedToTrue += 1 } else { fixedToFalse += 1 }
+                bookmarks[index].contentCached = actual
+            }
+        }
+        guard fixedToTrue > 0 || fixedToFalse > 0 else { return false }
+        LogManager.shared.info("favorite", "自愈：正文缓存标志位已与实际内容对齐", context: [
+            "fixedToTrue": "\(fixedToTrue)", "fixedToFalse": "\(fixedToFalse)",
+            "cached": "\(contentCachedCount)", "total": "\(bookmarks.count)"
+        ])
+        return true
     }
 
     /// 解析收藏数组：整段优先；失败时逐条抢救（保留合法条目、跳过损坏条目）
