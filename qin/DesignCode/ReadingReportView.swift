@@ -29,6 +29,8 @@ struct ReadingReportView: View {
     @State private var mode: ReadingReportMode = .daily
     @State private var showClearConfirm = false
     @State private var showGoalEditor = false
+    /// Hero 目标环周期（日/周，跟随切换）
+    @State private var heroPeriod: ReadingGoalPeriod = .daily
     /// 卡片错峰入场（阶段推进）
     @State private var entrance = 0
 
@@ -144,8 +146,10 @@ struct ReadingReportView: View {
     private var heroCard: some View {
         let palette = ReadingReportPalette.forNow()
         let today = store.todaySeconds
-        let goalMinutes = goalStore.dailyMinutes
-        let progress = min(1.0, Double(today) / Double(max(1, goalMinutes) * 60))
+        let thisWeek = store.thisWeekMinutes * 60
+        let goalMinutes = heroPeriod == .daily ? goalStore.dailyMinutes : goalStore.weeklyMinutes
+        let base = heroPeriod == .daily ? today : thisWeek
+        let progress = min(1.0, Double(base) / Double(max(1, goalMinutes) * 60))
         return VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -157,6 +161,31 @@ struct ReadingReportView: View {
                         .foregroundStyle(.white)
                 }
                 Spacer()
+                // 日/周目标切换（跟随当前周期）
+                HStack(spacing: 2) {
+                    ForEach(ReadingGoalPeriod.allCases, id: \.self) { p in
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            withAnimation(.snappy) { heroPeriod = p }
+                        } label: {
+                            Text(p == .daily ? "日" : "周")
+                                .displayFont(11, weight: .semibold)
+                                .foregroundStyle(heroPeriod == p ? Color.sjzPrimary : .white.opacity(0.75))
+                                .frame(width: 28, height: 24)
+                                .background {
+                                    if heroPeriod == p {
+                                        Capsule().fill(.white.opacity(0.9))
+                                    }
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(heroPeriod == p ? "\(p.rawValue)目标，已选中" : "切换至\(p.rawValue)目标")
+                    }
+                }
+                .padding(3)
+                .background(.white.opacity(0.16), in: Capsule())
+                .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 0.6))
+                .padding(.trailing, 4)
                 // 目标进度环（Apple Fitness 式，点击可设定）
                 ZStack {
                     Circle().stroke(.white.opacity(0.22), lineWidth: 7)
