@@ -145,6 +145,17 @@ struct OrganizationView: View {
     /// 是否显示搜索历史
     @State private var showSearchHistory: Bool = false
 
+    // MARK: 阶段二 · 视觉动效状态
+
+    /// 门户机构摘要（焦点区；预取经 OrgHomeCache，TTL 30 分钟，二次进入零请求）
+    @State private var portalStats: [String: PortalStats] = [:]
+    /// 滚动中（图片加载挂起，复用既有基建）
+    @State private var isScrolling: Bool = false
+    /// 滚动超过阈值（玻璃吸顶栏材质切换，>8pt）
+    @State private var isScrolledPastThreshold: Bool = false
+    /// 玻璃吸顶首次出现触觉已触发（会话内一次）
+    @State private var glassBarHapticFired: Bool = false
+
     /// 文章搜索导航包装
     struct ArticleSearchNavigation: Identifiable {
         let id: String
@@ -241,7 +252,7 @@ struct OrganizationView: View {
                     contentView
                 }
             }
-            .background(GradientBackground())
+            .background(OrgTheme.backgroundGradient)
 
             // 刷新反馈 Toast
             if showRefreshToast {
@@ -391,12 +402,18 @@ struct OrganizationView: View {
     // MARK: 加载视图
 
     private var loadingView: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .scaleEffect(1.2)
-            Text("加载机构数据中...")
-                .displayFont(15)
-                .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                OrgSkeletonBlock(height: 22, width: 120, cornerRadius: 6)
+                OrgSkeletonBlock(height: 12, width: 210, cornerRadius: 4)
+                OrgSkeletonBlock(height: 44, cornerRadius: OrgTheme.Radius.row)
+                HStack(spacing: 12) {
+                    OrgSkeletonBlock(height: 104, cornerRadius: OrgTheme.Radius.card)
+                    OrgSkeletonBlock(height: 104, cornerRadius: OrgTheme.Radius.card)
+                }
+                OrgSkeletonBlock(height: 104, cornerRadius: OrgTheme.Radius.card)
+            }
+            .padding(16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -405,7 +422,7 @@ struct OrganizationView: View {
 
     private var contentView: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
+            LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
                 // 搜索模式切换
                 searchModePicker
 
@@ -416,32 +433,44 @@ struct OrganizationView: View {
                     // 文章搜索模式：显示搜索历史
                     searchHistoryView
                 } else {
-                    // 机构搜索模式：显示机构列表
-                    // 搜索/筛选状态栏
-                    if isSearching || isFiltering {
-                        searchStatusBar
-                    }
-
-                    // 分类筛选芯片
-                    categoryFilterChips
-
-                    // 数据来源指示器
-                    dataSourceIndicator
-
-                    // 排序状态提示
-                    if isNameSorted && !filteredDepartments.isEmpty {
-                        nameSortIndicator
-                    }
-
-                    // 分类区块
-                    if filteredGroupedData.isEmpty && isSearching {
-                        emptySearchResult
-                    } else if filteredGroupedData.isEmpty && isFiltering {
-                        emptyFilterResult
-                    } else {
-                        ForEach(filteredGroupedData, id: \.0.id) { category, units in
-                            categorySection(category: category, units: units)
+                    // 机构模式：Hero 概述 + 焦点区（仅默认视图；搜索/筛选/排序时不显示，保持专注）
+                    if !isSearching && !isFiltering && sortOrder == .defaultOrder {
+                        orgHeroSection
+                        if !portalStats.isEmpty {
+                            focusBenchSection
                         }
+                    }
+
+                    Section {
+                        // 搜索/筛选状态栏
+                        if isSearching || isFiltering {
+                            searchStatusBar
+                        }
+
+                        // 数据来源指示器
+                        dataSourceIndicator
+
+                        // 排序状态提示
+                        if isNameSorted && !filteredDepartments.isEmpty {
+                            nameSortIndicator
+                        }
+
+                        // 分类区块（按分类错峰入场，单次会话仅一次）
+                        if filteredGroupedData.isEmpty && isSearching {
+                            emptySearchResult
+                        } else if filteredGroupedData.isEmpty && isFiltering {
+                            emptyFilterResult
+                        } else {
+                            ForEach(filteredGroupedData, id: \.0.id) { category, units in
+                                categorySection(category: category, units: units)
+                                    .modifier(SJZRevealOnce(key: "org.group.\(category.rawValue)",
+                                                            delay: Double(category.sortOrder) * 0.06,
+                                                            logReveal: false))
+                            }
+                        }
+                    } header: {
+                        // 玻璃吸顶：分类筛选芯片（滚动 >8pt 启用材质，静止用底色，省离屏渲染）
+                        categoryFilterChips
                     }
                 }
             }
@@ -449,9 +478,36 @@ struct OrganizationView: View {
             .frame(minHeight: screenHeight)
         }
         .scrollBounceBehavior(.always)
+        .modifier(SJZIdleTimerRepairOnScrollStop())
+        .sjzScrollSuspendTrack($isScrolling)
+        .environment(\.sjzImageLoadingSuspended, isScrolling)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentOffset.y > 8
+        } action: { _, past in
+            guard past != isScrolledPastThreshold else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                isScrolledPastThreshold = past
+            }
+            // 玻璃吸顶首次出现：柔级触觉（会话内一次，设计稿 §7）
+            if past && !glassBarHapticFired {
+                glassBarHapticFired = true
+                OrgHaptics.soft()
+            }
+        }
+        .task {
+            await loadPortalStatsIfNeeded()
+        }
         .refreshable {
             await performRefresh(source: "下拉刷新")
         }
+    }
+
+    /// 门户机构预取（页面展开 = 3 请求；缓存命中零请求）
+    private func loadPortalStatsIfNeeded() async {
+        guard portalStats.isEmpty else { return }
+        let stats = await OrgHomeCache.shared.prefetchPortals()
+        guard !stats.isEmpty else { return }
+        portalStats = stats
     }
 
     // MARK: 搜索/筛选状态栏
@@ -517,44 +573,64 @@ struct OrganizationView: View {
         .padding(.horizontal, 16)
     }
 
-    // MARK: 分类筛选芯片
+    // MARK: 分类筛选芯片（玻璃吸顶：GlassEffectContainer 合并渲染）
 
     private var categoryFilterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                // "全部" 芯片
-                filterChip(
-                    label: "全部",
-                    icon: "square.grid.2x2",
-                    color: Color.sjzAccent,
-                    isSelected: selectedCategory == nil
-                ) {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedCategory = nil
-                    }
-                }
-
-                // 各分类芯片
-                ForEach(OrganizationCategory.allCases) { category in
-                    let count = manager.departments.filter { $0.category == category }.count
+        GlassEffectContainer(spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    // "全部" 芯片
                     filterChip(
-                        label: category.rawValue,
-                        icon: category.icon,
-                        color: category.color,
-                        badge: "\(count)",
-                        isSelected: selectedCategory == category
+                        label: "全部",
+                        icon: "square.grid.2x2",
+                        color: OrgTheme.tint,
+                        isSelected: selectedCategory == nil
                     ) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedCategory = (selectedCategory == category) ? nil : category
+                        selectCategory(nil)
+                    }
+
+                    // 各分类芯片
+                    ForEach(OrganizationCategory.allCases) { category in
+                        let count = manager.departments.filter { $0.category == category }.count
+                        filterChip(
+                            label: category.rawValue,
+                            icon: category.icon,
+                            color: category.color,
+                            badge: "\(count)",
+                            isSelected: selectedCategory == category
+                        ) {
+                            selectCategory(selectedCategory == category ? nil : category)
                         }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
-            .padding(.horizontal, 16)
+        }
+        .background {
+            // 滚动 >8pt 启用玻璃材质（吸顶浮层）；静止用底色实体面（省离屏渲染）
+            if isScrolledPastThreshold {
+                Rectangle().fill(.ultraThinMaterial)
+            } else {
+                Rectangle().fill(OrgTheme.bg.opacity(0))
+            }
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(OrgTheme.separator)
+                .frame(height: isScrolledPastThreshold ? 1 : 0)
         }
     }
 
-    /// 单个筛选芯片
+    /// 分类切换（选择级触觉 + 弹簧动画）
+    private func selectCategory(_ category: OrganizationCategory?) {
+        OrgHaptics.selection()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+            selectedCategory = category
+        }
+    }
+
+    /// 单个筛选芯片（玻璃胶囊；选中 = 该分类色 28% 玻璃染色 + 分类色文字）
     private func filterChip(
         label: String,
         icon: String,
@@ -572,29 +648,26 @@ struct OrganizationView: View {
                 if let badge = badge {
                     Text(badge)
                         .displayFont(10, weight: .semibold)
-                        .foregroundStyle(isSelected ? .white.opacity(0.8) : color)
+                        .monospacedDigit()
+                        .foregroundStyle(isSelected ? color : OrgTheme.textSecondary)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
                         .background(
-                            Capsule()
-                                .fill(isSelected ? .white.opacity(0.2) : color.opacity(0.1))
+                            Capsule().fill(color.opacity(isSelected ? 0.18 : 0.10))
                         )
                 }
             }
-            .foregroundStyle(isSelected ? .white : color)
+            .foregroundStyle(isSelected ? color : OrgTheme.textPrimary.opacity(0.85))
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .background(
-                Capsule()
-                    .fill(isSelected ? color : color.opacity(colorScheme == .dark ? 0.12 : 0.08))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(isSelected ? color : color.opacity(0.2), lineWidth: 0.5)
+            .glassEffect(
+                .regular.tint(OrgTheme.glassTint(color, active: isSelected)).interactive(),
+                in: .capsule
             )
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     // MARK: 排序菜单
@@ -717,6 +790,10 @@ struct OrganizationView: View {
     // MARK: 刷新逻辑
 
     private func performRefresh(source: String) async {
+        // 下拉刷新：触发 = 柔级（设计稿 §7；工具栏刷新不振动，避免高频打扰）
+        if source.contains("下拉") {
+            OrgHaptics.soft()
+        }
         LogManager.shared.info("organization", "刷新触发", context: [
             "source": source,
             "currentSource": manager.dataSource
@@ -753,6 +830,13 @@ struct OrganizationView: View {
         // 显示 Toast
         withAnimation(.easeInOut(duration: 0.3)) {
             showRefreshToast = true
+        }
+
+        // 结果级触觉：成功 / 失败（设计稿 §7 分级）
+        if refreshToastSuccess {
+            OrgHaptics.success()
+        } else {
+            OrgHaptics.error()
         }
 
         // 2.5 秒后自动隐藏
@@ -827,16 +911,183 @@ struct OrganizationView: View {
         return "使用预置数据"
     }
 
+    // MARK: 阶段二 · Hero 概述
+
+    private var orgHeroSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("机构设置")
+                .displayFont(22, weight: .bold)
+                .foregroundStyle(OrgTheme.textPrimary)
+            Text("\(manager.totalCount) 个机构 · \(OrganizationCategory.allCases.count) 大类 · \(manager.detailPageCount) 个官网子站")
+                .displayFont(12)
+                .foregroundStyle(OrgTheme.textSecondary)
+            Capsule()
+                .fill(OrgTheme.brass)
+                .frame(width: 44, height: 2)
+                .opacity(0.85)
+                .padding(.top, 6)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+    }
+
+    // MARK: 阶段二 · 焦点区（Bento：1 大 2 小，门户机构预取统计）
+
+    private var focusBenchSection: some View {
+        let orderedKeys = OrgHomeCache.portalSiteKeys
+        let heroKey = orderedKeys.first
+        let heroUnit = heroKey.flatMap { key in manager.departments.first { $0.siteKey == key } }
+        let smallKeys = Array(orderedKeys.dropFirst())
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .displaySymbolFont(11, weight: .semibold)
+                    .foregroundStyle(OrgTheme.brassStrong)
+                Text("门户机构")
+                    .displayFont(12, weight: .semibold)
+                    .foregroundStyle(OrgTheme.brassStrong)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+
+            VStack(spacing: 12) {
+                if let heroUnit {
+                    focusHeroCard(unit: heroUnit, stats: heroKey.flatMap { portalStats[$0] })
+                }
+                HStack(spacing: 12) {
+                    ForEach(smallKeys, id: \.self) { key in
+                        if let unit = manager.departments.first(where: { $0.siteKey == key }) {
+                            focusSmallCard(unit: unit, stats: portalStats[key])
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    /// 焦点大卡：机构名 + 类别 + 栏目数 + 最新一篇（数据未就绪则只留身份行，不留占位）
+    private func focusHeroCard(unit: OrganizationUnit, stats: PortalStats?) -> some View {
+        let color = unit.category.color
+        return NavigationLink {
+            OrganizationDetailView(unit: unit)
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: OrgTheme.Radius.tile)
+                            .fill(color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: OrgTheme.linearIcon(unit.icon))
+                            .displaySymbolFont(18, weight: .medium)
+                            .foregroundStyle(color)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(unit.name)
+                            .displayFont(16, weight: .bold)
+                            .foregroundStyle(OrgTheme.textPrimary)
+                        Text(unit.category.rawValue)
+                            .displayFont(11)
+                            .foregroundStyle(OrgTheme.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .displaySymbolFont(12, weight: .semibold)
+                        .foregroundStyle(OrgTheme.textTertiary)
+                }
+
+                if let stats {
+                    HStack(spacing: 6) {
+                        Text("\(stats.columnCount) 个栏目")
+                            .displayFont(12, weight: .medium)
+                            .foregroundStyle(OrgTheme.textSecondary)
+                        if let latest = stats.latestTitle {
+                            Text("·")
+                                .displayFont(12)
+                                .foregroundStyle(OrgTheme.textTertiary)
+                            Text(latest)
+                                .displayFont(12)
+                                .foregroundStyle(OrgTheme.textSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.hero))
+            .overlay(
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.hero)
+                    .stroke(color.opacity(colorScheme == .dark ? 0.28 : 0.14), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.06), radius: 8, y: 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(OrgPressStyle())
+        .simultaneousGesture(TapGesture().onEnded { OrgHaptics.light() })
+    }
+
+    /// 焦点小卡：机构名 + 栏目数
+    private func focusSmallCard(unit: OrganizationUnit, stats: PortalStats?) -> some View {
+        let color = unit.category.color
+        return NavigationLink {
+            OrganizationDetailView(unit: unit)
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: OrgTheme.Radius.tile)
+                        .fill(color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
+                        .frame(width: 34, height: 34)
+                    Image(systemName: OrgTheme.linearIcon(unit.icon))
+                        .displaySymbolFont(14, weight: .medium)
+                        .foregroundStyle(color)
+                }
+                Text(unit.name)
+                    .displayFont(14, weight: .semibold)
+                    .foregroundStyle(OrgTheme.textPrimary)
+                    .lineLimit(1)
+                if let stats {
+                    Text("\(stats.columnCount) 个栏目")
+                        .displayFont(12)
+                        .foregroundStyle(OrgTheme.textSecondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.card))
+            .overlay(
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.card)
+                    .stroke(OrgTheme.separator, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.05), radius: 6, y: 3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(OrgPressStyle())
+        .simultaneousGesture(TapGesture().onEnded { OrgHaptics.light() })
+    }
+
     // MARK: 分类区块
 
     private func categorySection(category: OrganizationCategory, units: [OrganizationUnit]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let usesWideLeadCard = sortOrder == .defaultOrder && units.count > 1
+        let leadUnit = usesWideLeadCard ? units.first : nil
+        let gridUnits = usesWideLeadCard ? Array(units.dropFirst()) : units
+
+        return VStack(alignment: .leading, spacing: 12) {
             // 分类标题（名称排序时简化显示）
             if !isNameSorted {
                 categoryHeader(category: category, count: units.count)
             }
 
-            // 机构卡片网格
+            // 每组首卡（官网排序首位）为宽卡 —— 华容道节奏（仅默认排序；排序模式保持等宽）
+            if let leadUnit {
+                wideUnitCard(leadUnit, color: category.color)
+                    .padding(.horizontal, 16)
+            }
+
+            // 机构卡片网格（双列）
             LazyVGrid(
                 columns: [
                     GridItem(.flexible(), spacing: 12),
@@ -844,7 +1095,7 @@ struct OrganizationView: View {
                 ],
                 spacing: 12
             ) {
-                ForEach(units) { unit in
+                ForEach(gridUnits) { unit in
                     unitCard(unit, color: category.color)
                 }
             }
@@ -857,28 +1108,28 @@ struct OrganizationView: View {
     private func categoryHeader(category: OrganizationCategory, count: Int) -> some View {
         HStack(spacing: 10) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(category.color.opacity(colorScheme == .dark ? 0.2 : 0.15))
-                    .frame(width: 36, height: 36)
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.tile)
+                    .fill(category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
+                    .frame(width: 30, height: 30)
                 Image(systemName: category.icon)
-                    .displaySymbolFont(16, weight: .semibold)
+                    .displaySymbolFont(14, weight: .semibold)
                     .foregroundStyle(category.color)
             }
 
             Text(category.rawValue)
                 .displayFont(17, weight: .bold)
-                .foregroundStyle(.primary)
+                .foregroundStyle(OrgTheme.textPrimary)
 
             Spacer()
 
             Text("\(count) 个")
                 .displayFont(12, weight: .medium)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(OrgTheme.textSecondary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(
                     Capsule()
-                        .fill(.ultraThinMaterial)
+                        .fill(OrgTheme.surfaceMuted)
                 )
         }
         .padding(.horizontal, 16)
@@ -892,53 +1143,112 @@ struct OrganizationView: View {
         } label: {
             cardContent(unit, color: color)
         }
-        .buttonStyle(OrganizationCardButtonStyle())
+        .buttonStyle(OrgPressStyle())
+        .simultaneousGesture(TapGesture().onEnded { OrgHaptics.light() })
+    }
+
+    /// 宽卡（跨两列：大图标瓦片 + 名称 + 统计/官网子站）
+    private func wideUnitCard(_ unit: OrganizationUnit, color: Color) -> some View {
+        NavigationLink {
+            OrganizationDetailView(unit: unit)
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: OrgTheme.Radius.row)
+                        .fill(color.opacity(colorScheme == .dark ? 0.10 : 0.06))
+                        .frame(width: 96, height: 72)
+                    Image(systemName: OrgTheme.linearIcon(unit.icon))
+                        .displaySymbolFont(26, weight: .light)
+                        .foregroundStyle(color.opacity(0.9))
+                }
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(unit.name)
+                        .displayFont(15, weight: .bold)
+                        .foregroundStyle(OrgTheme.textPrimary)
+                        .lineLimit(1)
+                    Text(cachedStatText(for: unit) ?? "官网子站")
+                        .displayFont(12)
+                        .foregroundStyle(OrgTheme.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .displaySymbolFont(12, weight: .semibold)
+                    .foregroundStyle(OrgTheme.textTertiary)
+            }
+            .padding(14)
+            .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.card))
+            .overlay(
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.card)
+                    .stroke(OrgTheme.separator, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.05), radius: 6, y: 3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(OrgPressStyle())
+        .simultaneousGesture(TapGesture().onEnded { OrgHaptics.light() })
     }
 
     private func cardContent(_ unit: OrganizationUnit, color: Color) -> some View {
-        HStack(spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(color.opacity(colorScheme == .dark ? 0.18 : 0.12))
-                    .frame(width: 34, height: 34)
-                Image(systemName: unit.icon)
-                    .displaySymbolFont(14, weight: .medium)
-                    .foregroundStyle(color)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: OrgTheme.Radius.tile)
+                        .fill(color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
+                        .frame(width: 34, height: 34)
+                    Image(systemName: OrgTheme.linearIcon(unit.icon))
+                        .displaySymbolFont(14, weight: .medium)
+                        .foregroundStyle(color)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .displaySymbolFont(10, weight: .semibold)
+                    .foregroundStyle(OrgTheme.textTertiary)
             }
 
             // 名称（支持搜索高亮）
             if isSearching {
                 highlightedText(unit.name, keyword: trimmedSearchText)
-                    .displayFont(13, weight: .medium)
+                    .displayFont(15, weight: .semibold)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text(unit.name)
-                    .displayFont(13, weight: .medium)
-                    .foregroundStyle(.primary)
+                    .displayFont(15, weight: .semibold)
+                    .foregroundStyle(OrgTheme.textPrimary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Spacer(minLength: 0)
-
-            Image(systemName: "chevron.right")
-                .displaySymbolFont(10, weight: .semibold)
-                .foregroundStyle(.tertiary)
+            // 统计（仅缓存命中时显示，不留占位 —— 请求预算 §5.1）
+            if let stat = cachedStatText(for: unit) {
+                Text(stat)
+                    .displayFont(12)
+                    .foregroundStyle(OrgTheme.textSecondary)
+                    .lineLimit(1)
+            }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
-        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.card))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(color.opacity(colorScheme == .dark ? 0.15 : 0.08), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: OrgTheme.Radius.card)
+                .stroke(OrgTheme.separator, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.15 : 0.04), radius: 8, y: 4)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.05), radius: 6, y: 3)
         .contentShape(Rectangle())
+    }
+
+    /// 缓存命中时的统计文案（「N 个栏目」；未命中返回 nil —— 篇数在详情页 chips 惰性获取真实值）
+    private func cachedStatText(for unit: OrganizationUnit) -> String? {
+        guard let siteKey = unit.siteKey,
+              let data = OrgHomeCache.shared.cached(siteKey: siteKey) else { return nil }
+        let index = OrgColumnIndexBuilder.build(nav: data.nav ?? [], defaultSiteId: "1")
+        let listCount = index.columns.filter { $0.kind == .list }.count
+        guard listCount > 0 else { return nil }
+        return "\(listCount) 个栏目"
     }
 
     // MARK: 搜索高亮文本
@@ -988,7 +1298,7 @@ struct OrganizationView: View {
             Text(result)
                 .background(
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.yellow.opacity(0.25))
+                        .fill(OrgTheme.brass.opacity(colorScheme == .dark ? 0.30 : 0.22))
                         .padding(.horizontal, -2)
                         .padding(.vertical, -1)
                 )
