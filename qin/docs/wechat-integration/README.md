@@ -34,7 +34,7 @@
 | --- | --- | --- |
 | 分享到会话 / 朋友圈 / 收藏 | `WeChatService.share(_:to:)` | 网页卡片（标题 ≤512B、摘要 ≤1KB、缩略图 ≤32KB 自动生成） |
 | 分享菜单 UI | `WeChatShareMenu` | 文章详情「分享 → 分享到微信」，三场景磁贴 + 不可用状态提示（**7 处入口**：新闻 / 荣誉 / 教师 / 故事 / 活动 / 机构 / 党建文章详情，2026-09-28 补齐党建详情） |
-| **长图分享到微信** | `WeChatService.shareImage(_:title:to:entry:)` + `WeChatLongImageShareMenu` | **WXImageObject 图片消息**（正文整图，官方示例即覆盖三场景含朋友圈）：`imageData ≤10MB`（超限自动降质/降采样并留痕）、`thumbData ≤32KB`（缩略图锚定长图顶部标题区）；分享面板新增「长图分享到微信」入口（**6 处**：新闻 / 荣誉 / 教师 / 故事 / 活动 / 机构） |
+| **长图分享到微信** | `WeChatService.shareImage(_:title:to:entry:)` + `WeChatLongImageShareMenu` | **WXImageObject 图片消息**（正文整图，官方示例即覆盖三场景含朋友圈）：`imageData ≤10MB`（超限自动降质/降采样并留痕）、`thumbData ≤32KB`（缩略图锚定长图顶部标题区）；分享面板新增「长图分享到微信」入口（**6 处**：新闻 / 荣誉 / 教师 / 故事 / 活动 / 机构）；菜单头部预览为载荷构造期生成的 **200pt 顶部裁方小图**（防超长图直渲），`entry` 页面级归因（news/honor/teacher/story/activity/organization_detail）——完整测试报告见 [test-report-20260928-long-image.md](./test-report-20260928-long-image.md) |
 | 微信登录 | `WeChatService.startAuth(scope:)` | `SendAuthReq` + state 防 CSRF；回执授权码经 `lastAuthCode` 发布 |
 | 小程序跳转 | `WeChatService.launchMiniProgram(...)` | `WXMiniProgramObject`（未配置原始 ID 时自动禁用并提示） |
 | 回跳处理（双通道） | `handle(openURL:)` / `handle(userActivity:)` | 由 `DesignCodeApp` 的 `.onOpenURL` / `.onContinueUserActivity` 送达 |
@@ -143,6 +143,7 @@ curl -sI https://jl.43322.cn/app/ | head -3
    - 文章详情 → 分享 → 分享到微信 → 好友 / 朋友圈 / 收藏，各自发送成功并看到回执横幅；
    - 「微信集成」页发起微信登录，`lastAuthCode` 出现授权码（需平台已开通登录能力）；
    - 日志中心筛选 `wechat` 域：注册 / 分享发起 / 回执 / 自检逐步均有记录。
+4. **专项测试报告**：[长图分享到微信 · 完整测试报告](./test-report-20260928-long-image.md)（2026-09-28；含契约用例明细、覆盖矩阵、UI 细节审计对照表、证据索引与人工验收清单）。
 
 **已完成的工程验证（2026-09-27；先占位配置、后真实配置各一轮）**
 
@@ -229,3 +230,4 @@ curl -sI https://jl.43322.cn/app/ | head -3
 | 2026-09-28 | **根因定位（现场核实）**：签名团队为免费「个人团队」（Team 显示 Personal Team；真机描述文件 7 天有效期），**Associated Domains 属付费 ADP 能力** → 按「保持现状」处理：`CODE_SIGN_ENTITLEMENTS` 保持关闭，限制、证据与升级步骤写入 §3.4；同时复核：AASA 已部署且 Apple CDN 已收录，真机 `registerApp=true / availability=ready` |
 | 2026-09-28 | **长图分享到微信（WXImageObject）**：分享面板新增「长图分享到微信」入口（6 处文章页），复用既有长图生成链路（加载/错误覆盖层不变）→ `WeChatLongImageShareMenu` 三场景发送；`WeChatImageEncoder` 保证 `imageData ≤10MB`（逐档降质/降采样留痕）、缩略图锚定长图顶部 ≤32KB；回执按 `WeChatShareKind` 区分文案与 `kind` 日志；抽公共组件 `WeChatSceneTiles` / `WeChatUnavailableNotice`（两菜单共用，动效一致）；真机 108/108（新增 4 例长图契约），全量编译 0/0（`build/verify/longimage_*.log`） |
 | 2026-09-28 | **完整复核 + 补齐入口**：① 配置契约复核（xcframework 四段挂载 / `-ObjC -all_load` / 8 系统框架 / 产物 Info.plist 实测）/ 接线点复核（隐私门控注册、双通道回跳、WXApiDelegate、SDK 日志桥）/ **SDK API 形式冷编译取证**（`swiftc -typecheck` 对官方头，EXIT=0，探针 `build/verify/wxapi_probe.swift`）；② 新增第 7 处微信分享入口：**党建文章详情**（`PartySubjectView`，此前仅系统分享面板）；③ 真机：全量编译 0/0 + 护栏通过 + 104/104（`build/verify/audit2_*.log`）；④ 日志域基准刷新：`wechat` 51→52 处、全工程 1,077→1,078 处 |
+| 2026-09-28 | **长图分享 UI 细节审计 + 专项测试报告**：与 `WeChatShareMenu` 逐项对照（结构 / 间距 / 动效 / detents / 文案平行结构）确认融合；修复 ① 菜单头部直渲超长图 → 载荷构造期 **200pt 顶部裁方预览小图**（与官方缩略图同一裁切核心，新增契约用例 `testLongImagePayloadPreviewContract` 锁定）；② `entry` 占位值 → **页面级归因**（6 页）；新增 [完整测试报告](./test-report-20260928-long-image.md)；真机 **109/109** + 全量编译 0/0 + 护栏通过（`build/verify/uipolish_*.log`） |

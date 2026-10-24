@@ -416,7 +416,8 @@ enum WeChatImageEncoder {
 enum WeChatThumbnailProvider {
     static let maxThumbBytes = 32 * 1024
     static let hardLimitBytes = 64 * 1024
-    static let thumbSide: CGFloat = 200
+    /// 缩略图边长（200pt）：长图载荷构造期生成预览小图也会读取（故 nonisolated）
+    nonisolated static let thumbSide: CGFloat = 200
 
     /// 生成缩略图数据；任一步失败返回 nil（分享仍可进行，仅无缩略图）
     static func thumbData(for payload: WeChatSharePayload) async -> Data? {
@@ -502,7 +503,7 @@ enum WeChatThumbnailProvider {
 
     /// 等比缩放 + 裁方 + JPEG 分级压缩（官方缩略图方形展示）
     static func compress(_ image: UIImage, alignment: ThumbAlignment = .center) -> Data? {
-        guard let scaled = squareScaled(image, side: thumbSide, alignment: alignment) else { return nil }
+        guard let scaled = squareScaled(image, side: thumbSide, anchorTop: alignment == .top) else { return nil }
         var quality: CGFloat = 0.82
         while quality >= 0.2 {
             if let data = scaled.jpegData(compressionQuality: quality), data.count <= maxThumbBytes {
@@ -520,25 +521,26 @@ enum WeChatThumbnailProvider {
         return fallback
     }
 
-    /// 居中/顶部裁方 + 缩放（top 用于长图：优先展示标题区）
-    private static func squareScaled(_ image: UIImage, side: CGFloat, alignment: ThumbAlignment = .center) -> UIImage? {
+    /// 居中/顶部裁方 + 缩放核心（anchorTop：长图优先展示顶部标题区）
+    /// nonisolated：长图载荷构造（非隔离上下文）复用本核心生成预览小图；UIGraphicsImageRenderer 线程安全
+    nonisolated private static func squareScaled(_ image: UIImage, side: CGFloat, anchorTop: Bool) -> UIImage? {
         guard image.size.width > 0, image.size.height > 0 else { return nil }
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 1
         format.opaque = true
-        let target = CGSize(width: side, height: side)
-        let renderer = UIGraphicsImageRenderer(size: target, format: format)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format)
         return renderer.image { _ in
             let scale = max(side / image.size.width, side / image.size.height)
             let drawSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-            let originY: CGFloat
-            switch alignment {
-            case .center: originY = (side - drawSize.height) / 2
-            case .top:    originY = 0
-            }
-            let origin = CGPoint(x: (side - drawSize.width) / 2, y: originY)
-            image.draw(in: CGRect(origin: origin, size: drawSize))
+            let originY: CGFloat = anchorTop ? 0 : (side - drawSize.height) / 2
+            image.draw(in: CGRect(origin: CGPoint(x: (side - drawSize.width) / 2, y: originY), size: drawSize))
         }
+    }
+
+    /// 顶部裁方预览小图（长图分享菜单头部专用）：载荷构造期一次生成，
+    /// 避免菜单直接绘制可能上万像素高的长图（弹出即显、零绘制卡顿；裁切核心与缩略图一致）
+    nonisolated static func topSquarePreview(from image: UIImage, side: CGFloat) -> UIImage? {
+        squareScaled(image, side: side, anchorTop: true)
     }
 }
 

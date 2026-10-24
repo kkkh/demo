@@ -345,6 +345,19 @@ struct WeChatLongImagePayload: Identifiable {
     let title: String
     /// 入口标识（日志归因，如 "news_detail" / "organization_detail"）
     let entry: String
+    /// 头部预览小图（顶部裁方 200pt，构造期一次生成，与官方缩略图同一裁切核心）：
+    /// 菜单头部直接绘制可能上万像素高的长图有明显开销，此处在载荷构造期收敛为小图
+    let previewImage: UIImage
+
+    init(image: UIImage, title: String, entry: String) {
+        self.image = image
+        self.title = title
+        self.entry = entry
+        self.previewImage = WeChatThumbnailProvider.topSquarePreview(
+            from: image,
+            side: WeChatThumbnailProvider.thumbSide
+        ) ?? image
+    }
 }
 
 /// 微信长图分享菜单：把已生成的文章长图作为图片消息发送到微信
@@ -383,6 +396,7 @@ struct WeChatLongImageShareMenu: View {
                 "entry": payload.entry,
                 "title": payload.title,
                 "pixelSize": "\(Int(payload.image.size.width))x\(Int(payload.image.size.height))",
+                "preview": "\(Int(payload.previewImage.size.width))x\(Int(payload.previewImage.size.height))",
                 "availability": service.availability.rawValue
             ])
         }
@@ -417,12 +431,12 @@ struct WeChatLongImageShareMenu: View {
         .offset(y: appeared ? 0 : -6)
     }
 
-    /// 长图预览：等比填充并锚定顶部（展示长图头卡标题区）
+    /// 长图预览：载荷构造期生成的顶部裁方小图（与缩略图同一裁切核心），弹出即显、零绘制卡顿
     private var preview: some View {
-        Image(uiImage: payload.image)
+        Image(uiImage: payload.previewImage)
             .resizable()
             .scaledToFill()
-            .frame(width: 52, height: 52, alignment: .top)
+            .frame(width: 52, height: 52)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(alignment: .bottomTrailing) {
                 Text("长图")

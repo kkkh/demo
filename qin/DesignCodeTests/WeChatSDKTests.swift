@@ -9,6 +9,7 @@
 //  · 官方字节级限制：标题 ≤512B、描述 ≤1024B（UTF-8 不切断多字节字符）
 //  · 缩略图契约：居中裁方 200×200、JPEG ≤32KB（硬上限 64KB）；长图取图可锚定顶部
 //  · 长图分享契约（WXImageObject）：imageData ≤10MB（超限自动降档）、thumbData ≤32KB
+//  · 长图菜单预览契约：载荷构造期生成 200pt 方形小图（顶部裁方，禁止菜单直渲超长图）
 //  · 回执文案契约：网页卡片 / 长图分享的横幅与日志归因可区分
 //  · 场景枚举与官方 WXScene 数值对齐（会话 0 / 朋友圈 1 / 收藏 2）
 //  · 可用性状态机不变量、自检七步标题、横幅模型
@@ -313,6 +314,16 @@ final class WeChatSDKTests: XCTestCase {
         XCTAssertEqual(WeChatShareKind.longImage.cancelText, "已取消长图分享")
         XCTAssertEqual(WeChatShareKind.longImage.noun, "长图分享")
         XCTAssertEqual(WeChatShareKind.longImage.logName, "longImage")
+    }
+
+    /// 长图菜单预览契约：载荷构造期必须收敛为 200pt 方形小图（避免菜单头部直渲超长图）
+    func testLongImagePayloadPreviewContract() {
+        let image = makeNoisyImage(width: 900, height: 5400)
+        let payload = WeChatLongImagePayload(image: image, title: "长图预览契约", entry: "contract_test")
+        let side = WeChatThumbnailProvider.thumbSide
+        XCTAssertEqual(payload.previewImage.size.width, side, accuracy: 1, "预览必须为 200pt 方形（顶部裁方）")
+        XCTAssertEqual(payload.previewImage.size.height, side, accuracy: 1, "预览必须为 200pt 方形（顶部裁方）")
+        XCTAssertEqual(payload.image.size, image.size, "载荷仍保留原始长图（发送用，不被预览替换）")
     }
 
     // MARK: - 辅助
