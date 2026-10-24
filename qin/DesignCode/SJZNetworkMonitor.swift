@@ -36,7 +36,7 @@ private final class NetworkMonitorLedger: @unchecked Sendable {
     static let shared = NetworkMonitorLedger()
 
     private let lock = NSLock()
-    private var inFlight: [UInt64: (start: CFTimeInterval, bytes: Int64, host: String?)] = [:]
+    private var inFlight: [UInt64: (start: CFTimeInterval, bytes: Int64, host: String?, firstByte: CFTimeInterval?)] = [:]
     private var tokenCounter: UInt64 = 0
     private var bucketBytes: Int64 = 0
     private var bucketUpBytes: Int64 = 0
@@ -56,7 +56,7 @@ private final class NetworkMonitorLedger: @unchecked Sendable {
         tokenCounter += 1
         let token = tokenCounter
         if !suspended {
-            inFlight[token] = (CFAbsoluteTimeGetCurrent(), 0, host)
+            inFlight[token] = (CFAbsoluteTimeGetCurrent(), 0, host, nil)
         } else {
             // 静默期不记账（complete 时会找不到 token 而被忽略，口径一致）
         }
@@ -91,13 +91,24 @@ private final class NetworkMonitorLedger: @unchecked Sendable {
         bucketUpBytes += Int64(bytes)
     }
 
-    func complete(token: UInt64) -> (latency: Double, bytes: Int64, host: String?)? {
+    /// 首字节时刻（响应头到达）——TTFB 口径：准确反映链路响应，不受大文件下载时长拖累（2026-09-27）
+    func markFirstByte(token: UInt64) {
+        lock.lock(); defer { lock.unlock() }
+        guard var entry = inFlight[token], entry.firstByte == nil else { return }
+        entry.firstByte = CFAbsoluteTimeGetCurrent()
+        inFlight[token] = entry
+    }
+
+    func complete(token: UInt64) -> (latency: Double, ttfb: Double?, bytes: Int64, host: String?)? {
         lock.lock(); defer { lock.unlock() }
         guard let entry = inFlight.removeValue(forKey: token) else { return nil }
-        let latency = (CFAbsoluteTimeGetCurrent() - entry.start) * 1000.0
-        bucketLatencySum += latency
+        let now = CFAbsoluteTimeGetCurrent()
+        let latency = (now - entry.start) * 1000.0
+        let ttfb = entry.firstByte.map { ($0 - entry.start) * 1000.0 }
+        // 1s 桶与直方图统一 TTFB 口径（无响应头的失败请求回退总时长）
+        bucketLatencySum += ttfb ?? latency
         bucketLatencyCount += 1
-        return (latency, entry.bytes, entry.host)
+        return (latency, ttfb, entry.bytes, entry.host)
     }
 
     func abandon(token: UInt64) {
@@ -439,8 +450,8 @@ final class SJZNetworkMonitor: ObservableObject {
     private static let timelineDecoder: JSONDecoder = {
         let d = JSONDecoder(); d.dateDecodingStrategy = .iso8601; return d
     }()
-    /// 心跳清会话的 UA
-    private static let probeUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    /// 心跳/探测/测速共用 UA（nonisolated 纯常量：允许 Task 内嵌套函数等非隔离上下文安全引用，2026-09-27 消除 Swift 6 模式警告）
+    private nonisolated static let probeUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
     @AppStorage(NetmonKey.chartWindow) private var storedChartWindow: Int = 60
     /// 图表窗口秒数（@Published 立即驱动 UI；同时持久化 @AppStorage）
@@ -1004,7 +1015,7 @@ final class SJZNetworkMonitor: ObservableObject {
             if slowLatencyStreak >= 3 && anomalyKind == nil {
                 anomalyKind = .highLatency
                 appendLinkEvent(.init(kind: .anomaly, status: "延迟偏高", interface: interfaceName,
-                                      reason: "连续 3 条请求延迟 ≥ 1s"))
+                                      reason: "连续 3 条请求首字节 ≥ 1s"))
                 LogManager.shared.warning("netmon", "异常横幅出现：延迟持续偏高", context: [
                     "host": host ?? "unknown", "streak": "\(slowLatencyStreak)"
                 ])
@@ -1044,6 +1055,11 @@ final class SJZNetworkMonitor: ObservableObject {
         NetworkMonitorLedger.shared.addUpData(token: token, bytes: bytes)
     }
 
+    /// 首字节时刻（协议层 didReceive 时调用）——netmon TTFB 口径入口（2026-09-27）
+    nonisolated static func tapFirstByte(token: UInt64) {
+        NetworkMonitorLedger.shared.markFirstByte(token: token)
+    }
+
     nonisolated static func tapAbandon(token: UInt64) {
         NetworkMonitorLedger.shared.abandon(token: token)
     }
@@ -1061,14 +1077,16 @@ final class SJZNetworkMonitor: ObservableObject {
         tapUpload(token: token, bytes: body.count)
     }
 
-    private func absorbCompletion(entry: (latency: Double, bytes: Int64, host: String?), success: Bool) {
+    private func absorbCompletion(entry: (latency: Double, ttfb: Double?, bytes: Int64, host: String?), success: Bool) {
         totalRequests += 1
         if success { successRequests += 1 } else { failedRequests += 1 }
-        lastLatencyMs = entry.latency
-        latencySumMs += entry.latency
+        // 响应延迟指标统一 TTFB 口径（无响应头的失败回退总时长），避免大图下载时长被误判为「链路慢」（2026-09-27）
+        let effectiveLatency = entry.ttfb ?? entry.latency
+        lastLatencyMs = effectiveLatency
+        latencySumMs += effectiveLatency
         totalBytes += entry.bytes
         todayDownBytes += entry.bytes
-        switch entry.latency {
+        switch effectiveLatency {
         case ..<100: latencyHistogram[0] += 1
         case ..<300: latencyHistogram[1] += 1
         case ..<1000: latencyHistogram[2] += 1
@@ -1079,13 +1097,13 @@ final class SJZNetworkMonitor: ObservableObject {
         if let host = entry.host, !host.isEmpty {
             var stat = perHostStats[host] ?? (0, 0, 0, 0)
             stat.bytes += entry.bytes
-            stat.latSum += entry.latency
+            stat.latSum += effectiveLatency
             stat.count += 1
             if !success { stat.failures += 1 }
             perHostStats[host] = stat
         }
 
-        registerBusinessLatency(entry.latency, success: success, host: entry.host)
+        registerBusinessLatency(effectiveLatency, success: success, host: entry.host)
 
         if !success {
             // 失败告警 10s 节流：断网批量失败防刷屏（失败数持续累计在 context 中）
@@ -1094,7 +1112,7 @@ final class SJZNetworkMonitor: ObservableObject {
                 lastFailureLogTime = now
                 LogManager.shared.warning("netmon", "请求失败（协议层观测）", context: [
                     "host": entry.host ?? "unknown",
-                    "latencyMs": String(format: "%.0f", entry.latency),
+                    "latencyMs": String(format: "%.0f", effectiveLatency),
                     "failedTotal": "\(failedRequests)",
                     "successRate": String(format: "%.1f%%", successRate * 100)
                 ])
@@ -1102,13 +1120,13 @@ final class SJZNetworkMonitor: ObservableObject {
             return
         }
 
-        if entry.latency >= 1000 {
+        if effectiveLatency >= 1000 {
             let now = Date()
             if now.timeIntervalSince(lastSlowRequestLogTime) >= 10 {
                 lastSlowRequestLogTime = now
-                LogManager.shared.warning("netmon", "慢请求告警（延迟 ≥ 1s）", context: [
+                LogManager.shared.warning("netmon", "慢请求告警（首字节 ≥ 1s）", context: [
                     "host": entry.host ?? "unknown",
-                    "latencyMs": String(format: "%.0f", entry.latency),
+                    "latencyMs": String(format: "%.0f", effectiveLatency),
                     "bytes": "\(entry.bytes)",
                     "sessionSlowCount": "\(latencyHistogram[3])"
                 ])
@@ -1118,7 +1136,7 @@ final class SJZNetworkMonitor: ObservableObject {
 
         successBatchCount += 1
         successBatchBytes += entry.bytes
-        successBatchLatencySum += entry.latency
+        successBatchLatencySum += effectiveLatency
         if successBatchCount >= 50 {
             let avgLatency = successBatchLatencySum / Double(successBatchCount)
             LogManager.shared.debugLog("netmon", "成功请求批量统计", context: [

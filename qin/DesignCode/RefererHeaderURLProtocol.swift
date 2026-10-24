@@ -104,6 +104,8 @@ final class RefererHeaderURLProtocol: URLProtocol {
                 return
             }
             if let response = response {
+                // 首字节（响应头到达）时刻 → netmon TTFB 口径（2026-09-27：慢请求判定不受大文件下载时长拖累）
+                if let token { SJZNetworkMonitor.tapFirstByte(token: token) }
                 // .allowed：允许按 HTTP 语义缓存（图片经下文注入缓存头后实际入缓存）
                 self.client?.urlProtocol(
                     self,
