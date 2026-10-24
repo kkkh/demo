@@ -2357,6 +2357,48 @@ enum SJZImageIntegrity {
     }
 }
 
+// MARK: - 分享临时文件生命周期（系统分享扩展读取保障）
+
+/// 系统分享临时文件管理。
+/// 背景（2026-09-28 现场）：`UIActivityViewController.completionWithItemsHandler` 会在
+/// **用户选择动作时即回调**（而非分享真正结束后）——若在其中立即删除临时文件，
+/// 与分享扩展（微信等）的读取/转存发生竞态，表现为「微信加载中 → 快速闪回 App、分享失败」。
+/// 约定：文件必须活过整个分享期（延迟 5 分钟清理），并在每次分享前清理更早的残留。
+@MainActor
+enum SJZShareFileCenter {
+    /// 保留时长（秒）：远大于扩展读取 / 转存耗时
+    static let retention: TimeInterval = 300
+    /// 陈旧残留清理阈值（秒）
+    private static let staleInterval: TimeInterval = 600
+
+    /// 安排延迟清理（替代「选动作后 1 秒即删」的错误生命周期）；顺带清理更早的残留文件
+    static func scheduleCleanup(_ url: URL) {
+        cleanupStale(excluding: url)
+        DispatchQueue.main.asyncAfter(deadline: .now() + retention) {
+            try? FileManager.default.removeItem(at: url)
+            LogManager.shared.debugLog("longimage", "长图临时分享文件已清理", context: [
+                "file": url.lastPathComponent
+            ])
+        }
+    }
+
+    /// 清理陈旧分享文件（保留当前正在使用的文件，避免残留堆积）
+    private static func cleanupStale(excluding current: URL) {
+        let directory = FileManager.default.temporaryDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey]
+        ) else { return }
+        let now = Date()
+        for file in files where file.lastPathComponent.hasPrefix("sxjzit_") && file != current {
+            let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? now
+            if now.timeIntervalSince(modified) > staleInterval {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+}
+
 // MARK: - 文章长图渲染器
 
 /// 文章长图渲染器（白底长图：品牌头 / 标题 / 元数据 / 正文 / 插图 / 页脚）。
@@ -3697,21 +3739,26 @@ struct EnhancedNewsDetailView: View {
             ])
             return
         }
-        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
-        var jpegData: Data?
-        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
-            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
-               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
-                jpegData = data
-                break
-            }
-        }
-        guard let jpegData else {
+        // 交付编码：分享扩展（微信等）内存与体积预算有限（约 120MB）——按「≤16MP / ≤10MB」编码，
+        // 否则扩展会被系统终止（2026-09-28 现场：微信「加载中 → 闪回 App」）；产物含纯色 / 黑图校验
+        guard let encoded = WeChatImageEncoder.encode(
+            image,
+            maxBytes: WeChatImageEncoder.systemShareMaxBytes,
+            maxPixels: WeChatImageEncoder.systemShareMaxPixels
+        ) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
+        let jpegData = encoded.data
+        LogManager.shared.info("longimage", "长图分享文件编码完成", context: [
+            "title": title,
+            "pixel": "\(Int(encoded.pixelSize.width))x\(Int(encoded.pixelSize.height))",
+            "quality": String(format: "%.2f", encoded.quality),
+            "scale": String(format: "%.2f", encoded.scale),
+            "bytes": "\(encoded.data.count)"
+        ])
 
         // 安全文件名：截取标题前20字符，替换非法字符
         let safeTitle = title
@@ -3762,10 +3809,9 @@ struct EnhancedNewsDetailView: View {
 
         // 分享完成或取消后清理临时文件
         activityVC.completionWithItemsHandler = { [fileURL] _, completed, _, error in
-            // 延迟 1 秒清理，确保微信 Share Extension 已完成文件读取
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                try? FileManager.default.removeItem(at: fileURL)
-            }
+            // 分享扩展（微信等）读取大图较慢，且本回调在「用户选择动作」时即触发——
+            // 绝不能立即删除（现场：微信「加载中 → 闪回 App」）；交由共享中心延迟 5 分钟清理
+            SJZShareFileCenter.scheduleCleanup(fileURL)
             if let error = error {
                 LogManager.shared.error("longimage", "长图分享失败", context: ["error": error.localizedDescription])
             }
@@ -4788,21 +4834,26 @@ struct HonorDetailView: View {
             ])
             return
         }
-        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
-        var jpegData: Data?
-        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
-            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
-               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
-                jpegData = data
-                break
-            }
-        }
-        guard let jpegData else {
+        // 交付编码：分享扩展（微信等）内存与体积预算有限（约 120MB）——按「≤16MP / ≤10MB」编码，
+        // 否则扩展会被系统终止（2026-09-28 现场：微信「加载中 → 闪回 App」）；产物含纯色 / 黑图校验
+        guard let encoded = WeChatImageEncoder.encode(
+            image,
+            maxBytes: WeChatImageEncoder.systemShareMaxBytes,
+            maxPixels: WeChatImageEncoder.systemShareMaxPixels
+        ) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
+        let jpegData = encoded.data
+        LogManager.shared.info("longimage", "长图分享文件编码完成", context: [
+            "title": title,
+            "pixel": "\(Int(encoded.pixelSize.width))x\(Int(encoded.pixelSize.height))",
+            "quality": String(format: "%.2f", encoded.quality),
+            "scale": String(format: "%.2f", encoded.scale),
+            "bytes": "\(encoded.data.count)"
+        ])
 
         let safeTitle = title
             .replacingOccurrences(of: "/", with: "_")
@@ -4845,10 +4896,9 @@ struct HonorDetailView: View {
             .postToFlickr, .postToVimeo, .postToTencentWeibo
         ]
         activityVC.completionWithItemsHandler = { [fileURL] _, completed, _, error in
-            // 延迟 1 秒清理，确保微信 Share Extension 已完成文件读取
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                try? FileManager.default.removeItem(at: fileURL)
-            }
+            // 分享扩展（微信等）读取大图较慢，且本回调在「用户选择动作」时即触发——
+            // 绝不能立即删除（现场：微信「加载中 → 闪回 App」）；交由共享中心延迟 5 分钟清理
+            SJZShareFileCenter.scheduleCleanup(fileURL)
             if let error = error {
                 LogManager.shared.error("ui", "荣誉长图分享失败", context: ["error": error.localizedDescription])
             } else {
@@ -5409,21 +5459,26 @@ struct TeacherDetailView: View {
             ])
             return
         }
-        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
-        var jpegData: Data?
-        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
-            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
-               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
-                jpegData = data
-                break
-            }
-        }
-        guard let jpegData else {
+        // 交付编码：分享扩展（微信等）内存与体积预算有限（约 120MB）——按「≤16MP / ≤10MB」编码，
+        // 否则扩展会被系统终止（2026-09-28 现场：微信「加载中 → 闪回 App」）；产物含纯色 / 黑图校验
+        guard let encoded = WeChatImageEncoder.encode(
+            image,
+            maxBytes: WeChatImageEncoder.systemShareMaxBytes,
+            maxPixels: WeChatImageEncoder.systemShareMaxPixels
+        ) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
+        let jpegData = encoded.data
+        LogManager.shared.info("longimage", "长图分享文件编码完成", context: [
+            "title": title,
+            "pixel": "\(Int(encoded.pixelSize.width))x\(Int(encoded.pixelSize.height))",
+            "quality": String(format: "%.2f", encoded.quality),
+            "scale": String(format: "%.2f", encoded.scale),
+            "bytes": "\(encoded.data.count)"
+        ])
 
         let safeTitle = title
             .replacingOccurrences(of: "/", with: "_")
@@ -5466,10 +5521,9 @@ struct TeacherDetailView: View {
             .postToFlickr, .postToVimeo, .postToTencentWeibo
         ]
         activityVC.completionWithItemsHandler = { [fileURL] _, completed, _, error in
-            // 延迟 1 秒清理，确保微信 Share Extension 已完成文件读取
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                try? FileManager.default.removeItem(at: fileURL)
-            }
+            // 分享扩展（微信等）读取大图较慢，且本回调在「用户选择动作」时即触发——
+            // 绝不能立即删除（现场：微信「加载中 → 闪回 App」）；交由共享中心延迟 5 分钟清理
+            SJZShareFileCenter.scheduleCleanup(fileURL)
             if let error = error {
                 LogManager.shared.error("ui", "教师风采长图分享失败", context: ["error": error.localizedDescription])
             } else {
@@ -5960,21 +6014,26 @@ struct StoryDetailView: View {
             ])
             return
         }
-        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
-        var jpegData: Data?
-        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
-            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
-               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
-                jpegData = data
-                break
-            }
-        }
-        guard let jpegData else {
+        // 交付编码：分享扩展（微信等）内存与体积预算有限（约 120MB）——按「≤16MP / ≤10MB」编码，
+        // 否则扩展会被系统终止（2026-09-28 现场：微信「加载中 → 闪回 App」）；产物含纯色 / 黑图校验
+        guard let encoded = WeChatImageEncoder.encode(
+            image,
+            maxBytes: WeChatImageEncoder.systemShareMaxBytes,
+            maxPixels: WeChatImageEncoder.systemShareMaxPixels
+        ) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
+        let jpegData = encoded.data
+        LogManager.shared.info("longimage", "长图分享文件编码完成", context: [
+            "title": title,
+            "pixel": "\(Int(encoded.pixelSize.width))x\(Int(encoded.pixelSize.height))",
+            "quality": String(format: "%.2f", encoded.quality),
+            "scale": String(format: "%.2f", encoded.scale),
+            "bytes": "\(encoded.data.count)"
+        ])
 
         let safeTitle = title
             .replacingOccurrences(of: "/", with: "_")
@@ -6017,10 +6076,9 @@ struct StoryDetailView: View {
             .postToFlickr, .postToVimeo, .postToTencentWeibo
         ]
         activityVC.completionWithItemsHandler = { [fileURL] _, completed, _, error in
-            // 延迟 1 秒清理，确保微信 Share Extension 已完成文件读取
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                try? FileManager.default.removeItem(at: fileURL)
-            }
+            // 分享扩展（微信等）读取大图较慢，且本回调在「用户选择动作」时即触发——
+            // 绝不能立即删除（现场：微信「加载中 → 闪回 App」）；交由共享中心延迟 5 分钟清理
+            SJZShareFileCenter.scheduleCleanup(fileURL)
             if let error = error {
                 LogManager.shared.error("ui", "学生故事长图分享失败", context: ["error": error.localizedDescription])
             } else {
@@ -6515,21 +6573,26 @@ struct ActivityDetailView: View {
             ])
             return
         }
-        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
-        var jpegData: Data?
-        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
-            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
-               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
-                jpegData = data
-                break
-            }
-        }
-        guard let jpegData else {
+        // 交付编码：分享扩展（微信等）内存与体积预算有限（约 120MB）——按「≤16MP / ≤10MB」编码，
+        // 否则扩展会被系统终止（2026-09-28 现场：微信「加载中 → 闪回 App」）；产物含纯色 / 黑图校验
+        guard let encoded = WeChatImageEncoder.encode(
+            image,
+            maxBytes: WeChatImageEncoder.systemShareMaxBytes,
+            maxPixels: WeChatImageEncoder.systemShareMaxPixels
+        ) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
+        let jpegData = encoded.data
+        LogManager.shared.info("longimage", "长图分享文件编码完成", context: [
+            "title": title,
+            "pixel": "\(Int(encoded.pixelSize.width))x\(Int(encoded.pixelSize.height))",
+            "quality": String(format: "%.2f", encoded.quality),
+            "scale": String(format: "%.2f", encoded.scale),
+            "bytes": "\(encoded.data.count)"
+        ])
 
         let safeTitle = title
             .replacingOccurrences(of: "/", with: "_")
@@ -6572,10 +6635,9 @@ struct ActivityDetailView: View {
             .postToFlickr, .postToVimeo, .postToTencentWeibo
         ]
         activityVC.completionWithItemsHandler = { [fileURL] _, completed, _, error in
-            // 延迟 1 秒清理，确保微信 Share Extension 已完成文件读取
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                try? FileManager.default.removeItem(at: fileURL)
-            }
+            // 分享扩展（微信等）读取大图较慢，且本回调在「用户选择动作」时即触发——
+            // 绝不能立即删除（现场：微信「加载中 → 闪回 App」）；交由共享中心延迟 5 分钟清理
+            SJZShareFileCenter.scheduleCleanup(fileURL)
             if let error = error {
                 LogManager.shared.error("ui", "校园活动长图分享失败", context: ["error": error.localizedDescription])
             } else {
