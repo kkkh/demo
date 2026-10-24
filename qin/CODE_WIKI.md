@@ -1163,7 +1163,7 @@ xcodebuild -project DesignCode.xcodeproj -scheme DesignCode \
 | 高 | `exit(0)` 强制退出（Apple 审核风险） | PrivacyPolicyView.swift |
 | 高 | `OTHER_SWIFT_FLAGS = -disable-sandbox` 禁用 App 沙箱 | project.pbxproj |
 | 中 | `@AppStorage + didSet`（违反自身约束） | NotificationManager.swift |
-| 中 | AnnouncementManager 网络失败时 `isLoading` 未复位（公告页转圈卡死） | AnnouncementManager.fetchAnnouncement 守卫分支 |
+| 已修复 | ~~AnnouncementManager 网络失败时 `isLoading` 未复位（公告页转圈卡死）~~ → **已修复（2026-09-27：defer 复位，全部守卫分支覆盖）** | AnnouncementManager.fetchAnnouncement |
 | 中 | Team ID 明文入库 | ExportOptions.plist |
 | 低 | 巨型文件：TabBar 9,107 行（主界面+组件族+图标管理多职责）、OrganizationDetailView 5,268 行、OrganizationView 2,182 行——后续可考虑拆分 |
 | 低 | 生产残留 `print()`、`ZSWArticle.id = articleId ?? UUID()` 非稳定 id、`NewsItem.id` 主键碰撞 | 多处 |
@@ -1173,6 +1173,8 @@ xcodebuild -project DesignCode.xcodeproj -scheme DesignCode \
 | 低 | 消息中心删除日志误名「右滑删除」（实为左滑） | MessageCenterView.swift |
 
 > 已修复（历史）：RefererHeaderURLProtocol 曾每请求新建 URLSession 导致无连接复用、URLCache 禁用导致图片不缓存——现已改共享静态会话 + 统一扩容 URLCache（80/400MB）+ 图片 7 天缓存头（见 §4.15）；机构搜索硬编码栏目 ID / 仅拉 30 条 / 缺内容页栏目 → 已改官网机构树 + 子站索引双通道 + 动态分页（§5.2）。
+
+> **2026-09-27 修复（三项，真机 83/83 终验）**：① 机构降级搜索 4 个已失效硬编码栏目 ID（联网实测 500）→ `resolveMainSiteSearchColumns()` 运行时动态解析（OrganizationDetailView 两调用点共用，旧 ID 全库清零）；② AnnouncementManager `isLoading` 转圈卡死 → `defer` 复位（见上表）；③ 字体下载悬挂（实机日志实证）→ 60s 超时兜底 + 跨尝试令牌竞态防护（DisplaySettingsManager.ensureFontFamily，超时后二次实查自愈）。证据：`build/verify/retest_20260927_fix.log`。
 
 ### 12.3 文档与工程卫生
 

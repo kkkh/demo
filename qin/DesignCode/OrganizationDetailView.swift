@@ -162,6 +162,34 @@ private let zswSiteId = "cb3b1fe4fcdf40999b0c162015c3326d"
 /// 历年分数线查询子站 URL
 private let scoreLineURL = "https://www.sxjzit.edu.cn/#/list/more?type=notice&site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=6ea796a091ff4bbc9622a5550668906f"
 
+/// 降级搜索用主站栏目 ID 运行时解析（2026-09-27 联网实测：旧硬编码 ID 已全部失效返回 500）
+/// 优先从 home2 动态取（要闻/资讯/党建/通知），失败回退当日实测现行值；官网换 ID 后动态路径自动跟进
+@MainActor
+private func resolveMainSiteSearchColumns() async -> [(String, String)] {
+    if let home2 = try? await NetworkService.shared.fetchHome2(),
+       let children = home2.news?.children {
+        let resolved = [
+            children.importants?.columnId.map { ("要闻", $0) },
+            children.updates?.columnId.map { ("资讯", $0) },
+            children.resports?.columnId.map { ("党建", $0) },
+            children.notices?.columnId.map { ("通知", $0) },
+        ].compactMap { $0 }
+        if resolved.count == 4 {
+            LogManager.shared.debugLog("organization", "降级搜索栏目 ID 动态解析成功", context: [
+                "columns": resolved.map { "\($0.0)=\($0.1)" }.joined(separator: ",")
+            ])
+            return resolved
+        }
+    }
+    // 回退：2026-09-27 联网实测现行值（官网换 ID 后可先 curl 复核再更新此处）
+    return [
+        ("要闻", "41cb4c8424ac474891e1470aa2fb071b"),
+        ("资讯", "90ede7291c1245988c0af440b782c218"),
+        ("党建", "10a8da2fe65444a7a788778a3c9cd788"),
+        ("通知", "747dcb1ef01449238c24bc1ba84b7a60"),
+    ]
+}
+
 // MARK: - 机构详情视图
 
 struct OrganizationDetailView: View {
@@ -737,13 +765,8 @@ struct OrganizationDetailView: View {
             let columns = try await withThrowingTaskGroup(
                 of: (String, [NetworkService.ArticleDTO]).self
             ) { group in
-                // 搜索多个栏目以提高命中率
-                let columnIds: [(String, String)] = [
-                    ("要闻", "f9730c615c33406688fcd873463b876a"),
-                    ("资讯", "5bf032c7e0e54c2a84a0feca2f293b6e"),
-                    ("党建", "ada81bea9b9f4ba984e5faa2dc38909a"),
-                    ("通知", "ec573eeabf7e4dff90979fe08e2032e9"),
-                ]
+                // 搜索多个栏目以提高命中率（栏目 ID 运行时解析——2026-09-27 实测旧硬编码 ID 已全部 500）
+                let columnIds = await resolveMainSiteSearchColumns()
                 for (name, colId) in columnIds {
                     group.addTask {
                         do {
@@ -3653,16 +3676,11 @@ struct OrganizationArticleDetailView: View {
         ])
 
         do {
-            // 并行搜索主站多个栏目
+            // 并行搜索主站多个栏目（栏目 ID 运行时解析，与降级搜索共用）
             let columns = try await withThrowingTaskGroup(
                 of: (String, [NetworkService.ArticleDTO]).self
             ) { group in
-                let columnIds: [(String, String)] = [
-                    ("要闻", "f9730c615c33406688fcd873463b876a"),
-                    ("资讯", "5bf032c7e0e54c2a84a0feca2f293b6e"),
-                    ("党建", "ada81bea9b9f4ba984e5faa2dc38909a"),
-                    ("通知", "ec573eeabf7e4dff90979fe08e2032e9"),
-                ]
+                let columnIds = await resolveMainSiteSearchColumns()
                 for (name, colId) in columnIds {
                     group.addTask {
                         do {
