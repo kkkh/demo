@@ -188,12 +188,21 @@ final class ReadingReportStore: ObservableObject {
         return streak
     }
 
-    /// 分类分钟分布（环形图数据源）
+    /// 分类分钟分布（环形图数据源，本周口径）
     func categoryMinutes() -> [(source: String, minutes: Int)] {
         let range: DateInterval? = weekInterval() ?? DateInterval(start: calendar.startOfDay(for: Date()), end: Date())
         guard let range else { return [] }
         var map: [String: Int] = [:]
         for e in events(in: range) {
+            map[e.source, default: 0] += e.durationSeconds
+        }
+        return map.map { ($0.key, Self.displayMinutes(fromSeconds: $0.value)) }.sorted { $0.minutes > $1.minutes }
+    }
+
+    /// 分类分钟分布（今日口径——日报环形数据源）
+    func todayCategoryMinutes() -> [(source: String, minutes: Int)] {
+        var map: [String: Int] = [:]
+        for e in events(on: Date()) {
             map[e.source, default: 0] += e.durationSeconds
         }
         return map.map { ($0.key, Self.displayMinutes(fromSeconds: $0.value)) }.sorted { $0.minutes > $1.minutes }
