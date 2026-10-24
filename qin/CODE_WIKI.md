@@ -356,7 +356,7 @@
 | `appearanceMode` | system/light/dark | 复用旧键 `colorSchemePreference`，与 MainTabView 联动 |
 | `themeStyle` | blue/red/green/orange/purple | 5 种深浅自适应品牌色，注入根 `.tint` |
 | `fontSizeTier` | tiny~max 6 档 | 缩放系数 0.85~1.40，「中」档不覆盖系统 Dynamic Type |
-| `boldTextEnabled` / `useSystemFont` / `fontFamily` | Bool / system,rounded,serif,avenir,georgia,palatino | 粗体与字体家族 |
+| `boldTextEnabled` / `useSystemFont` / `fontFamily` | Bool / system,songti,kaiti,yuanti,xingkai,libian,weibei | 粗体与 7 款中文全字形字体家族（书法字体为系统按需下载，见 §4.6 字面名契约与下载状态机） |
 | `lineSpacingFactor` / `letterSpacingValue` | 0.9~1.5 / 0~2pt | 行距与字间距 |
 | `buttonShapesEnabled` | Bool | 未显式指定样式的按钮加胶囊边框 |
 | `brightnessValue` / `autoBrightnessEnabled` | Double / Bool | UIKit 桥接屏幕亮度（scene 安全获取 `UIScreen`），接管/交还系统 |
@@ -364,6 +364,15 @@
 | `articleTextColorPreset` / `articleTextCustomHex` | system+7 预设+custom / 6 位 hex | 文章正文文字颜色（§4.15），命中/未命中键直读快照供非主线程渲染 |
 | `readingStatsEnabled` / `readingCharCountEnabled` / `readingTimeEnabled` / `readingListBadgeEnabled` | Bool × 4 | 阅读统计总开关与细项开关（§4.16），默认全开 |
 | `readingSpeedTier` | slow/standard/fast | 阅读速度档位：中文 200/300/450 字/分，英文 150/220/300 词/分 |
+
+**字体按需下载机制（2026-09-27 根治版）**：
+
+- **字面名契约**：`DisplayFontFamily.fontName` 必须是 **PostScript 字面名**——`STSongti-SC-Regular` / `STKaitiSC-Regular` / `STYuanti-SC-Regular` / `STXingkaiSC-Light` / `STLibianSC-Regular` / `WeibeiSC-Bold`（苹方 `PingFang SC` 恒内置）；`boldFontName` 为家族真实粗体字面（宋/楷/圆/行楷有，隶变/魏碑无独立字面）。**系统匹配引擎只认字面名**——历史误用家族名（如 `"Songti SC"`）会 `didBegin → didFinish` 静默完成且零资产（真机 A/B 实证，表现为界面永远停在「下载中」）。
+- **状态机**：`DisplayFontAvailability`（`ready` / `downloading(percent:)` / `unavailable`）＋令牌制防重入（`fontDownloadTokens`）＋**无进展看门狗**（每 5s 轮询，以「最近一次系统进度回调」为基准，连续 60s 无进度才复位为可重试——大字体慢网可远超 60s 总时长）。
+- **终态一律实查自愈**：`finalizeFontDownload`（finished / failed / stalled 三路）以 `UIFont(name:)` 实查判定成败，迟到落地也自愈为就绪并 `typographyRevision += 1` 驱动全 App 字体重算。
+- **粗体字面**：开启「粗体文本」时把家族真实粗体字面并入**同一次**匹配调用（合并进度）；`DisplayFontFactory` 优先用真实粗体字面（无则回退主字面合成加粗）；`boldTextEnabled.didSet` 触发 `bold_toggle` 预热。
+- **UI**：画廊三态徽章（进度环百分比 / 不确定转圈 / 橙色可重试箭头）+「全部下载」批量入口（`ensureAllFontFamilies`，带体积确认弹窗）。实测资产体积：行楷-简 54.7MB、隶变-简 21.6MB、魏碑-简 17.4MB。
+- **埋点全链**：`字体按需下载开始（faces/includeBold/reason）→ 字体资产开始下载（localizedFamily/字节数）→ 字体下载进度（每 25% 分档：百分比/字节/ETA）→ 字体资产传输完成 → 字体字面匹配成功 → 字体按需下载完成并已全局生效（revision/boldFaceReady）`；失败/停滞为 `warning`（含诊断描述）与 `INFO` 状态流转。
 
 **系统无障碍监听**：@objc selector 监听 reduceMotion/reduceTransparency/darkerColors 变化通知。
 

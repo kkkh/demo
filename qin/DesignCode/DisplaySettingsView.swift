@@ -39,6 +39,8 @@ struct DisplaySettingsView: View {
     /// Toast
     @State private var toastText: String?
     @State private var toastWorkItem: DispatchWorkItem?
+    /// 字体「全部下载」确认弹窗
+    @State private var showFontBatchDialog = false
 
     private var versionText: String {
         let info = Bundle.main.infoDictionary
@@ -627,6 +629,13 @@ struct DisplaySettingsView: View {
         .padding(.vertical, 4)
     }
 
+    /// 尚未就绪的书法字体家族（批量下载入口的显示条件与数量）
+    private var fontGalleryMissingFamilies: [DisplayFontFamily] {
+        DisplayFontFamily.allCases.filter { family in
+            family != .system && !(settings.fontAvailability[family] ?? .unavailable).isReady
+        }
+    }
+
     /// 字体家族真字貌画廊：家族名与中文示例均以自身字体渲染（全部中文全字形）
     private var fontFamilyGallery: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -637,6 +646,25 @@ struct DisplaySettingsView: View {
                 Text("字体样式 · 中文全字形真貌")
                     .displayFont(13, weight: .semibold)
                 Spacer()
+                if !fontGalleryMissingFamilies.isEmpty {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        showFontBatchDialog = true
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.down.circle")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("全部下载")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundStyle(settings.themeStyle.color)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(settings.themeStyle.color.opacity(0.10), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("下载全部未就绪的书法字体，共 \(fontGalleryMissingFamilies.count) 款")
+                }
                 Text(settings.fontFamily.title)
                     .displayFont(11, weight: .medium)
                     .foregroundStyle(settings.themeStyle.color)
@@ -644,7 +672,7 @@ struct DisplaySettingsView: View {
                     .padding(.vertical, 3)
                     .background(settings.themeStyle.color.opacity(0.09), in: Capsule())
             }
-            Text("宋/楷/圆等为系统书法字体：首次选择将联网下载一次，之后离线可用；下载完成即刻全 App 生效。")
+            Text("宋/楷/圆等为系统书法字体：首次使用需联网下载（单款约 17–55 MB），一次下载后离线可用、即刻全 App 生效。")
                 .displayFont(10)
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -656,6 +684,15 @@ struct DisplaySettingsView: View {
             }
         }
         .padding(.vertical, 4)
+        .confirmationDialog("下载全部书法字体？", isPresented: $showFontBatchDialog, titleVisibility: .visible) {
+            Button("开始下载（\(fontGalleryMissingFamilies.count) 款）") {
+                settings.ensureAllFontFamilies(reason: "gallery_batch")
+                showToast("已开始下载 \(fontGalleryMissingFamilies.count) 款字体，完成后自动应用")
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("将联网下载尚未就绪的书法字体，单款约 17–55 MB，一次下载后离线可用。")
+        }
     }
 
     private func fontFamilyCell(_ family: DisplayFontFamily) -> some View {
@@ -667,10 +704,19 @@ struct DisplaySettingsView: View {
                 settings.fontFamily = family
             }
             settings.ensureFontFamily(family, reason: "gallery_tap")
-            if state == .ready {
+            switch state {
+            case .ready:
                 showToast("字体已切换为\(family.title)")
-            } else if family != .system {
-                showToast("\(family.title)下载中，就绪后自动应用")
+            case .downloading(let percent):
+                if let percent {
+                    showToast("\(family.title)下载中（\(Int(percent))%），完成后自动应用")
+                } else {
+                    showToast("\(family.title)下载中，完成后自动应用")
+                }
+            case .unavailable:
+                if family != .system {
+                    showToast("\(family.title)开始下载，完成后自动应用")
+                }
             }
         } label: {
             VStack(alignment: .leading, spacing: 5) {
@@ -689,7 +735,7 @@ struct DisplaySettingsView: View {
                             .foregroundStyle(settings.themeStyle.color)
                     }
                     // 下载状态徽章：一键直观看到字体就绪进度
-                    if family != .system, isSelected || state != .ready {
+                    if family != .system, isSelected || !state.isReady {
                         fontStateBadge(state, family: family)
                     }
                 }
@@ -716,17 +762,32 @@ struct DisplaySettingsView: View {
         .accessibilityHint("双击选择该字体家族，全文即时切换；未下载字体将自动联网下载")
     }
 
-    /// 字体状态徽章（下载中/未下载）
+    /// 字体状态徽章（下载中[含百分比进度环]/未下载）
     @ViewBuilder
     private func fontStateBadge(_ state: DisplayFontAvailability, family: DisplayFontFamily) -> some View {
         switch state {
         case .ready:
             EmptyView()
-        case .downloading:
-            ProgressView()
-                .controlSize(.small)
-                .tint(settings.themeStyle.color)
-                .accessibilityLabel("\(family.title)字体下载中")
+        case .downloading(let percent):
+            if let percent {
+                // 真实下载进度环（系统回调百分比；线性缓动保证丝滑不跳变）
+                ZStack {
+                    Circle()
+                        .stroke(settings.themeStyle.color.opacity(0.16), lineWidth: 2)
+                    Circle()
+                        .trim(from: 0, to: max(0.04, min(1, percent / 100)))
+                        .stroke(settings.themeStyle.color, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+                .frame(width: 14, height: 14)
+                .animation(.linear(duration: 0.25), value: percent)
+                .accessibilityLabel("\(family.title)字体下载中，\(Int(percent))%")
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(settings.themeStyle.color)
+                    .accessibilityLabel("\(family.title)字体下载中")
+            }
         case .unavailable:
             Image(systemName: "arrow.down.circle")
                 .font(.system(size: 12, weight: .semibold))
@@ -740,7 +801,9 @@ struct DisplaySettingsView: View {
         if family == .system { return "\(family.title) · \(family.subtitle)" }
         switch state {
         case .ready:       return "\(family.title) · \(family.subtitle)"
-        case .downloading: return "\(family.title) · 字体下载中…"
+        case .downloading(let percent):
+            if let percent { return "\(family.title) · 字体下载中 \(Int(percent))%" }
+            return "\(family.title) · 字体下载中…"
         case .unavailable: return "\(family.title) · 点击即下载（需联网）"
         }
     }
