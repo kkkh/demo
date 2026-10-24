@@ -1070,4 +1070,171 @@ final class BookmarkManager: ObservableObject {
         }
         return (items, skipped)
     }
+
+    #if DEBUG
+    // MARK: 自测钩子支持（仅 DEBUG）
+
+    /// 自测专用：把指定收藏的正文基线置为哨兵值并清更新徽标——令下一次「更新检测」必然与线上正文产生差异
+    /// （随后由检测流程刷新回真实正文）。仅 DEBUG 构建编译；不触碰任何生产路径。
+    @discardableResult
+    func debugInjectStaleBaseline(readKey: String) -> Bool {
+        guard let idx = bookmarks.firstIndex(where: { $0.readKey == readKey }) else { return false }
+        let oldChars = bookmarks[idx].cachedContent?.count ?? 0
+        bookmarks[idx].cachedContent = "DEBUG-SELFTEST-STALE-BASELINE"
+        bookmarks[idx].contentCached = true
+        bookmarks[idx].updateDetectedAt = nil
+        save()
+        objectWillChange.send()
+        LogManager.shared.info("favorite", "自测：哨兵旧基线已注入", context: [
+            "readKey": readKey, "oldChars": "\(oldChars)"
+        ])
+        return true
+    }
+    #endif
 }
+
+#if DEBUG
+// MARK: - 收藏深链自测钩子（仅 DEBUG；启动参数 `-uiTestBookmarkDeepLink`）
+//
+// 用途：真机无人值守验收「收藏更新深链归因」全链——
+//   重建自测专用收藏（标题前缀标记，保持检测目标位于队首）→ 注入哨兵旧基线
+//   → 触发真实更新检测（网络比对 → 本地通知 + 消息中心入盒）
+//   → 模拟系统通知点击（source=system_tap）与消息中心条目点击（source=message_center）
+//   → 回执落盘 Documents/bookmark_deeplink_selftest_done.json（宿主脚本经 devicectl 取回）。
+// 宿主侧：Scripts/bookmark_deeplink_selftest.py；日志判定：Scripts/deeplink_forensics.py。
+// 副作用（均可在真机清理）：新增一条标题带前缀的收藏；一条收藏更新消息；可能一条本地通知横幅。
+
+enum BookmarkDeepLinkSelfTest {
+
+    static let launchArg = "-uiTestBookmarkDeepLink"
+    static let markerPrefix = "【自测】"
+
+    @MainActor private static var didRun = false
+
+    /// 启动参数命中则执行（一次进程仅跑一次；非自测启动零开销）
+    @MainActor
+    static func runIfRequested() async {
+        guard ProcessInfo.processInfo.arguments.contains(launchArg) else { return }
+        await run()
+    }
+
+    @MainActor
+    private static func run() async {
+        guard !didRun else { return }
+        didRun = true
+        let startedAt = Date()
+        LogManager.shared.info("favorite", "收藏深链自测：开始", context: ["arg": launchArg])
+
+        // 1) 定位 / 重建「自测专用收藏」：优先复用带前缀的既有自测收藏（重建以保队首），否则用新闻数据自动创建
+        var target = BookmarkManager.shared.bookmarks.first(where: {
+            $0.title.hasPrefix(markerPrefix) && !($0.articleId ?? "").isEmpty
+        })
+        if let existing = target, let aid = existing.articleId {
+            _ = BookmarkManager.shared.removeBookmark(existing.readKey)
+            BookmarkManager.shared.toggleBookmark(
+                articleId: aid, title: existing.title, date: existing.date, category: existing.category,
+                summary: existing.summary, imageUrl: existing.imageUrl, href: existing.href,
+                author: existing.author, source: existing.source, columnId: existing.columnId)
+            target = BookmarkManager.shared.bookmarks.first(where: { $0.articleId == aid })
+        }
+        if target == nil {
+            for _ in 0..<30 {   // 等待 DataService 首轮同步（最多 ~15s）
+                let candidates = DataService.shared.allNews.filter { !($0.articleId ?? "").isEmpty }
+                for news in candidates.prefix(5) where !BookmarkManager.shared.isBookmarked(news.articleId ?? "") {
+                    BookmarkManager.shared.toggleBookmark(
+                        articleId: news.articleId ?? "", title: markerPrefix + news.title, date: news.date,
+                        category: news.category, summary: news.summary, imageUrl: news.imageUrl,
+                        href: news.href, author: news.author, source: news.source, columnId: news.columnId)
+                    target = BookmarkManager.shared.bookmarks.first(where: { $0.articleId == news.articleId })
+                    LogManager.shared.info("favorite", "收藏深链自测：自动创建自测收藏", context: [
+                        "title": news.title
+                    ])
+                    break
+                }
+                if target != nil { break }
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+        }
+        guard let bookmark = target, let articleId = bookmark.articleId, !articleId.isEmpty else {
+            finish(status: "failed", reason: "无可用自测收藏且无法自动创建（新闻数据未就绪）",
+                   extra: [:], startedAt: startedAt)
+            return
+        }
+
+        // 2) 注入哨兵旧基线（令更新检测必然命中）
+        guard BookmarkManager.shared.debugInjectStaleBaseline(readKey: bookmark.readKey) else {
+            finish(status: "failed", reason: "哨兵基线注入失败（readKey 未命中）",
+                   extra: ["readKey": bookmark.readKey], startedAt: startedAt)
+            return
+        }
+
+        // 3) 打开更新推送开关（check 的「发送+入盒」段受 pushOnUpdate 门控；结束还原）
+        let originalPush = BookmarkManager.shared.pushOnUpdate
+        if !originalPush { BookmarkManager.shared.pushOnUpdate = true }
+
+        // 4) 触发真实更新检测（走 NetworkService 拉正文 → isMeaningfulUpdate 比对 → 通知 + 入盒）
+        let report = await BookmarkManager.shared.checkBookmarkedArticlesForUpdates(manual: true)
+        LogManager.shared.info("favorite", "收藏深链自测：更新检测完成", context: [
+            "checked": "\(report.checked)", "updated": "\(report.updated)",
+            "failed": "\(report.failed)", "skipped": "\(report.skipped)"
+        ])
+
+        // 5) 定位第五通道入盒消息
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        guard let item = MessageCenterStore.shared.items.first(where: {
+            $0.kind == .bookmarkUpdate && $0.deepLink?.articleId == articleId && !$0.isTest
+        }) else {
+            if !originalPush { BookmarkManager.shared.pushOnUpdate = originalPush }
+            finish(status: "failed", reason: "消息中心未找到 bookmarkUpdate 条目（updated=\(report.updated)）",
+                   extra: ["articleId": articleId, "updated": "\(report.updated)"], startedAt: startedAt)
+            return
+        }
+
+        // 6) 系统通知路径（与真实通知同构的 userInfo）
+        NotificationManager.shared.handleNotificationTap(
+            userInfo: [
+                "articleId": articleId,
+                "articleCategory": bookmark.category,
+                "articleTitle": bookmark.title,
+                "isBookmarkUpdate": true
+            ],
+            source: "system_tap")
+        try? await Task.sleep(nanoseconds: 800_000_000)
+
+        // 7) 消息中心路径（真实 launch 入口）
+        MessageCenterStore.shared.launch(item: item)
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+
+        // 8) 还原开关 + 回执落盘
+        if !originalPush { BookmarkManager.shared.pushOnUpdate = originalPush }
+        finish(status: "ok", reason: "", extra: [
+            "articleId": articleId,
+            "readKey": bookmark.readKey,
+            "title": bookmark.title,
+            "checked": "\(report.checked)",
+            "updated": "\(report.updated)",
+            "messageItemId": item.id,
+            "pushOnUpdateRestored": "\(originalPush)"
+        ], startedAt: startedAt)
+    }
+
+    /// 回执落盘（宿主脚本经 devicectl 取回 Documents/bookmark_deeplink_selftest_done.json）
+    @MainActor
+    private static func finish(status: String, reason: String, extra: [String: String], startedAt: Date) {
+        var payload: [String: Any] = extra
+        payload["status"] = status
+        payload["reason"] = reason
+        payload["startedAt"] = startedAt.timeIntervalSince1970
+        payload["finishedAt"] = Date().timeIntervalSince1970
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("bookmark_deeplink_selftest_done.json")
+        if let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted]) {
+            try? data.write(to: url, options: .atomic)
+        }
+        LogManager.shared.info("favorite", "收藏深链自测：\(status == "ok" ? "完成" : "失败")", context: [
+            "status": status, "reason": reason.isEmpty ? "-" : reason
+        ])
+        _ = LogManager.shared.flushPendingNow()   // 确保宿主拉取前日志已落盘
+    }
+}
+#endif

@@ -150,6 +150,11 @@ struct DesignCodeApp: App {
                 if privacyConsentAccepted && notificationManager.isAuthorized && notificationManager.isEnabled {
                     notificationManager.startPolling()
                 }
+                #if DEBUG
+                // 实机自测钩子（仅 DEBUG）：`devicectl device process launch <UDID> com.qinchao -- -uiTestBookmarkDeepLink`
+                // 触发收藏更新并走完双路径深链归因，回执落盘供 Scripts/bookmark_deeplink_selftest.py 取回
+                await BookmarkDeepLinkSelfTest.runIfRequested()
+                #endif
             }
             .task(id: privacyConsentAccepted) {
                 // 微信 SDK 注册（官方要求每次启动注册一次）
