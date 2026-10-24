@@ -3438,7 +3438,26 @@ struct OrganizationArticleDetailView: View {
 
     /// 直接以 UIKit 模态方式呈现 UIActivityViewController
     private func presentLongImageShare(image: UIImage, title: String) {
-        guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
+        // 交付前兜底校验：纯色 / 黑图绝不落盘分享（渲染层已校验；此处防编码链路异常）
+        guard !SJZImageIntegrity.isLikelyBlank(image) else {
+            longImageError = "长图生成异常（画布纯色），请重试"
+            isGeneratingLongImage = true
+            LogManager.shared.error("longimage", "长图交付校验拦截（画布纯色）", context: [
+                "title": title,
+                "pixel": SJZImageIntegrity.pixelSizeText(of: image)
+            ])
+            return
+        }
+        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
+        var jpegData: Data?
+        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
+            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
+               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
+                jpegData = data
+                break
+            }
+        }
+        guard let jpegData else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
