@@ -2093,6 +2093,7 @@ struct OrganizationArticleDetailView: View {
     // 分享与收藏
     @State private var showSharePicker = false
     @State private var selectedShareFormat: ShareFormat?
+    @State private var showWeChatShare = false
     @ObservedObject private var bookmarkManager = BookmarkManager.shared
     @ObservedObject private var displaySettings = DisplaySettingsManager.shared
 
@@ -2225,11 +2226,16 @@ struct OrganizationArticleDetailView: View {
             }
         }
         .confirmationDialog("选择分享格式", isPresented: $showSharePicker, titleVisibility: .visible) {
+            Button("分享到微信") { showWeChatShare = true }
             Button("纯链接") { selectedShareFormat = .link }
             Button("Markdown文章") { selectedShareFormat = .markdown }
             Button("标题+正文文本") { selectedShareFormat = .fullText }
             Button("长图") { startLongImageGeneration() }
             Button("取消", role: .cancel) {}
+        }
+        .sheet(isPresented: $showWeChatShare) {
+            WeChatShareMenu(payload: weChatSharePayload)
+                .sjzPresentationChrome()
         }
         .sheet(item: $selectedShareFormat) { format in
             let articleURL = articleDetailURL
@@ -3238,6 +3244,16 @@ struct OrganizationArticleDetailView: View {
             return "\(SchoolInfo.website)/#/list/article?id=\(article.articleId)"
         }
         return SchoolInfo.website
+    }
+
+    /// 微信分享载荷（标题 + 正文摘要 + 链接 + 缩略图；微信限制由 WeChatService 统一裁剪）
+    private var weChatSharePayload: WeChatSharePayload {
+        WeChatSharePayload(
+            title: detailTitle.isEmpty ? article.title : detailTitle,
+            description: detailContent.isEmpty ? article.description : detailContent.strippingHTMLTagsFast(),
+            urlString: articleDetailURL,
+            thumbImageURL: article.imageUrl
+        )
     }
 
     /// 根据分享格式生成分享内容

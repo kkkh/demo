@@ -53,7 +53,7 @@ struct HelpArticle: Identifiable, Hashable {
 
 // MARK: - 内容目录
 
-/// 帮助内容总目录（唯一内容事实源：类别 + 31 篇文章）
+/// 帮助内容总目录（唯一内容事实源：类别 + 32 篇文章）
 enum HelpCatalog {
 
     // MARK: 分类
@@ -161,7 +161,7 @@ enum HelpCatalog {
             relatedIDs: ["se-display", "gs-home-modules"]
         ),
 
-        // ========== 首页与阅读（6） ==========
+        // ========== 首页与阅读（7） ==========
         HelpArticle(
             id: "fr-news",
             categoryId: "homeReading",
@@ -196,16 +196,33 @@ enum HelpCatalog {
             id: "fr-share",
             categoryId: "homeReading",
             title: "分享文章与长图",
-            summary: "四种分享格式与精美长图生成指南。",
+            summary: "分享到微信与五种分享格式、精美长图生成指南。",
             icon: "square.and.arrow.up.fill",
             tags: ["分享", "长图", "微信"],
             steps: [
-                HelpStep("四种分享格式", "详情页分享按钮提供四种格式：链接（最简）、Markdown（带来源）、纯文本（全正文）、精美长图（推荐）。"),
+                HelpStep("分享到微信", "详情页分享按钮 →「分享到微信」，选择发送到好友 / 朋友圈 / 收藏；App 自动生成带缩略图的网页卡片，标题与摘要按微信限制自动裁剪。"),
+                HelpStep("五种分享格式", "分享按钮提供五种格式：微信卡片、链接（最简）、Markdown（带来源）、纯文本（全正文）、精美长图（推荐）。"),
                 HelpStep("生成长图", "选择长图后 App 自动排版生成品牌风格长图（标题、正文、每三段配一张图、来源脚注），可直接存到相册。"),
-                HelpStep("发给微信好友", "长图分享对微信做了专门兼容（以文件形式发送），比截图清晰度高得多。"),
+                HelpStep("长图发送到微信", "长图分享对微信做了专门兼容（以文件形式发送），比截图清晰度高得多。"),
                 HelpStep("长图提示", "生成需要几秒，期间请勿关闭页面；完成后自动弹出系统分享面板。")
             ],
-            relatedIDs: ["fr-news", "fr-gallery"]
+            relatedIDs: ["fr-wechat", "fr-news", "fr-gallery"]
+        ),
+        HelpArticle(
+            id: "fr-wechat",
+            categoryId: "homeReading",
+            title: "分享到微信与微信登录",
+            summary: "把校园资讯发到微信好友 / 朋友圈 / 收藏，以及微信授权的隐私说明。",
+            icon: "bubble.left.and.bubble.right.fill",
+            tags: ["微信", "分享", "登录", "隐私"],
+            steps: [
+                HelpStep("分享到微信", "在文章详情页点击右上角分享按钮 →「分享到微信」，选择微信好友、朋友圈或微信收藏，即可发送带缩略图的网页卡片。"),
+                HelpStep("分享结果提示", "发送后返回本 App 会看到结果横幅（成功 / 已取消 / 失败），同时在「我的 → 应用设置 → 日志」的 wechat 域留有完整记录。"),
+                HelpStep("需要安装微信", "未安装微信或微信版本过低时，分享菜单会给出说明与安装入口，不影响链接、Markdown、长图等其他分享方式。"),
+                HelpStep("微信登录说明", "「我的 → 应用设置 → 微信集成」可发起微信登录获取授权码；园枢不保存你的微信昵称、头像等个人信息。"),
+                HelpStep("隐私保护", "微信相关能力仅在你主动点击时触发；隐私政策「四、信息的共享与披露」列有第三方 SDK 清单与数据处理说明。")
+            ],
+            relatedIDs: ["fr-share", "gs-privacy", "fq-offline"]
         ),
         HelpArticle(
             id: "fr-gallery",

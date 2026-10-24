@@ -2466,6 +2466,7 @@ struct EnhancedNewsDetailView: View {
     @State private var contentAppear = false
     @State private var showSharePicker = false
     @State private var selectedShareFormat: ShareFormat?
+    @State private var showWeChatShare = false
     @State private var webViewShowShare = false
     @State private var isGeneratingLongImage = false
     @State private var generatedLongImage: UIImage?
@@ -2771,11 +2772,16 @@ struct EnhancedNewsDetailView: View {
         // 拆分为独立属性，降低超大视图表达式的类型检查复杂度
         .overlay(alignment: .top) { detailTopProgressBar }
         .confirmationDialog("选择分享格式", isPresented: $showSharePicker, titleVisibility: .visible) {
+            Button("分享到微信") { showWeChatShare = true }
             Button("纯链接") { selectedShareFormat = .link }
             Button("Markdown文章") { selectedShareFormat = .markdown }
             Button("标题+正文文本") { selectedShareFormat = .fullText }
             Button("长图") { startLongImageGeneration() }
             Button("取消", role: .cancel) {}
+        }
+        .sheet(isPresented: $showWeChatShare) {
+            WeChatShareMenu(payload: weChatSharePayload)
+                .sjzPresentationChrome()
         }
         .sheet(item: $selectedShareFormat) { format in
             let articleURL = news.originalArticleURL
@@ -3044,6 +3050,16 @@ struct EnhancedNewsDetailView: View {
     }
 
     // MARK: - 分享内容生成
+
+    /// 微信分享载荷（标题 + 正文摘要 + 链接 + 缩略图；微信限制由 WeChatService 统一裁剪）
+    private var weChatSharePayload: WeChatSharePayload {
+        WeChatSharePayload(
+            title: news.title,
+            description: fullDetail?.plainTextContent ?? news.content,
+            urlString: news.originalArticleURL,
+            thumbImageURL: news.imageUrl
+        )
+    }
 
     /// 根据分享格式生成对应的分享内容数组
     /// - 纯链接：仅分享文章 URL，微信可直接识别为链接卡片
@@ -3848,6 +3864,7 @@ struct HonorDetailView: View {
     @ObservedObject private var bookmarkManager = BookmarkManager.shared
     @State private var showSharePicker = false
     @State private var selectedShareFormat: ShareFormat?
+    @State private var showWeChatShare = false
     @State private var isGeneratingLongImage = false
     @State private var longImageError: String?
 
@@ -4058,11 +4075,16 @@ struct HonorDetailView: View {
             }
         }
         .confirmationDialog("选择分享格式", isPresented: $showSharePicker, titleVisibility: .visible) {
+            Button("分享到微信") { showWeChatShare = true }
             Button("纯链接") { selectedShareFormat = .link }
             Button("Markdown文章") { selectedShareFormat = .markdown }
             Button("标题+正文文本") { selectedShareFormat = .fullText }
             Button("长图") { startLongImageGeneration() }
             Button("取消", role: .cancel) {}
+        }
+        .sheet(isPresented: $showWeChatShare) {
+            WeChatShareMenu(payload: weChatSharePayload)
+                .sjzPresentationChrome()
         }
         .sheet(item: $selectedShareFormat) { format in
             ShareSheet(items: honorShareItems(format, url: honorArticleURL, title: honor.title, body: honorBodyText))
@@ -4113,6 +4135,16 @@ struct HonorDetailView: View {
             return "\(SchoolInfo.website)/#/list/article?id=\(articleId)"
         }
         return SchoolInfo.website
+    }
+
+    /// 微信分享载荷（标题 + 正文摘要 + 链接 + 缩略图；微信限制由 WeChatService 统一裁剪）
+    private var weChatSharePayload: WeChatSharePayload {
+        WeChatSharePayload(
+            title: honor.title,
+            description: honorBodyText,
+            urlString: honorArticleURL,
+            thumbImageURL: honor.imageUrl
+        )
     }
 
     /// 根据分享格式生成分享内容
@@ -4441,6 +4473,7 @@ struct TeacherDetailView: View {
     @ObservedObject private var bookmarkManager = BookmarkManager.shared
     @State private var showSharePicker = false
     @State private var selectedShareFormat: ShareFormat?
+    @State private var showWeChatShare = false
     @State private var isGeneratingLongImage = false
     @State private var longImageError: String?
 
@@ -4640,11 +4673,16 @@ struct TeacherDetailView: View {
             }
         }
         .confirmationDialog("选择分享格式", isPresented: $showSharePicker, titleVisibility: .visible) {
+            Button("分享到微信") { showWeChatShare = true }
             Button("纯链接") { selectedShareFormat = .link }
             Button("Markdown文章") { selectedShareFormat = .markdown }
             Button("标题+正文文本") { selectedShareFormat = .fullText }
             Button("长图") { startLongImageGeneration() }
             Button("取消", role: .cancel) {}
+        }
+        .sheet(isPresented: $showWeChatShare) {
+            WeChatShareMenu(payload: weChatSharePayload)
+                .sjzPresentationChrome()
         }
         .sheet(item: $selectedShareFormat) { format in
             ShareSheet(items: teacherShareItems(format, url: teacherArticleURL, title: teacher.title, body: teacherBodyText))
@@ -4695,6 +4733,16 @@ struct TeacherDetailView: View {
             return "\(SchoolInfo.website)/#/list/article?id=\(articleId)"
         }
         return SchoolInfo.website
+    }
+
+    /// 微信分享载荷（标题 + 正文摘要 + 链接 + 缩略图；微信限制由 WeChatService 统一裁剪）
+    private var weChatSharePayload: WeChatSharePayload {
+        WeChatSharePayload(
+            title: teacher.title,
+            description: teacherBodyText,
+            urlString: teacherArticleURL,
+            thumbImageURL: teacher.imageUrl
+        )
     }
 
     /// 根据分享格式生成分享内容
@@ -4950,6 +4998,7 @@ struct StoryDetailView: View {
     @ObservedObject private var bookmarkManager = BookmarkManager.shared
     @State private var showSharePicker = false
     @State private var selectedShareFormat: ShareFormat?
+    @State private var showWeChatShare = false
     @State private var isGeneratingLongImage = false
     @State private var longImageError: String?
 
@@ -5152,11 +5201,16 @@ struct StoryDetailView: View {
             }
         }
         .confirmationDialog("选择分享格式", isPresented: $showSharePicker, titleVisibility: .visible) {
+            Button("分享到微信") { showWeChatShare = true }
             Button("纯链接") { selectedShareFormat = .link }
             Button("Markdown文章") { selectedShareFormat = .markdown }
             Button("标题+正文文本") { selectedShareFormat = .fullText }
             Button("长图") { startLongImageGeneration() }
             Button("取消", role: .cancel) {}
+        }
+        .sheet(isPresented: $showWeChatShare) {
+            WeChatShareMenu(payload: weChatSharePayload)
+                .sjzPresentationChrome()
         }
         .sheet(item: $selectedShareFormat) { format in
             ShareSheet(items: storyShareItems(format, url: storyArticleURL, title: story.title, body: storyBodyText))
@@ -5207,6 +5261,16 @@ struct StoryDetailView: View {
             return "\(SchoolInfo.website)/#/list/article?id=\(articleId)"
         }
         return SchoolInfo.website
+    }
+
+    /// 微信分享载荷（标题 + 正文摘要 + 链接 + 缩略图；微信限制由 WeChatService 统一裁剪）
+    private var weChatSharePayload: WeChatSharePayload {
+        WeChatSharePayload(
+            title: story.title,
+            description: storyBodyText,
+            urlString: storyArticleURL,
+            thumbImageURL: story.imageUrl
+        )
     }
 
     /// 根据分享格式生成分享内容
@@ -5462,6 +5526,7 @@ struct ActivityDetailView: View {
     @ObservedObject private var bookmarkManager = BookmarkManager.shared
     @State private var showSharePicker = false
     @State private var selectedShareFormat: ShareFormat?
+    @State private var showWeChatShare = false
     @State private var isGeneratingLongImage = false
     @State private var longImageError: String?
 
@@ -5668,11 +5733,16 @@ struct ActivityDetailView: View {
             }
         }
         .confirmationDialog("选择分享格式", isPresented: $showSharePicker, titleVisibility: .visible) {
+            Button("分享到微信") { showWeChatShare = true }
             Button("纯链接") { selectedShareFormat = .link }
             Button("Markdown文章") { selectedShareFormat = .markdown }
             Button("标题+正文文本") { selectedShareFormat = .fullText }
             Button("长图") { startLongImageGeneration() }
             Button("取消", role: .cancel) {}
+        }
+        .sheet(isPresented: $showWeChatShare) {
+            WeChatShareMenu(payload: weChatSharePayload)
+                .sjzPresentationChrome()
         }
         .sheet(item: $selectedShareFormat) { format in
             ShareSheet(items: activityShareItems(format, url: activityArticleURL, title: activity.title, body: activityBodyText))
@@ -5723,6 +5793,16 @@ struct ActivityDetailView: View {
             return "\(SchoolInfo.website)/#/list/article?id=\(articleId)"
         }
         return SchoolInfo.website
+    }
+
+    /// 微信分享载荷（标题 + 正文摘要 + 链接 + 缩略图；微信限制由 WeChatService 统一裁剪）
+    private var weChatSharePayload: WeChatSharePayload {
+        WeChatSharePayload(
+            title: activity.title,
+            description: activityBodyText,
+            urlString: activityArticleURL,
+            thumbImageURL: activity.imageUrl
+        )
     }
 
     /// 根据分享格式生成分享内容
@@ -8955,6 +9035,7 @@ struct SettingsView: View {
     @ObservedObject private var displaySettings = DisplaySettingsManager.shared
     @ObservedObject private var biometricManager = BiometricSecurityManager.shared
     @ObservedObject private var cacheModeManager = CacheModeManager.shared
+    @ObservedObject private var weChatService = WeChatService.shared
     // 网络监测入口行采用快照式（@State + onAppear 读取 + 5s 节流刷新）：
     // 避免 @ObservedObject 因每秒采样发布导致整个设置表单频繁重算
     @State private var networkEntryInterface: String = "—"
@@ -9131,6 +9212,32 @@ struct SettingsView: View {
                     Text("首页管理")
                 } footer: {
                     Text("按需显示或隐藏首页内容模块，并可自定义排列顺序。")
+                }
+
+                // MARK: 微信集成
+                Section {
+                    NavigationLink {
+                        WeChatIntegrationView()
+                    } label: {
+                        HStack {
+                            Label("微信集成", systemImage: "bubble.left.and.bubble.right.fill")
+                                .displayLabelFont(15)
+                            Spacer()
+                            WeChatAvailabilityBadge(availability: weChatService.availability)
+                        }
+                    }
+                    HStack {
+                        Text("分享 · 登录 · 小程序")
+                            .displayFont(15)
+                        Spacer()
+                        Text(weChatService.configuration.isPlaceholder ? "待配置" : "已配置")
+                            .displayFont(13)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("微信集成")
+                } footer: {
+                    Text("将文章分享到微信好友 / 朋友圈 / 收藏，支持微信登录授权与小程序跳转；状态总览与 Universal Link 自检见子页。")
                 }
 
                 // MARK: 安全中心

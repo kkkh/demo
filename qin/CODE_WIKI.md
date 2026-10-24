@@ -5,12 +5,12 @@
 > **开发语言**：Swift（Swift 5.0 配置，实际使用 `async/await`、`@MainActor`、`withTaskGroup` 等 Swift 5.5+ 特性）
 > **UI 框架**：SwiftUI（`@main` App 生命周期），混用 UIKit / WebKit / AVKit / Swift Charts
 > **架构模式**：轻量 MVVM + Singleton 服务层 + 观察者（`@Published` / `@ObservedObject`）；新业务模块（校长信箱/党建专题/学校概况）采用**模块内私有 Store + 视图**的自包含模式
-> **依赖**：零第三方库，100% Apple 系统框架，无 SPM / CocoaPods
+> **依赖**：唯一第三方为**微信开放平台 SDK**（官方 XCFramework 2.0.8，静态库，`-ObjC -all_load` 链接；2026-09-27 接入），其余 100% Apple 系统框架，无 SPM / CocoaPods
 > **持久化**：UserDefaults + 文件 JSON 缓存（`Documents/SXJZIT_Cache/`）+ Keychain + 硬编码静态兜底数据
 > **网络**：URLSession + async/await，仅 GET
-> **代码规模**：46 个 Swift 源文件（主 target 44 + 测试 2），**56,356 行**（主 target 54,977 + 测试 1,379；TabBar.swift 11,991、OrganizationDetailView.swift 5,273、SchoolProfileView.swift 3,511、PartySubjectView.swift 2,566、DisplaySettingsManager.swift 2,382、DisplaySettingsView.swift 2,227、OrganizationView.swift 2,183、SJZNetworkMonitor.swift 1,796、PrincipalMailboxView.swift 1,787、NetworkMonitorView.swift 1,609、NetworkService.swift 1,599、Models.swift 1,591——2026-09-27 wc -l 实测）+ 两个测试文件 **83 个单元用例**
-> **文档更新日期**：2026-09-27（头部统计刷新；覆盖 2026-09-26 夜三波改造：**网络监测扩建**（八能力/47 处 netmon 埋点）、**显示设置艺术级重构**（F1–F19/字体体系/灰度跨页/对比度自检）、中文字体按需下载与专注灰度 44 处挂载）。真机复测：2026-09-27 构建 + 83/83 用例通过（日志 `build/verify/retest_20260927b.log`）
-> **注意**：本文件为历史合并版，正文行号与模块细节基于 2026-09-24/25 快照（仅头部统计已于 2026-09-27 刷新）；**最新权威版本是 [`docs/code-wiki/`](docs/code-wiki/README.md) 分册（2026-09-27 基线，含 36 个日志域总表与全部新行号）**，冲突处以分册为准。
+> **代码规模**：48 个 Swift 源文件（主 target 46 + 测试 3），**59,083 行**（主 target 57,377 + 测试 1,706；TabBar.swift 12,169、OrganizationDetailView.swift 5,317、SchoolProfileView.swift 3,511、PartySubjectView.swift 2,566、DisplaySettingsManager.swift 2,382、DisplaySettingsView.swift 2,227、OrganizationView.swift 2,183、SJZNetworkMonitor.swift 1,796、PrincipalMailboxView.swift 1,787、NetworkMonitorView.swift 1,609、NetworkService.swift 1,599、Models.swift 1,591、WeChatService.swift 1,095、WeChatIntegrationViews.swift 628——2026-09-27 wc -l 实测）+ 三个测试文件 **102 个单元用例**
+> **文档更新日期**：2026-09-27（头部统计刷新；覆盖 2026-09-26 夜三波改造：**网络监测扩建**（八能力/47 处 netmon 埋点）、**显示设置艺术级重构**（F1–F19/字体体系/灰度跨页/对比度自检）、中文字体按需下载与专注灰度 44 处挂载；以及 **2026-09-27 微信开放平台 SDK 集成**（分享/登录/小程序/自检全链，`wechat` 域 51 处埋点））。真机复测：2026-09-27 构建 + 102/102 用例通过（日志 `build/verify/wechat_test_20260927.log`）
+> **注意**：本文件为历史合并版，正文行号与模块细节基于 2026-09-24/25 快照（仅头部统计已于 2026-09-27 刷新）；**最新权威版本是 [`docs/code-wiki/`](docs/code-wiki/README.md) 分册（2026-09-27 基线，含 37 个日志域总表与全部新行号）**，冲突处以分册为准。
 
 ---
 
@@ -68,7 +68,7 @@
 │  PartySubjectStore     党建/思政专题数据中枢（双子站全量拉取）※新      │
 │  PrincipalMailboxStore 校长信箱数据中枢（分页/基线/刷新状态机）※新     │
 │  MessageCenterStore    消息中心数据中枢（五通道消息盒/自愈存储）※新      │
-│  HelpGuideStore        使用帮助数据中枢（31 篇内置指南/加权搜索）※新    │
+│  HelpGuideStore        使用帮助数据中枢（32 篇内置指南/加权搜索）※新    │
 │  CampusCalendarStore   校园日历数据中枢（列表/缓存/本地搜索）※新       │
 │  图片/阅读/统计子体系（组件级，TabBar.swift 底部）                 │
 │  │ SJZCachedImage 统一图片组件 · SJZImageKit 加载工具集              │
@@ -159,7 +159,7 @@
 | [PartySubjectView.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/PartySubjectView.swift) | 1597 | **※新**：党建专题模块（党建工作 djgz / 思政专题 mkszy 双子站聚合 + 加权搜索） |
 | [MessageCenterStore.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/MessageCenterStore.swift) | 823 | **※新**：消息中心数据中枢（五通道消息盒、幂等 ingest、损坏自愈存储、双层角标联动） |
 | [MessageCenterView.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/MessageCenterView.swift) | 924 | **※新**：消息中心页面（日分组列表、滑动手势、搜索高亮、深链详情卡、诊断修复面板） |
-| [HelpContent.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/HelpContent.swift) | 573 | **※新**：使用帮助内置内容（5 分类 31 篇指南，三级结构 HelpCategory/HelpArticle/HelpStep） |
+| [HelpContent.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/HelpContent.swift) | 587 | **※新**：使用帮助内置内容（5 分类 32 篇指南，三级结构 HelpCategory/HelpArticle/HelpStep） |
 | [HelpGuideStore.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/HelpGuideStore.swift) | 239 | **※新**：使用帮助数据中枢（多词 AND 加权搜索、已读/最近阅读、本地内容直读） |
 | [HelpGuideView.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/HelpGuideView.swift) | 1549 | **※新**：使用帮助主页面 + 详情页（本地内容零网络、关键词高亮、学习进度环） |
 | [CampusCalendarStore.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/CampusCalendarStore.swift) | 478 | **※新**：校园日历数据中枢（官网校园日历栏目、本地缓存优先、多词 AND 搜索、详情缓存已读） |
@@ -571,7 +571,7 @@
 
 ### 4.23 HelpGuideStore — 使用帮助数据中枢（※2026-09-24 上线，[HelpGuideStore.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/HelpGuideStore.swift)）
 
-**类型**：@MainActor 单例。内容为**内置本地数据**（[HelpContent.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/HelpContent.swift) 5 分类 31 篇指南），**零网络、100% 可用**。
+**类型**：@MainActor 单例。内容为**内置本地数据**（[HelpContent.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/HelpContent.swift) 5 分类 32 篇指南），**零网络、100% 可用**。
 
 - 三级结构：`HelpCategory`（快速上手 6 / 首页与阅读 6 / 特色功能 7 / 设置与个性化 6 / 常见问题 6）→ `HelpArticle`（含 readingMinutes 按 300 字/分钟）→ `HelpStep`。
 - **搜索**：多词 AND 加权（标题 5 / 摘要 3 / 标签 2 / 步骤标题 1.5 / 正文 1），搜索历史 `helpGuideSearchHistory`（10 条）；关键词橙色高亮（NSRange⇄Character 双域安全，未命中返回无样式 AttributedString）。

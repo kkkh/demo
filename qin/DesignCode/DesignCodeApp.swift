@@ -11,6 +11,7 @@ struct DesignCodeApp: App {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject private var displaySettings = DisplaySettingsManager.shared
     @ObservedObject private var biometricSecurity = BiometricSecurityManager.shared
+    @ObservedObject private var weChatService = WeChatService.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var isAppReady = false
     @AppStorage("privacyConsentAccepted") private var privacyConsentAccepted: Bool = false
@@ -106,6 +107,10 @@ struct DesignCodeApp: App {
                         .zIndex(4)
                         .transition(.opacity)
                 }
+
+                // 微信回执横幅 —— 分享/登录结果可见载体（层级低于生物识别遮罩：锁定期间自动隐藏）
+                WeChatBannerOverlay()
+                    .zIndex(3.5)
             }
             .task {
                 // 启动动画完成后，过渡到主页（不人为延时，仅等待动画自然完成）
@@ -114,12 +119,21 @@ struct DesignCodeApp: App {
             }
             .tint(displaySettings.themeStyle.color)
             .displayTypography(displaySettings)
+            // 微信回跳处理（官方双通道：URL Scheme + Universal Link，统一交给 WeChatService 回执中枢）
+            .onOpenURL { url in
+                weChatService.handle(openURL: url)
+            }
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                weChatService.handle(userActivity: activity)
+            }
             .onChange(of: scenePhase) { _, newPhase in
                 switch newPhase {
                 case .background:
                     biometricSecurity.handleDidEnterBackground()
                 case .active:
                     biometricSecurity.handleReturnToForeground()
+                    // 回到前台时校准微信可用性（用户可能刚安装/升级微信）
+                    weChatService.refreshAvailability()
                 default:
                     break
                 }
@@ -131,6 +145,15 @@ struct DesignCodeApp: App {
                 if privacyConsentAccepted && notificationManager.isAuthorized && notificationManager.isEnabled {
                     notificationManager.startPolling()
                 }
+            }
+            .task(id: privacyConsentAccepted) {
+                // 微信 SDK 注册（官方要求每次启动注册一次）
+                // 隐私优先：仅在用户同意隐私协议后注册；拒绝（受限模式）则完全跳过，不发任何微信请求
+                guard privacyConsentAccepted else {
+                    LogManager.shared.debugLog("wechat", "隐私未同意，跳过微信 SDK 注册")
+                    return
+                }
+                weChatService.registerIfNeeded(reason: "privacy_consent")
             }
             .onChange(of: isAppReady) { _, ready in
                 // 启动页结束后，根据隐私状态决定显示内容

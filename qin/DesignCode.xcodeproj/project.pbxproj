@@ -57,6 +57,10 @@
 		DC7A000A22D74F5700D209B1 /* PrincipalMailboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7A000C22D74F5700D209B1 /* PrincipalMailboxView.swift */; };
 		DC7A000E22D74F5700D209B1 /* PartySubjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7A001022D74F5700D209B1 /* PartySubjectView.swift */; };
 		DC7A001222D74F5700D209B1 /* SchoolProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7A001422D74F5700D209B1 /* SchoolProfileView.swift */; };
+		DC0000A1000000000000A002 /* WechatOpenSDK.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = DC0000A1000000000000A003 /* WechatOpenSDK.xcframework */; };
+		DC0000B1000000000000B001 /* WeChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000B1000000000000B002 /* WeChatService.swift */; };
+		DC0000B3000000000000B004 /* WeChatIntegrationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000B3000000000000B003 /* WeChatIntegrationViews.swift */; };
+		DC0000C1000000000000C001 /* WeChatSDKTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000C1000000000000C002 /* WeChatSDKTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -123,6 +127,11 @@
 		DC7A000C22D74F5700D209B1 /* PrincipalMailboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrincipalMailboxView.swift; sourceTree = "<group>"; };
 		DC7A001022D74F5700D209B1 /* PartySubjectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartySubjectView.swift; sourceTree = "<group>"; };
 		DC7A001422D74F5700D209B1 /* SchoolProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchoolProfileView.swift; sourceTree = "<group>"; };
+		DC0000A1000000000000A003 /* WechatOpenSDK.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = WechatOpenSDK.xcframework; sourceTree = "<group>"; };
+		DC0000B1000000000000B002 /* WeChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatService.swift; sourceTree = "<group>"; };
+		DC0000B3000000000000B003 /* WeChatIntegrationViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatIntegrationViews.swift; sourceTree = "<group>"; };
+		DC0000B5000000000000B005 /* DesignCode.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DesignCode.entitlements; sourceTree = "<group>"; };
+		DC0000C1000000000000C002 /* WeChatSDKTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatSDKTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -131,6 +140,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DC00003722D74F5700D209BE /* AppIntents.framework in Frameworks */,
+				DC0000A1000000000000A002 /* WechatOpenSDK.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -149,9 +159,18 @@
 			children = (
 				ABE07CBD22D74F5700D209BE /* DesignCode */,
 				DC00008200000000000001 /* DesignCodeTests */,
+				DC0000A1000000000000A004 /* Frameworks */,
 				ABE07CBC22D74F5700D209BE /* Products */,
 				D777AFBA3035EAE200F369EC /* Recovered References */,
 			);
+			sourceTree = "<group>";
+		};
+		DC0000A1000000000000A004 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DC0000A1000000000000A003 /* WechatOpenSDK.xcframework */,
+			);
+			path = Frameworks;
 			sourceTree = "<group>";
 		};
 		ABE07CBC22D74F5700D209BE /* Products */ = {
@@ -210,9 +229,12 @@
 				DC0000A122D74F5700D209BE /* CampusCalendarStore.swift */,
 				DC0000A222D74F5700D209BE /* CampusCalendarView.swift */,
 				DC00005522D74F5700D209BE /* CacheModeSettingsView.swift */,
+				DC0000B1000000000000B002 /* WeChatService.swift */,
+				DC0000B3000000000000B003 /* WeChatIntegrationViews.swift */,
 				ABE07CC422D74F5900D209BE /* Assets.xcassets */,
 				ABE07CC922D74F5900D209BE /* LaunchScreen.storyboard */,
 				ABE07CCC22D74F5900D209BE /* Info.plist */,
+				DC0000B5000000000000B005 /* DesignCode.entitlements */,
 				ABE07CC622D74F5900D209BE /* Preview Content */,
 			);
 			path = DesignCode;
@@ -239,6 +261,7 @@
 			children = (
 				DC00008000000000000001 /* NetworkServiceDTOTests.swift */,
 				DC00009C00000000000001 /* MessageCenterStoreTests.swift */,
+				DC0000C1000000000000C002 /* WeChatSDKTests.swift */,
 			);
 			path = DesignCodeTests;
 			sourceTree = "<group>";
@@ -400,6 +423,8 @@
 				DC00009F22D74F5700D209BE /* CampusCalendarStore.swift in Sources */,
 				DC0000A022D74F5700D209BE /* CampusCalendarView.swift in Sources */,
 				DC00005322D74F5700D209BE /* CacheModeSettingsView.swift in Sources */,
+				DC0000B1000000000000B001 /* WeChatService.swift in Sources */,
+				DC0000B3000000000000B004 /* WeChatIntegrationViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -409,6 +434,7 @@
 			files = (
 				DC00009000000000000001 /* NetworkServiceDTOTests.swift in Sources */,
 				DC00009B00000000000001 /* MessageCenterStoreTests.swift in Sources */,
+				DC0000C1000000000000C001 /* WeChatSDKTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -564,11 +590,35 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-all_load",
+					"-framework",
+					Security,
+					"-framework",
+					CoreGraphics,
+					"-framework",
+					WebKit,
+					"-framework",
+					CFNetwork,
+					"-framework",
+					SystemConfiguration,
+					"-framework",
+					CoreTelephony,
+					"-lz",
+					"-lsqlite3",
+					"-lc++",
+				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -disable-sandbox";
 				PRODUCT_BUNDLE_IDENTIFIER = com.qinchao;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WECHAT_APPID = wxPLACEHOLDER0000;
+				WECHAT_MINI_PROGRAM = gh_PLACEHOLDER0000;
+				WECHAT_UL_HOST = example.com;
+				WECHAT_UNIVERSAL_LINK = "https://example.com/app/";
 			};
 			name = Debug;
 		};
@@ -588,11 +638,35 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-all_load",
+					"-framework",
+					Security,
+					"-framework",
+					CoreGraphics,
+					"-framework",
+					WebKit,
+					"-framework",
+					CFNetwork,
+					"-framework",
+					SystemConfiguration,
+					"-framework",
+					CoreTelephony,
+					"-lz",
+					"-lsqlite3",
+					"-lc++",
+				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -disable-sandbox";
 				PRODUCT_BUNDLE_IDENTIFIER = com.qinchao;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WECHAT_APPID = wxPLACEHOLDER0000;
+				WECHAT_MINI_PROGRAM = gh_PLACEHOLDER0000;
+				WECHAT_UL_HOST = example.com;
+				WECHAT_UNIVERSAL_LINK = "https://example.com/app/";
 			};
 			name = Release;
 		};

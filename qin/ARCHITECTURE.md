@@ -29,17 +29,17 @@
 | **平台** | iOS 原生（iPhone + iPad，`TARGETED_DEVICE_FAMILY = "1,2"`） |
 | **语言** | Swift `SWIFT_VERSION = 5.0`；实际使用 `async/await`、`@MainActor`、`withTaskGroup`、`Task.detached` |
 | **UI 框架** | 纯 SwiftUI（`@main` App 生命周期），混用 UIKit / WebKit / AVKit / UserNotifications / LocalAuthentication |
-| **包管理器** | **无**（无 Podfile / Package.swift / Carthage），100% Apple 系统框架，零第三方 SDK |
+| **包管理器** | **无**（无 Podfile / Package.swift / Carthage）；唯一第三方为**微信开放平台 SDK**（`Frameworks/WechatOpenSDK.xcframework`，手工挂载 + `-ObjC -all_load`），其余 100% Apple 系统框架 |
 | **构建工具** | Xcode 27.0（Build 27A266a）+ `xcodebuild`，无 CI/CD |
 | **App 标识** | 显示名 `园枢`（工程名沿用模板 `DesignCode`）；Bundle ID `com.qinchao`；Team `F2JL9GNLCC`；版本 `1.0 (Build 1)`（Info.plist 直写） |
 | **部署目标** | ⚠️ **冲突**：project 层 `13.0`，target 层 `26.0`（target 覆盖 project，实际生效 26.0） |
 | **Target** | `DesignCode`（主 App）+ `DesignCodeTests`（单元测试） |
-| **代码规模** | 46 个 Swift 文件共 **56,356 行**（主 target 44 文件 54,977 行 + 测试 2 文件 1,379 行）；**83 个单元用例**（2026-09-27 真机复测 83/83 通过，日志 `build/verify/retest_20260927b.log`） |
-| **日志** | 自研 `LogManager`：**36 个日志域、1,012 处带域埋点**（`LogManager.shared` 调用点 1,050 处）、日轮转、崩溃捕获、可导出 |
+| **代码规模** | 48 个 Swift 文件共 **59,083 行**（主 target 46 文件 57,377 行 + 测试 3 文件 1,706 行）；**102 个单元用例**（2026-09-27 真机复测 102/102 通过，日志 `build/verify/wechat_test_20260927.log`） |
+| **日志** | 自研 `LogManager`：**37 个日志域、1,077 处带域埋点**（`LogManager.shared` 调用点 1,106 处；其中 `wechat` 域 51 处）、日轮转、崩溃捕获、可导出 |
 
 关键文件：
 - `DesignCode/DesignCodeApp.swift` — `@main` 入口（190 行）：URLCache 扩容、URLProtocol 注册、隐私分流、生物识别遮罩
-- `DesignCode/TabBar.swift` — 主视图集（**11,991 行**，60+ View）
+- `DesignCode/TabBar.swift` — 主视图集（**12,169 行**，60+ View）
 - `DesignCode/Info.plist` — App 配置 / ATS / 120Hz 解锁
 
 ---
@@ -48,9 +48,9 @@
 
 ```
 qin/
-├── DesignCode/                         ← 全部源码（44 个 .swift，扁平无子目录）
+├── DesignCode/                         ← 全部源码（46 个 .swift，扁平无子目录）
 │   ├── DesignCodeApp.swift             ← @main 入口（190 行）
-│   ├── TabBar.swift                    ← 主视图集（11,991 行）：MainTabView / 五 Tab 全部
+│   ├── TabBar.swift                    ← 主视图集（12,169 行）：MainTabView / 五 Tab 全部
 │   │                                    校园 Tab 七分区 / ZSW 招生网 / SJZ 组件族 / AppIconManager
 │   ├── Models.swift                    ← 全部业务模型 + default* 兜底数据（1,591 行）
 │   ├── NetworkService.swift            ← 网络层：GET 封装 + 全部 DTO（1,599 行）
@@ -76,17 +76,22 @@ qin/
 │   ├── ReadStatusManager.swift         ← 已读状态（70 行）
 │   ├── RefererHeaderURLProtocol.swift  ← 防盗链 URLProtocol（232 行）
 │   ├── SplashView.swift                ← 启动页（125 行）
+│   ├── WeChatService.swift             ← 微信 SDK 集成（1,095 行：注册/分享/登录/小程序/自检/回执/日志桥）
+│   ├── WeChatIntegrationViews.swift    ← 微信界面（628 行：分享菜单/集成中心/回执横幅）
+│   ├── DesignCode.entitlements         ← 关联域名（Universal Link 用，默认未启用）
 │   └── Assets.xcassets / Base.lproj    ← 资源（5 套 AppIcon 含 AppIconAlt1~4）
+├── Frameworks/                         ← WechatOpenSDK.xcframework（OpenSDK 2.0.8，唯一第三方）
 ├── DesignCode.xcodeproj/               ← Xcode 工程
-├── DesignCodeTests/                    ← 单元测试 2 文件 83 用例（NetworkServiceDTOTests 650 行 / MessageCenterStoreTests 729 行）
+├── DesignCodeTests/                    ← 单元测试 3 文件 102 用例（NetworkServiceDTOTests 650 行 / MessageCenterStoreTests 729 行 / WeChatSDKTests 238 行）
 ├── docs/code-wiki/                     ← ★ 权威 Wiki 分册（01~07 + README）
+├── docs/wechat-integration/            ← ★ 微信接入指南 + AASA 模板
 ├── CODE_WIKI.md                        ← 历史合并版（头部统计已刷新，以分册为准）
 ├── designcode-swiftui 根：校园Tab模块升级总结报告.md（2026-09-26）
 ├── DesignCode_backup_20260922/         ← 2026-09-22 备份快照（勿引用）
 └── build/ · .build/ · ExportOptions.plist
 ```
 
-> **结构要点**：源码**未分层平铺**（单目录 44 文件），靠命名后缀区分职责：`*Service`=网络/数据、`*Manager`=管理器、`*Store`=新模块数据中枢、`*View`=视图；模型集中在 `Models.swift` 与 `NetworkService.swift`（嵌套 DTO）。
+> **结构要点**：源码**未分层平铺**（单目录 46 文件），靠命名后缀区分职责：`*Service`=网络/数据、`*Manager`=管理器、`*Store`=新模块数据中枢、`*View`=视图；模型集中在 `Models.swift` 与 `NetworkService.swift`（嵌套 DTO）。唯一第三方 `WechatOpenSDK.xcframework` 位于 `Frameworks/`，经 `-ObjC -all_load` 链接。
 
 ---
 
@@ -105,12 +110,13 @@ qin/
 | **LocalAuthentication** | Face ID / Touch ID / Optic ID 隐私锁 |
 | **Network** | `NWPathMonitor` 网络状态监测（SJZNetworkMonitor 全链路遥测） |
 | **Photos** | 相册保存（file-based 写入，WebP 铁律） |
+| **WechatOpenSDK 2.0.8** | 唯一第三方：微信分享（会话/朋友圈/收藏）、微信登录、小程序跳转、Universal Link 自检（`Frameworks/WechatOpenSDK.xcframework`，静态库 → `-ObjC -all_load` + Security/CoreGraphics/WebKit/CFNetwork/SystemConfiguration/CoreTelephony/libz/libsqlite3/libc++） |
 
 **自研基建**（替代第三方库）：
 - 图片：`SJZCachedImage`/`SJZImageKit`（TabBar.swift L10342 起，内存 NSCache + URLCache 共享 80/400MB + 磁盘；720px/1440px 下采样；四态 phase）
 - 网络：纯 `URLSession` + async/await，3 次重试指数退避
 - HTML 解析：纯正则（全项目**禁止** `NSAttributedString(documentType:.html)`）
-- 日志：自研 `LogManager`（35 日志域、日轮转、崩溃捕获、导出）
+- 日志：自研 `LogManager`（37 日志域、日轮转、崩溃捕获、导出）
 - 推送：无服务端条件下**官网指纹轮询**自建本地推送（新闻/信箱/概况/党建四通道 + 收藏第五通道）
 
 ---
@@ -159,15 +165,16 @@ DTO 与业务模型分离（DTO 在 `NetworkService.swift`，全 Optional + `Cod
 
 ## 5. 核心业务模块
 
-**27 个模块**（详见 [docs/code-wiki/02-主要模块职责](docs/code-wiki/02-主要模块职责.md)）：
+**28 个模块**（详见 [docs/code-wiki/02-主要模块职责](docs/code-wiki/02-主要模块职责.md)）：
 
 | 层 | 模块 |
 |---|---|
 | 启动编排 | DesignCodeApp + SplashView（URLCache 扩容/URLProtocol 注册/图标校准/隐私三分流/生物遮罩） |
 | 主框架 | MainTabView 五 Tab（首页/院系/资讯/校园/我的）+ 深链分发中枢 |
 | 内容域 | 首页 12 模块 / 新闻资讯 / 院系专业 / **校园生活七大分区**（校园服务·机构入口卡·概况卡·设施详情·友情链接·关注我们）/ ZSW 招生网 / 专业介绍 |
-| 自包含业务模块（2026-09-24 后模式：私有 Store 直连 NetworkService，不经 DataService） | 学校概况（七板块+合作交流）/ 党建专题（双子站+详情页）/ 校长信箱 / 消息中心（站内信五通道）/ 使用帮助（31 篇内置，零网络）/ 校园日历（复用文章接口） |
+| 自包含业务模块（2026-09-24 后模式：私有 Store 直连 NetworkService，不经 DataService） | 学校概况（七板块+合作交流）/ 党建专题（双子站+详情页）/ 校长信箱 / 消息中心（站内信五通道）/ 使用帮助（32 篇内置，零网络）/ 校园日历（复用文章接口） |
 | 支撑服务 | 机构设置 / 收藏（+第五推送通道）/ 通知（四通道轮询）/ 公告 / 隐私合规 / 生物识别锁 / 显示设置 / 缓存模式 / 日志 / 网络监测 / 已读状态 / 防盗链 / App 图标切换 |
+| 微信开放平台集成（2026-09-27 新增） | `WeChatService`（注册/分享/登录/小程序/自检/回执中枢/日志桥）+ `WeChatIntegrationViews`（分享菜单/集成中心/回执横幅）+ `DesignCode.entitlements`（关联域名，默认未启用）；配置单点 4 个构建设置，指南见 [docs/wechat-integration](docs/wechat-integration/README.md) |
 
 ---
 
@@ -281,7 +288,7 @@ checkForUpdates(pushToSystem:)：
 - 设计模式：单例/观察者/门面（DataService）/三层降级/轻量 MVVM/防护代理（URLProtocol）。
 - `@MainActor` 单例（除 `NetworkService`），中文文案与中文注释，`contentShape(Rectangle())`，按钮无 Liquid Glass Tab API。
 - 新业务模块范式（2026-09-24 起）：私有 `XxxStore: ObservableObject` 直连 NetworkService + 独立 View；缓存优先 + 三态刷新状态机 + `refreshDetached` 防取消误报 + 搜索防抖 `isSearchPending`。
-- 日志：新增功能必须接 `LogManager` 埋点（现有 36 域、1,012 处为基准）。
+- 日志：新增功能必须接 `LogManager` 埋点（现有 37 域、1,077 处为基准；`wechat` 域为 2026-09-27 新增）。
 - 图片：720/1440px 下采样；WebP 保存走 JPEG 重编码 + file-based 写入。
 - 消息中心落盘：临时文件 + `replaceItemAt` 原子替换 + 写后读回自校验。
 
@@ -297,7 +304,7 @@ checkForUpdates(pushToSystem:)：
 | 4 | 中 | `@AppStorage + didSet` 残留（didSet 不触发） | NotificationManager L92 |
 | 5 | 低 | `NewsItem.id = title + date` 主键碰撞；`ZSWArticle.id` 非稳定 | Models.swift |
 | 6 | 低 | 生产 `print()` 残留 | DataService L846-860、TabBar LongImage/FullScreenImage |
-| 7 | 低 | `TabBar.swift` 巨型文件（**11,991 行**、60+ View，2026-09-26 校园 Tab 升级后继续增长） | — |
+| 7 | 低 | `TabBar.swift` 巨型文件（**12,169 行**、60+ View，2026-09-26 校园 Tab 升级后继续增长） | — |
 | 8 | 低 | 搜索 columnId 硬编码：机构降级链两处已改运行时动态解析（2026-09-27，`resolveMainSiteSearchColumns`），持续核验 | OrganizationDetailView |
 | 9 | 环境 | Team ID 明文（ExportOptions.plist）；git 已于 2026-09-27 重建 | 仓库根 |
 | 10 | — | 已修复（2026-09-27，五项+追加）：AnnouncementManager isLoading（defer）；**字体按需下载根治**（根因=家族名当字面名传匹配引擎→静默零下载；改 PostScript 字面名契约 + 无进展看门狗 + 终态实查自愈 + 真实粗体字面 + 进度环/全部下载 UI）；机构降级 ID（见 #8）；图片缓存直读+自愈（重复加载根治）；警告误报治理（取消静默化 + 图片并发闸 ≤4 + netmon TTFB 口径）。真机 BUILD 0/0 + 86/86 全绿 | — |
