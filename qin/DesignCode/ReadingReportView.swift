@@ -162,6 +162,7 @@ struct ReadingReportView: View {
 
     private var trendCard: some View {
         let days = store.recentDays(7)
+        let maxVal = max(4, days.map(\.minutes).max() ?? 0)
         return ReportCard(title: "近 7 天专注趋势", caption: "分钟 / 天") {
             Chart(days) { day in
                 AreaMark(
@@ -169,7 +170,7 @@ struct ReadingReportView: View {
                     y: .value("分钟", day.minutes)
                 )
                 .foregroundStyle(LinearGradient(
-                    colors: [Color.sjzAccent.opacity(0.45), Color.sjzAccent.opacity(0.02)],
+                    colors: [Color.sjzAccent.opacity(0.50), Color.sjzAccent.opacity(0.02)],
                     startPoint: .top, endPoint: .bottom))
                 .interpolationMethod(.catmullRom)
 
@@ -178,26 +179,51 @@ struct ReadingReportView: View {
                     y: .value("分钟", day.minutes)
                 )
                 .foregroundStyle(Color.sjzAccent)
-                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                 .interpolationMethod(.catmullRom)
                 .symbol {
-                    Circle().fill(Color.sjzAccent).frame(width: 5, height: 5)
+                    Circle().fill(Color.sjzAccent.opacity(0.18)).frame(width: 14, height: 14)
+                        .overlay(Circle().fill(.white).frame(width: 7, height: 7))
+                        .overlay(Circle().stroke(Color.sjzAccent, lineWidth: 2).frame(width: 7, height: 7))
+                }
+
+                // 今日高亮点 + 数值标注
+                if day.key == ReadingReportStore.key(for: Date(), calendar: .current) {
+                    PointMark(
+                        x: .value("日期", day.date, unit: .day),
+                        y: .value("分钟", day.minutes)
+                    )
+                    .symbol {
+                        ZStack {
+                            Circle().fill(Color.sjzAccent.opacity(0.25)).frame(width: 22, height: 22)
+                            Circle().fill(Color.sjzAccent).frame(width: 11, height: 11)
+                            Circle().fill(.white).frame(width: 4, height: 4)
+                        }
+                    }
+                    .annotation(position: .top, spacing: 6) {
+                        Text("\(day.minutes)′")
+                            .displayFont(12, weight: .bold)
+                            .foregroundStyle(Color.sjzAccent)
+                            .padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(.ultraThinMaterial, in: Capsule())
+                    }
                 }
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day)) { _ in
                     AxisValueLabel(format: .dateTime.weekday(.narrow))
-                        .font(DisplayFontFactory.font(size: 10))
+                        .font(DisplayFontFactory.font(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
             }
             .chartYAxis {
-                AxisMarks { _ in
-                    AxisGridLine().foregroundStyle(.quaternary)
+                AxisMarks(position: .leading) { _ in
+                    AxisGridLine().foregroundStyle(.quaternary.opacity(0.5))
                     AxisValueLabel().font(DisplayFontFactory.font(size: 10)).foregroundStyle(.secondary)
                 }
             }
-            .frame(height: 170)
+            .chartYScale(domain: 0...(maxVal + 1))
+            .frame(height: 175)
             .accessibilityLabel("近 7 天每日专注分钟趋势")
             .accessibilityValue(days.map { "\($0.key) \($0.minutes) 分钟" }.joined(separator: "，"))
         }
@@ -208,29 +234,51 @@ struct ReadingReportView: View {
     private var weekCompareCard: some View {
         let this = store.thisWeekMinutes
         let last = store.lastWeekMinutes
+        let top = max(1, max(this, last))
         return ReportCard(title: "本周 vs 上周", caption: "分钟") {
-            HStack(alignment: .bottom, spacing: 28) {
-                VStack(spacing: 6) {
-                    Text("\(this)").displayFont(28, weight: .bold).foregroundStyle(Color.sjzAccent)
-                    Text("本周").displayFont(12).foregroundStyle(.secondary)
-                    Rectangle().fill(Color.sjzAccent.opacity(0.75)).frame(width: 34, height: 46)
-                }
-                VStack(spacing: 6) {
-                    Text("\(last)").displayFont(28, weight: .bold).foregroundStyle(Color.sjzTeal)
-                    Text("上周").displayFont(12).foregroundStyle(.secondary)
-                    Rectangle().fill(Color.sjzTeal.opacity(0.55)).frame(width: 34, height: CGFloat(max(8, min(46, last == 0 ? 8 : 46 * last / max(1, this)))))
-                }
-                Spacer()
-                if let delta = store.weekChangePercent() {
-                    Label(delta >= 0 ? "↑ \(delta)%" : "↓ \(-delta)%", systemImage: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        .displayLabelFont(15, weight: .semibold)
-                        .foregroundStyle(delta >= 0 ? Color.sjzGreen : Color.sjzOrange)
-                        .accessibilityLabel(delta >= 0 ? "较上周增长 \(delta)%" : "较上周下降 \(-delta)%")
-                } else {
-                    Text("上周无数据").displayFont(13).foregroundStyle(.secondary)
+            Chart {
+                BarMark(
+                    x: .value("周", "上周"),
+                    y: .value("分钟", Double(last)),
+                    width: 34
+                )
+                .foregroundStyle(LinearGradient(
+                    colors: [Color.sjzTeal.opacity(0.85), Color.sjzTeal.opacity(0.45)],
+                    startPoint: .top, endPoint: .bottom))
+                .cornerRadius(9, style: .continuous)
+
+                BarMark(
+                    x: .value("周", "本周"),
+                    y: .value("分钟", Double(this)),
+                    width: 34
+                )
+                .foregroundStyle(LinearGradient(
+                    colors: [Color.sjzAccent, Color.sjzAccent.opacity(0.5)],
+                    startPoint: .top, endPoint: .bottom))
+                .cornerRadius(9, style: .continuous)
+            }
+            .chartXAxis {
+                AxisMarks { _ in
+                    AxisValueLabel().font(DisplayFontFactory.font(size: 11, weight: .medium)).foregroundStyle(.secondary)
                 }
             }
-            .padding(.vertical, 6)
+            .chartYAxis(.hidden)
+            .chartYScale(domain: 0...(top + 1))
+            .frame(height: 92)
+            .overlay(alignment: .trailing) {
+                if let delta = store.weekChangePercent() {
+                    Label(delta >= 0 ? "↑ \(delta)%" : "↓ \(-delta)%",
+                          systemImage: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        .displayLabelFont(14, weight: .semibold)
+                        .foregroundStyle(delta >= 0 ? Color.sjzGreen : Color.sjzOrange)
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .accessibilityLabel(delta >= 0 ? "较上周增长 \(delta)%" : "较上周下降 \(-delta)%")
+                } else {
+                    Text("上周无数据").displayFont(12).foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityLabel("本周 \(this) 分钟，上周 \(last) 分钟")
         }
     }
 
@@ -251,19 +299,24 @@ struct ReadingReportView: View {
                 VStack(spacing: 16) {
                     HStack {
                         ZStack {
+                            // 底环（浅色，衬托扇区）
+                            Circle().stroke(Color.sjzLight.opacity(0.55), lineWidth: 22)
+                            // 扇区：圆角线帽 + 2° 间隔（高级环形视觉）
                             ForEach(Array(sources.enumerated()), id: \.offset) { idx, item in
                                 RingSector(
-                                    startAngle: sectorStart(sources: sources, upto: idx),
-                                    endAngle: sectorStart(sources: sources, upto: idx + 1)
+                                    startAngle: sectorStart(sources: sources, upto: idx) + 2,
+                                    endAngle: sectorStart(sources: sources, upto: idx + 1) - 2
                                 )
                                 .stroke(
                                     paletteColor(idx),
-                                    style: StrokeStyle(lineWidth: 22, lineCap: .butt)
+                                    style: StrokeStyle(lineWidth: 22, lineCap: .round)
                                 )
                                 .rotationEffect(.degrees(-90))
+                                .animation(.spring(response: 0.6, dampingFraction: 0.85), value: total)
                             }
                             VStack(spacing: 2) {
                                 Text("\(total)").displayFont(24, weight: .bold).foregroundStyle(.primary)
+                                    .contentTransition(.numericText(value: Double(total)))
                                 Text("分钟").displayFont(12).foregroundStyle(.secondary)
                             }
                         }
@@ -307,34 +360,40 @@ struct ReadingReportView: View {
         let peakHour = hourly.firstIndex(of: hourly.max() ?? 0) ?? -1
         return ReportCard(title: title, caption: "按小时") {
             VStack(spacing: 10) {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8), spacing: 6) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 12), spacing: 7) {
                     ForEach(0..<24, id: \.self) { hour in
                         let minutes = hourly[hour]
-                        RoundedRectangle(cornerRadius: 5)
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(intensityColor(minutes: minutes, maxMin: maxMin))
-                            .frame(height: 30)
+                            .frame(height: 26)
                             .overlay(
-                                Text("\(hour)").displayFont(10)
+                                Text("\(hour)")
+                                    .displayFont(9, weight: minutes >= 10 ? .bold : .regular)
                                     .foregroundStyle(minutes >= 10 ? .white : .secondary)
                             )
                             .accessibilityLabel("\(hour) 点，\(minutes) 分钟")
                     }
                 }
                 if peakHour >= 0 {
-                    Text("阅读高峰：\(peakHour) 点（\(hourly[peakHour]) 分钟）")
-                        .displayFont(12)
-                        .foregroundStyle(.secondary)
+                    Label("阅读高峰 \(peakHour) 点 · \(hourly[peakHour]) 分钟",
+                          systemImage: "sparkles")
+                        .displayLabelFont(12, weight: .medium)
+                        .foregroundStyle(Color.sjzAccent)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Color.sjzAccent.opacity(0.1), in: Capsule())
+                        .accessibilityLabel("阅读高峰 \(peakHour) 点，\(hourly[peakHour]) 分钟")
                 }
             }
         }
     }
 
     private func intensityColor(minutes: Int, maxMin: Int) -> Color {
-        guard minutes > 0 else { return Color(.systemGray6) }
+        guard minutes > 0 else { return Color(.systemGray6).opacity(0.6) }
         let ratio = Double(minutes) / Double(maxMin)
-        if ratio > 0.7 { return Color.sjzAccent }
-        if ratio > 0.4 { return Color.sjzAccent.opacity(0.7) }
-        return Color.sjzAccent.opacity(0.35)
+        if ratio >= 0.75 { return Color.sjzAccent }                        // 高
+        if ratio >= 0.4 { return Color.sjzAccent.opacity(0.72) }           // 中
+        if ratio >= 0.12 { return Color.sjzSkyBlue.opacity(0.5) }          // 低
+        return Color.sjzSkyBlue.opacity(0.25)                              // 极低
     }
 
     // MARK: - 隐私与口径
@@ -378,7 +437,7 @@ struct ReadingReportView: View {
     }
 }
 
-// MARK: - 报告卡片容器
+// MARK: - 报告卡片容器（高光渐变 + 精致阴影）
 
 private struct ReportCard<Content: View>: View {
     let title: String
@@ -395,7 +454,17 @@ private struct ReportCard<Content: View>: View {
             content
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .background {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.sjzCard.opacity(0.96), Color.sjzLight.opacity(0.75)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .strokeBorder(.white.opacity(0.5), lineWidth: 0.6))
+        }
+        .shadow(color: .black.opacity(0.05), radius: 14, y: 6)
     }
 }
 
