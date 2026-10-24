@@ -2393,11 +2393,12 @@ struct ArticleLongImageRenderer {
 
     /// 首选输出倍率
     static let preferredScale: CGFloat = 3
-    /// 位图高度硬上限（像素）
-    static let maxPixelHeight: CGFloat = 32_000
-    /// 位图字节硬上限（RGBA 8 位 = 4B/px，≈40MP）：与后续 JPEG 编码 / 微信分享的峰值内存匹配。
+    /// 位图高度硬上限（像素；48,000 ≈ 16,000pt 内容可达 3x）
+    static let maxPixelHeight: CGFloat = 48_000
+    /// 位图字节硬上限（RGBA 8 位 = 4B/px，72MP ≈ 288MB）：与后续 JPEG 编码 / 微信分享的峰值内存匹配。
+    /// 取值的平衡：越大越清晰（长文可维持更高倍率），但峰值内存越高——由「可用内存 × 35%」动态兜底 + 降级阶梯保证安全。
     /// 注意：渲染器已强制 `preferredRange = .standard`（8 位/通道）——若为 16 位扩展域则实际内存翻倍
-    static let maxRenderBytes = 160 * 1024 * 1024
+    static let maxRenderBytes = 288 * 1024 * 1024
     /// 位图字节下限（可用内存极低时仍保证可渲染）
     static let minRenderBytes = 64 * 1024 * 1024
     /// 可用内存使用比例上限（为 JPEG 编码 / 分享 / 系统留余量）
@@ -2757,7 +2758,9 @@ struct ArticleLongImageRenderer {
             let drawSize = CGSize(width: pixel.width * fillScale, height: pixel.height * fillScale)
             let drawOrigin = CGPoint(x: imgRect.midX - drawSize.width / 2,
                                      y: imgRect.midY - drawSize.height / 2)
-            ctx.draw(cgImage, in: CGRect(origin: drawOrigin, size: drawSize))
+            // 必须用 UIImage.draw：UIKit 上下文（y 向下）下 `CGContext.draw(cgImage:)` 会把图**上下翻转**
+            // （2026-09-28 真机剖面取证：素材顶部黑带被画到插图区域底部）——UIImage.draw 才是 UIKit 正确语义
+            UIImage(cgImage: cgImage).draw(in: CGRect(origin: drawOrigin, size: drawSize))
             ctx.restoreGState()
         }
 

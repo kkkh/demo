@@ -363,9 +363,10 @@ enum WeChatImageEncoder {
     nonisolated static let qualities: [CGFloat] = [0.92, 0.8, 0.68, 0.56, 0.44]
     /// 降采样档位（1.0 为原尺寸）
     nonisolated static let scales: [CGFloat] = [1.0, 0.75, 0.6, 0.45, 0.34]
-    /// 首次尝试的像素预算（40MP，与长图渲染画布上限一致）：
-    /// 超过预算的大尺寸档位直接跳过——满尺寸 JPEG 尝试在超大图上既慢又占内存（叠加画布可能触发系统终止）
-    nonisolated static let maxFirstAttemptPixels: Double = 40_000_000
+    /// 首次尝试的像素预算（72MP，与长图渲染画布上限一致）：
+    /// 超过预算的大尺寸档位直接跳过——满尺寸 JPEG 尝试在超大图上既慢又占内存（叠加画布可能触发系统终止）；
+    /// 预算与画布上限对齐后，「画布内可渲染的图」不会再被无谓跳档（保清晰度），仅极端自制图才会触发跳过
+    nonisolated static let maxFirstAttemptPixels: Double = 72_000_000
 
     /// 首个满足像素预算的档位下标（纯函数，契约测试锚点）
     nonisolated static func firstScaleIndex(pixelCount: Double) -> Int {
