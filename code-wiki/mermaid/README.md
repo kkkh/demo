@@ -2,7 +2,7 @@
 
 > 本目录存放 [06-接口契约与调用链](../06-接口契约与调用链.md) §6.4「函数级调用链时序」的独立 Mermaid 源码文件，逐字提取自该分册，可直接粘贴到 [mermaid.live](https://mermaid.live) 或任意 Mermaid 渲染器。
 >
-> 基线：Git 提交 `215ea30`（2026-10-02）。行号为当前源码行号，源码改动后请以符号名检索（[07-附录-类型与符号索引](../07-附录-类型与符号索引.md)）为准。
+> 基线：Git 提交 `6fc702e`（2026-10-04；链路 A–I 同步自 `215ea30`，链路 J 为 2026-10-03 新增模块）。行号为当前源码行号，源码改动后请以符号名检索（[07-附录-类型与符号索引](../07-附录-类型与符号索引.md)）为准。
 
 ## 文件清单
 
@@ -17,6 +17,7 @@
 | [chain-G-org-column-nine-forms.mmd](chain-G-org-column-nine-forms.mmd) | G 机构栏目九形态壳加载 | `selectColumn` 九路分派：list/content、teacher、video、recruit、calendar/opinion、link、webFallback |
 | [chain-H-webview-tabs.mmd](chain-H-webview-tabs.mmd) | H 外链 WebView 标签页导航 | 跨站自动开新页签（`referenceHost`）、`window.open` 委托、同站导航留历史、外部切链重置会话 |
 | [chain-I-total-pagination.mmd](chain-I-total-pagination.mmd) | I total 驱动全量翻页 | 招生网/机构检索按服务端 total 翻页到取满、100/200 页安全上限、fallback 语义 |
+| [chain-J-reading-report-track.mmd](chain-J-reading-report-track.mmd) | J 阅读时光记录（2026-10-03） | 13 处一行挂载、后台暂停/>300s 结算、<5s 丢弃、事件 FIFO 2000 + 按天 rollup 永久保留、报表聚合 |
 
 ## 渲染方式
 
@@ -30,5 +31,5 @@ open chain-A-coldstart-sync.mmd          # 或用任意 Mermaid 工具打开
 ## 维护约定
 
 1. 本目录与 [06-接口契约与调用链](../06-接口契约与调用链.md) §6.4 保持同步：修改链路图时，两处必须一并更新。
-2. 新增链路按 `chain-<字母>-<短名>.mmd` 命名，字母随 §6.4 章节顺序续排（当前 A–I）。
+2. 新增链路按 `chain-<字母>-<短名>.mmd` 命名，字母随 §6.4 章节顺序续排（当前 A–J）。
 3. 行号标注与 07 索引一致，使用 `符号名:行号` 形式，禁止裸行号。
