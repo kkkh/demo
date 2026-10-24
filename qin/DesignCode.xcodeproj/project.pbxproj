@@ -28,6 +28,10 @@
 		DC00001E22D74F5700D209BE /* AnnouncementDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00000F22D74F5700D209BE /* AnnouncementDetailView.swift */; };
 		DCA0001122D74F5700D209BE /* ReadingReportStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00011122D74F5700D209BE /* ReadingReportStore.swift */; };
 		DCA0001222D74F5700D209BE /* ReadingReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00011222D74F5700D209BE /* ReadingReportView.swift */; };
+		DCA0000122D74F5700D209BE /* ReadingGoalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00012122D74F5700D209BE /* ReadingGoalStore.swift */; };
+		DCA0000222D74F5700D209BE /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00012222D74F5700D209BE /* HapticEngine.swift */; };
+		DCA0000322D74F5700D209BE /* MechanicalPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00012322D74F5700D209BE /* MechanicalPicker.swift */; };
+		DCA0000422D74F5700D209BE /* ReadingGoalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00012422D74F5700D209BE /* ReadingGoalView.swift */; };
 		DC00001F22D74F5700D209BE /* OrganizationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003022D74F5700D209BE /* OrganizationView.swift */; };
 		DC00002222D74F5700D209BE /* OrganizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC00003122D74F5700D209BE /* OrganizationManager.swift */; };
 		DC0000F1000000000000F001 /* OrgContentIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0000F1000000000000F002 /* OrgContentIndex.swift */; };
@@ -106,6 +110,10 @@
 		DC00000F22D74F5700D209BE /* AnnouncementDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnouncementDetailView.swift; sourceTree = "<group>"; };
 		DC00011122D74F5700D209BE /* ReadingReportStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingReportStore.swift; sourceTree = "<group>"; };
 		DC00011222D74F5700D209BE /* ReadingReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingReportView.swift; sourceTree = "<group>"; };
+		DC00012122D74F5700D209BE /* ReadingGoalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingGoalStore.swift; sourceTree = "<group>"; };
+		DC00012222D74F5700D209BE /* HapticEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticEngine.swift; sourceTree = "<group>"; };
+		DC00012322D74F5700D209BE /* MechanicalPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MechanicalPicker.swift; sourceTree = "<group>"; };
+		DC00012422D74F5700D209BE /* ReadingGoalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingGoalView.swift; sourceTree = "<group>"; };
 		DC00003022D74F5700D209BE /* OrganizationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizationView.swift; sourceTree = "<group>"; };
 		DC00003122D74F5700D209BE /* OrganizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizationManager.swift; sourceTree = "<group>"; };
 		DC0000F1000000000000F002 /* OrgContentIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgContentIndex.swift; sourceTree = "<group>"; };
@@ -213,6 +221,10 @@
 				DC00000F22D74F5700D209BE /* AnnouncementDetailView.swift */,
 				DC00011122D74F5700D209BE /* ReadingReportStore.swift */,
 				DC00011222D74F5700D209BE /* ReadingReportView.swift */,
+				DC00012122D74F5700D209BE /* ReadingGoalStore.swift */,
+				DC00012222D74F5700D209BE /* HapticEngine.swift */,
+				DC00012322D74F5700D209BE /* MechanicalPicker.swift */,
+				DC00012422D74F5700D209BE /* ReadingGoalView.swift */,
 				DC00003022D74F5700D209BE /* OrganizationView.swift */,
 				DC00003122D74F5700D209BE /* OrganizationManager.swift */,
 				DC0000F1000000000000F002 /* OrgContentIndex.swift */,
@@ -424,6 +436,10 @@
 				DC00001E22D74F5700D209BE /* AnnouncementDetailView.swift in Sources */,
 				DCA0001122D74F5700D209BE /* ReadingReportStore.swift in Sources */,
 				DCA0001222D74F5700D209BE /* ReadingReportView.swift in Sources */,
+				DCA0000122D74F5700D209BE /* ReadingGoalStore.swift in Sources */,
+				DCA0000222D74F5700D209BE /* HapticEngine.swift in Sources */,
+				DCA0000322D74F5700D209BE /* MechanicalPicker.swift in Sources */,
+				DCA0000422D74F5700D209BE /* ReadingGoalView.swift in Sources */,
 				DC00001F22D74F5700D209BE /* OrganizationView.swift in Sources */,
 				DC00002222D74F5700D209BE /* OrganizationManager.swift in Sources */,
 				DC0000F1000000000000F001 /* OrgContentIndex.swift in Sources */,
