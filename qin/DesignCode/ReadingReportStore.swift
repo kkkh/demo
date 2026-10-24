@@ -129,6 +129,7 @@ final class ReadingReportStore: ObservableObject {
 
     /// 今日专注分钟 + 篇数
     var todayMinutes: Int { minutes(on: Date()) }
+    var todaySeconds: Int { events(on: Date()).reduce(0) { $0 + $1.durationSeconds } }
     var todayArticleCount: Int { events(on: Date()).count }
 
     /// 展示用分钟：任何正秒数至少计 1 分钟（避免「读了却显示 0 分钟」的体验断点）
@@ -248,9 +249,11 @@ struct ReadingReportTrack: ViewModifier {
                 switch phase {
                 case .active:
                     resumeFromBackground()
-                case .background, .inactive:
+                case .background:
                     pauseSegment()
-                @unknown default:
+                default:
+                    // .inactive 是瞬时态（下拉通知中心/来电横幅/App 切换预览），
+                    // 不暂停——避免「明明在读却少计时」的体验偏差
                     break
                 }
             }

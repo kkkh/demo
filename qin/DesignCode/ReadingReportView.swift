@@ -68,6 +68,15 @@ struct ReadingReportView: View {
 
     // MARK: - Hero（时段渐变 + 今日专注 + 连击）
 
+    /// 今日专注精确文案：<1 分显示「N 秒」；否则「X 分 Y 秒」（避免「读了 89 秒只显示 1 分钟」）
+    private var todayDurationText: String {
+        let s = store.todaySeconds
+        if s <= 0 { return "0 秒" }
+        if s < 60 { return "\(s) 秒" }
+        let m = s / 60, r = s % 60
+        return r > 0 ? "\(m) 分 \(r) 秒" : "\(m) 分钟"
+    }
+
     private var heroCard: some View {
         let palette = ReadingReportPalette.forNow()
         return VStack(alignment: .leading, spacing: 14) {
@@ -85,17 +94,17 @@ struct ReadingReportView: View {
                 }
             }
             HStack(alignment: .lastTextBaseline, spacing: 8) {
-                Text("\(store.todayMinutes)")
+                Text(todayDurationText)
                     .displayFont(56, weight: .bold)
                     .foregroundStyle(.white)
-                    .contentTransition(.numericText(value: Double(store.todayMinutes)))
-                    .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8), value: store.todayMinutes)
-                Text("分钟 · \(store.todayArticleCount) 篇")
+                    .contentTransition(.numericText(value: Double(store.todaySeconds)))
+                    .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8), value: store.todaySeconds)
+                Text("· \(store.todayArticleCount) 篇")
                     .displayFont(15, weight: .medium)
                     .foregroundStyle(.white.opacity(0.85))
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("今日专注 \(store.todayMinutes) 分钟，阅读 \(store.todayArticleCount) 篇")
+            .accessibilityLabel("今日专注 \(todayDurationText)，阅读 \(store.todayArticleCount) 篇")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
