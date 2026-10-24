@@ -50,7 +50,7 @@ struct PendingArticleDeepLink: Equatable {
 }
 
 /// 待打开的机构文章 deep link（第五检测通道「机构动态」：点击通知直达机构子站文章详情）
-struct PendingOrgArticleDeepLink: Equatable {
+struct PendingOrgArticleDeepLink: Equatable, Identifiable {
     let id: UUID
     let articleId: String
     let title: String

@@ -180,6 +180,10 @@ final class MessageCenterStore: ObservableObject {
     @Published private(set) var launchState: MessageLaunchState = .idle
     /// 请求关闭消息中心 sheet 的信号（ProfileView onChange 消费；配合深链投递防止 sheet 叠加）
     @Published var dismissRequest: UUID?
+    /// 消息中心 sheet 已完全退场的时间戳（ProfileView sheet onDismiss 写入；
+    /// 机构动态通道 consume 轮询此判据，确认前置 sheet 退出后再 present 详情 sheet，
+    /// 避免「dismiss 动画未收尾即 present」被 SwiftUI 丢弃导致白屏）
+    @Published var messageCenterDismissedAt: Date?
 
     // MARK: 内部状态
 
