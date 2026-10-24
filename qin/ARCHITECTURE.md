@@ -272,7 +272,7 @@ checkForUpdates(pushToSystem:)：
 - **ATS**：`NSAllowsArbitraryLoads = false`，仅 `sxjzit.edu.cn`（含子域）HTTP 明文放行；其余强制 HTTPS。
 - **120Hz**：Info.plist `CADisableMinimumFrameDurationOnPhone = true` 解锁 ProMotion。
 - **构建/运行**：真机「秦超的iPhone」（UDID `00008110-000411A40EC1401E`，iOS 27.0）；`xcodebuild -project DesignCode.xcodeproj -scheme DesignCode -destination 'platform=iOS,id=…' build|test`。详见 [docs/code-wiki/05-项目运行方式](docs/code-wiki/05-项目运行方式.md)。
-- **git**：⚠️ 仓库 git 已失效（`.git` 指向不存在的 worktree），改动前手动备份。
+- **git**：2026-09-27 已重建（`main` 分支，初始提交 `b88e430`，含 `.gitignore`）；历史备份快照保留在磁盘。
 
 ---
 
@@ -299,7 +299,7 @@ checkForUpdates(pushToSystem:)：
 | 6 | 低 | 生产 `print()` 残留 | DataService L846-860、TabBar LongImage/FullScreenImage |
 | 7 | 低 | `TabBar.swift` 巨型文件（**11,991 行**、60+ View，2026-09-26 校园 Tab 升级后继续增长） | — |
 | 8 | 低 | 搜索 columnId 魔法串 ×3 硬编码 | OrganizationView/DetailView |
-| 9 | 环境 | git 失效、无 .gitignore、Team ID 明文 | 仓库根 |
+| 9 | 环境 | Team ID 明文（ExportOptions.plist）；git 已于 2026-09-27 重建 | 仓库根 |
 
 ---
 
@@ -318,4 +318,4 @@ checkForUpdates(pushToSystem:)：
 
 ---
 
-> **待办（人工核实）**：① 部署目标统一（建议与现网 26.0 对齐并清理 project 层 13.0）；② `exit(0)` 改为主线程渐进退出替代方案；③ 补 `.gitignore`；④ 恢复 git 版本管理（当前 worktree 指向已失效）。
+> **待办（人工核实）**：① 部署目标统一（建议与现网 26.0 对齐并清理 project 层 13.0）；② `exit(0)` 改为主线程渐进退出替代方案；③ 补 `.gitignore`（已于 2026-09-27 完成）；④ 恢复 git 版本管理（已于 2026-09-27 完成，main 分支）。

@@ -1,6 +1,6 @@
 # 项目理解档案
 
-最后更新：2026-09-27（真机复测复核）｜已推进到：阶段 1-4 完成、阶段 5 档案已生成；文档体系已重建为 docs/code-wiki 分册｜下次从这里继续：① 重建版本控制 git（当前悬空失效）；② 拿到新功能需求后进入设计开发
+最后更新：2026-09-27（真机复测复核）｜已推进到：阶段 1-4 完成、阶段 5 档案已生成；文档体系已重建为 docs/code-wiki 分册；git 仓库已重建｜下次从这里继续：拿到新功能需求后进入设计开发
 
 > 勘误（2026-09-27）：本文正文行号为 2026-09-22 快照，已核实的偏移示例：`exit(0)` L760→L763、TabBar 深链调度 L71→L82、BookmarkManager idx L243-252→L242 区、DisplaySettingsManager `applyRuntimeEffects` L329→L855、`performArticleSearch` L1422→L1559；其余行号一律以 `docs/code-wiki/` 分册（2026-09-27 基线）为准。
 
@@ -16,7 +16,7 @@
 - 禁写 `@AppStorage + didSet`、`@Sendable Task` 捕获 `inout`
 - 禁在通知回调同步链中弹 sheet（走 pendingDeepLink 延迟调度，TabBar.swift L82）
 - 改动需先单独确认的文件：[PrivacyPolicyView.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/PrivacyPolicyView.swift)（L763 有 `exit(0)` 审核红线）、[PrivacyLegalTexts.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/PrivacyLegalTexts.swift)（与实现矛盾，改法未定）、[project.pbxproj](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode.xcodeproj/project.pbxproj)（`-disable-sandbox`、部署目标 13/26 不一致）、[RefererHeaderURLProtocol.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/RefererHeaderURLProtocol.swift)（全局网络拦截）、NotificationManager delegate 区（闪退根因区）、OrganizationDetailView 下拉刷新区（已修，回归敏感）
-- git 仓库已失效：主仓库 `/Users/qinchao/Pictures/designcode-swiftui` 被删，`qin/.git` 是悬空 worktree 指针；未重建前改动无版本控制，动手前先备份
+- git 仓库：2026-09-27 已在 `~/Downloads/designcode-swiftui` 重建（main 分支，初始提交 b88e430；原 `~/Pictures` 主仓库悬空指针已移除；构建产物/备份快照/Xcode 用户态已入 .gitignore）
 
 **风格与协作**：改动前先出方案文档并确认（根因优先，不搞模糊正确）；所有代码注释中文；任何功能点接 LogManager 埋点（模块短名）；回复要点式、行号/出处必备。
 
@@ -71,7 +71,7 @@
 
 ## 五、风险与未决
 
-**致命缺口**：① git 仓库失效（无版本控制，改动前先备份）；② 隐私文本三矛盾（"不申请 Face ID" vs 实现申请；"全 HTTPS" vs ATS 放行 HTTP 且图片被改 http；"缓存 LRU/日志 7 天" vs 实际）；③ 审核高危 `exit(0)`、`-disable-sandbox`、部署目标 13/26 不一致。
+**致命缺口**：① git 状态（已于 2026-09-27 重建）；② 隐私文本三矛盾（"不申请 Face ID" vs 实现申请；"全 HTTPS" vs ATS 放行 HTTP 且图片被改 http；"缓存 LRU/日志 7 天" vs 实际）；③ 审核高危 `exit(0)`、`-disable-sandbox`、部署目标 13/26 不一致。
 
 **尚未确认**：用户背景 6 项（部署/发布、环境数、外部依赖额度、团队、分支策略、历史包袱）始终留空；测试文件"要闻" columnId `41cb4c…` 与搜索用 `f9730c…` 对不上；`cleanEmptyFiles` 是 bug 还是有意简化；全景报告行数失真原因；FIX_PLAN 改动已逐字确认落地但实施时间不可考。
 
