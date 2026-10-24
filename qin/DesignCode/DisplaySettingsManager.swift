@@ -1084,9 +1084,13 @@ final class DisplaySettingsManager: ObservableObject {
 
     /// WebView 排版一行式 CSS 属性表（每项 !important：压过官网原文 CMS 自带内联样式；
     /// 2026-09-29 真机反馈强化——正文此前"永远默认"即因继承规则败给内联样式）
+    /// 2026-10-02 深色模式修复：追加 `color: var(--text-color) !important`，让正文文字颜色完全
+    /// 跟随显示设置（浅色 #1a1a1a / 深色 #e5e5e5），压制原文 `<span style="color:rgb(0,0,0)">`
+    /// 等内联色——否则深色模式下黑字黑底不可见（正文在 WebView 内，链接专属色由 buildHTMLPage 的
+    /// `a { color: var(--link-color) }` 规则单独保护，本声明只作用普通正文元素）。
     var articleCSSTypographyDeclaration: String {
         String(
-            format: "font-family: %@ !important; font-size: %.1fpx !important; line-height: %.2f !important; letter-spacing: %.2fpx !important; font-weight: %d !important;",
+            format: "font-family: %@ !important; font-size: %.1fpx !important; line-height: %.2f !important; letter-spacing: %.2fpx !important; font-weight: %d !important; color: var(--text-color) !important;",
             articleCSSFontFamily,
             articleCSSFontSize,
             articleCSSLineHeight,

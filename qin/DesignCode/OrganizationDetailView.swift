@@ -57,6 +57,8 @@ struct OrgArticle: Identifiable, Hashable {
     let title: String
     let description: String
     let imageUrl: String?
+    /// 文章发布日期（loadPage 映射自 create_time；旧接口无该字段时缺省为空）
+    var createTime: String = ""
     let updateTime: String
     let tag: String
     let articleId: String
@@ -155,6 +157,26 @@ struct ChildSectionNavigation: Identifiable {
         self.siteId = siteId
         self.color = color
     }
+}
+
+// MARK: - 阶段三 · 九形态壳辅助类型（g3）
+
+/// 教师分页会话缓存（teacher 形态）
+private struct TeacherPageCache {
+    let items: [NetworkService.TeacherDTO]
+    let total: Int?
+    let pages: Int
+}
+
+/// 栏目形态的简单加载态（video / link 等壳形态复用）
+private enum OrgFormLoadState: Equatable {
+    case idle, loading, loaded, empty, failed
+}
+
+/// 形态壳联动弹层（calendar / opinion：复用既有整页组件）
+private enum OrgColumnToolModal: String, Identifiable {
+    case calendar, opinion
+    var id: String { rawValue }
 }
 
 // MARK: - 常量
@@ -265,12 +287,47 @@ struct OrganizationDetailView: View {
     /// 单文章型机构（无独立子站）解析出的全文条目
     @State private var singleArticleEntry: SingleArticleEntry?
 
+    // MARK: 阶段三 · 九形态壳状态（g3）
+
+    /// 师资列表（teacher 形态，/common/teacher/page 分页）
+    @State private var teachers: [NetworkService.TeacherDTO] = []
+    @State private var teacherTotal: Int?
+    @State private var teacherPage = 0
+    @State private var teacherIsLoading = false
+    @State private var teacherIsLoadingMore = false
+    @State private var teacherError: String?
+    /// 师资分页会话缓存（栏目 id → 快照，切回不重拉）
+    @State private var teacherCache: [String: TeacherPageCache] = [:]
+    /// 师资简介展开集合（按 TeacherDTO.id）
+    @State private var teacherExpandedIds: Set<Int> = []
+    /// 视频栏目文章卡（video 形态：主站 videos 板块——全站同源，加载一次全局缓存）
+    @State private var videoArticles: [OrgArticle] = []
+    @State private var videoState: OrgFormLoadState = .idle
+    @State private var videoErrorText: String?
+    /// 主站视频板块已加载标记（跨栏目/机构共享，避免重复拉取；P1 复盘）
+    @State private var videoLoadedOnce = false
+    /// 单篇栏目正文预览（content 形态，缓存自 article/detail）
+    @State private var contentDetail: NetworkService.ArticleDetailDTO?
+    @State private var contentDetailIsLoading = false
+    /// 招生查询表单（recruit 形态）
+    @State private var recruitName = ""
+    @State private var recruitIdCard = ""
+    @State private var recruitConsentChecked = false
+    @State private var recruitIsSubmitting = false
+    @State private var recruitResult: NetworkService.RecruitResultDTO?
+    @State private var recruitError: String?
+    @State private var recruitShowConsent = false
+    /// 保底：内嵌官网录取查询页（RSA 公钥实现期取证前的兜底路径）
+    @State private var recruitShowWeb = false
+    /// 校长信箱 / 校园日历 联动弹层
+    @State private var columnToolModal: OrgColumnToolModal?
+    /// 最近数据同步时刻（「更新到 HH:mm」同步角标，阶段四 §3 页面规格2）
+    @State private var lastSyncAt = Date()
+
     // MARK: 阶段二 · 视觉动效状态（详情页）
 
     /// 滚动中（图片加载挂起，复用既有基建）
     @State private var isScrolling: Bool = false
-    /// 滚动偏移（头图视差，系数 0.35）
-    @State private var scrollOffsetY: CGFloat = 0
     /// 滚动超过阈值（栏目 chips 玻璃吸顶，>8pt）
     @State private var isScrolledPastThreshold: Bool = false
     /// zoom 转场命名空间（卡片 → 文章详情，连续放大）
@@ -371,6 +428,31 @@ struct OrganizationDetailView: View {
                     "url": scoreLineURL
                 ])
             }
+        }
+        .sheet(item: $columnToolModal) { modal in
+            NavigationStack {
+                switch modal {
+                case .calendar:
+                    CampusCalendarView()
+                case .opinion:
+                    PrincipalMailboxView()
+                }
+            }
+            .sjzPresentationChrome()
+            .onAppear {
+                LogManager.shared.info("organization", "栏目壳联动打开", context: [
+                    "department": unit.name,
+                    "modal": modal.rawValue
+                ])
+            }
+        }
+        .sheet(isPresented: $recruitShowWeb) {
+            NavigationStack {
+                WebViewContainer(urlString: "https://www.sxjzit.edu.cn/#/zsw-query")
+                    .navigationTitle("录取查询")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .sjzPresentationChrome()
         }
         .onChange(of: admissionQueryURL) { _, newURL in
             if let url = newURL {
@@ -1199,7 +1281,6 @@ struct OrganizationDetailView: View {
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             geometry.contentOffset.y
         } action: { _, offset in
-            scrollOffsetY = offset
             let past = offset > 8
             guard past != isScrolledPastThreshold else { return }
             withAnimation(.easeOut(duration: 0.25)) {
@@ -1223,19 +1304,8 @@ struct OrganizationDetailView: View {
 
     private var departmentHeader: some View {
         VStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: OrgTheme.Radius.card)
-                    .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
-                    .frame(width: 64, height: 64)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: OrgTheme.Radius.card)
-                            .stroke(unit.category.color.opacity(colorScheme == .dark ? 0.30 : 0.16), lineWidth: 1)
-                    )
-
-                Image(systemName: OrgTheme.linearIcon(unit.icon))
-                    .displaySymbolFont(28, weight: .medium)
-                    .foregroundStyle(unit.category.color)
-            }
+            // 档案式题头（v2.2 §3 页面规格 2）：线性徽章 48 + 名称 + 分类胶囊 + 统计 + 同步角标
+            OrgBadge(symbolName: unit.icon, color: unit.category.color, size: 48, iconSize: 24)
 
             Text(unit.name)
                 .displayFont(28, weight: .bold)
@@ -1266,43 +1336,126 @@ struct OrganizationDetailView: View {
                 }
             }
 
-            if let banner = homeData?.topBanners, let imgSrc = banner.imgSrc, !imgSrc.isEmpty {
+            // 「已同步 HH:mm」角标：8pt 胶囊 + 4pt 铜金呼吸点（§3.5③/页面规格 2；语义 = 本机最近同步时刻）
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(OrgTheme.brass)
+                    .frame(width: 4, height: 4)
+                    .symbolEffect(.pulse, isActive: true)
+                Text("已同步 \(syncTimeText)")
+                    .displayFont(10, weight: .medium)
+                    .monospacedDigit()
+                    .foregroundStyle(OrgTheme.brassStrong)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 3)
+            .background(
+                Capsule()
+                    .fill(OrgTheme.brass.opacity(colorScheme == .dark ? 0.16 : 0.08))
+            )
+            .accessibilityLabel("数据更新到 \(syncTimeText)")
+
+            if let imgSrc = resolverBannerImgSrc {
                 headerBanner(imgSrc)
             }
+
+            // 档案纸感页眉：1px line 细线 + 铜金 2pt 饰线（v2.2 §3.5②，克制点缀 ≤5%）
+            VStack(spacing: 5) {
+                Rectangle()
+                    .fill(OrgTheme.separator)
+                    .frame(height: 1)
+                Capsule()
+                    .fill(OrgTheme.brassRule)
+                    .frame(width: 28, height: 2)
+            }
+            .padding(.horizontal, 64)
+            .padding(.top, 4)
         }
         .padding(.top, 8)
     }
 
-    /// 身份头统计条：「N 个栏目」（全部栏目 total 均已确证时补「共 M 篇」——逐栏目惰性取得，不猜数）
+    /// 身份头统计条：「N 个栏目」（全部 list 栏目 total 均已确证时补「共 M 篇」——逐栏目惰性取得，不猜数）
+    /// 九形态落地后栏目数 = 全部栏目（list/content/opinion/link/teacher 等均计入，设计稿 §3 页面规格 2）
     private var headerStatText: String {
+        let totalColumns = columnSpecs.count
         let listColumns = columnSpecs.filter { $0.kind == .list }
         let knownTotals = listColumns.compactMap { spec in
             pagerCache[spec.id]?.total ?? columnSeedTotals[spec.columnId]
         }
-        if !knownTotals.isEmpty, knownTotals.count == listColumns.count {
-            return "\(listColumns.count) 个栏目 · 共 \(knownTotals.reduce(0, +)) 篇"
+        if !knownTotals.isEmpty, knownTotals.count == listColumns.count, !listColumns.isEmpty {
+            return "\(totalColumns) 个栏目 · 共 \(knownTotals.reduce(0, +)) 篇"
         }
-        return "\(listColumns.count) 个栏目"
+        return "\(totalColumns) 个栏目"
     }
 
-    /// 头图（16:9 圆角 + 视差 0.35；未就绪显示骨架，避免硬闪）
+    /// 同步角标时间文案（HH:mm）
+    private var syncTimeText: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: lastSyncAt)
+    }
+
+    // MARK: 头图数据源（官网对齐 · 2026-10-02 实证）
+
+    /// 官网学院站通用横幅（college 站点静态资源；全部学院 home2 的 top_banners 均为 null，
+    /// 官网统一回退此图——浏览器实测 xcdsj/sxy 同源）
+    private static let collegeFallbackBanner = "https://www.sxjzit.edu.cn/assets/college-blue-BUkrAX-0.webp"
+    /// 官网部门站通用横幅（departments 站点静态资源；教务处 jwc 实测回退此图）
+    private static let departmentFallbackBanner = "https://www.sxjzit.edu.cn/assets/depart-blue-B0wDnOMy.webp"
+    /// 官网党委/党建类机构横幅（partyCommittee 站点静态资源；思想政治教育工作部党支部文章页
+    /// 实测回退此红色党建横幅——2026-10-02 浏览器取证 depart-red-Bry0Y12O.webp）
+    private static let partyFallbackBanner = "https://www.sxjzit.edu.cn/assets/depart-red-Bry0Y12O.webp"
+    /// 部门站独配横幅（团委 tw 实测：API top_banners 下发 depart-red 动态图）
+
+    /// 决议头图：API 下发优先；为空时回退官网静态通用横幅（与官网渲染一致）。
+    /// 关键：仅当 homeData.topBanners 为空才进入 fallback——子站型党委机构（dzbgs/dwxsgzb）
+    /// 的 home2 API 均下发专属动态 depart-red，不会走到此处；落到 fallback 的只有
+    /// 文章型党委机构（siteKey=nil，如思政部/组织部/宣传部），按官网文章页回退红色党建静态图。
+    /// 2026-10-02 真机日志验证：dzbgs/dwxsgzb 打开时加载 depart-red.webp（API 图），
+    /// 党委组织部等文章型加载 depart-red-Bry0Y12O.webp（静态红），二者均与官网一致。
+    private var resolverBannerImgSrc: String? {
+        if let banner = homeData?.topBanners, let imgSrc = banner.imgSrc, !imgSrc.isEmpty {
+            return imgSrc
+        }
+        // 学院（教学机构）走学院通用横幅；党委机构（文章型，无 API 图）走红色党建横幅（官网同款）；
+        // 其余（行政/教辅等）走部门通用横幅。子站型党委机构因上方 API 图优先而不会落此分支。
+        switch unit.category {
+        case .teaching: return Self.collegeFallbackBanner
+        case .partyCommittee: return Self.partyFallbackBanner
+        default: return Self.departmentFallbackBanner
+        }
+    }
+
+    /// 头图（静态圆角横幅：无任何滚动变换、无渐变遮罩，图片完整展示——
+    /// 与页面背景仅靠圆角 + 外边距分层，干净利落，不遮挡、不模糊图底）
     private func headerBanner(_ imgSrc: String) -> some View {
-        SJZCachedImage(url: safeURL(from: imgSrc)) { phase in
-            switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .scaledToFill()
-            case .failure:
-                Color.clear
-            default:
-                OrgSkeletonBlock(height: 160, cornerRadius: OrgTheme.Radius.card)
+        ZStack {
+            // 加载失败兜底：分类色淡底撑满整块 + 机构徽章居中，避免"空白洞/色带"
+            Rectangle()
+                .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            OrgBadge(symbolName: unit.icon, color: unit.category.color, size: 44, iconSize: 22)
+                .accessibilityHidden(true)
+        }
+        .overlay {
+            SJZCachedImage(url: safeURL(from: imgSrc)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                case .failure:
+                    // 失败态由下方 ZStack 兜底呈现，这里留透明
+                    Color.clear
+                default:
+                    OrgSkeletonBlock(height: 160, cornerRadius: OrgTheme.Radius.card)
+                }
             }
         }
         .frame(height: 160)
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: OrgTheme.Radius.card))
-        .offset(y: scrollOffsetY * 0.35)
+        .accessibilityLabel("机构封面图")
         .padding(.horizontal, 16)
         .padding(.top, 4)
     }
@@ -1422,6 +1575,8 @@ struct OrganizationDetailView: View {
                 .regular.tint(OrgTheme.glassTint(unit.category.color, active: isSelected)).interactive(),
                 in: .rect(cornerRadius: 14)
             )
+            // 选中态平滑：旧 chip 淡出、新 chip 淡入（设计稿 §3.5③）
+            .animation(OrgTheme.Motion.chipsIn, value: isSelected)
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())
@@ -1429,7 +1584,7 @@ struct OrganizationDetailView: View {
         .accessibilityLabel(knownTotal.map { "\(column.title)，\($0) 篇" } ?? column.title)
     }
 
-    // MARK: 阶段一 · 栏目文章全量列表（分页 + 骨架 + 四态）
+    // MARK: 阶段一 · 栏目文章全量列表（分页 + 骨架 + 四态；阶段三扩展为九形态分发）
 
     @ViewBuilder
     private var columnArticlesSection: some View {
@@ -1437,25 +1592,52 @@ struct OrganizationDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 columnProgressRow(column)
 
-                if column.kind != .list {
-                    columnWebFallbackRow(column)
-                } else if pager.isLoading && pager.articles.isEmpty {
-                    columnListSkeleton
-                } else if let error = pager.errorText, pager.articles.isEmpty {
-                    columnErrorRow(error, column: column)
-                } else if pager.articles.isEmpty {
-                    columnEmptyRow
-                } else {
-                    LazyVStack(spacing: 10) {
-                        ForEach(pager.articles) { article in
-                            articleCard(article, sectionSiteId: column.siteId)
-                                .onAppear { loadMoreIfNeeded(currentArticle: article) }
-                        }
-                    }
-                    columnLoadMoreFooter(column)
+                switch column.kind {
+                case .list:
+                    listColumnContent
+                case .content:
+                    contentDirectSection(column)
+                case .video:
+                    videoCoverSection(column)
+                case .teacher:
+                    teacherSection(column)
+                case .recruit:
+                    recruitFormSection(column)
+                case .calendar:
+                    toolEntryCard(kind: .calendar)
+                case .opinion:
+                    toolEntryCard(kind: .opinion)
+                case .link:
+                    linkEmbedSection(column)
+                case .webFallback:
+                    formEmptyState(column)
                 }
             }
             .padding(.horizontal, 16)
+            // 阶段四复盘 P1-4：不以 .id 重建整块内容（LazyVStack pinned 下会造成滚动跳顶）；
+            // 切换动画收敛为 chips 选中态（下方 columnChip .animation），列表行保持稳定。
+        }
+    }
+
+    /// ① 列表形态：分页 + 骨架 + 四态（阶段一既有逻辑，保持不变）
+    @ViewBuilder
+    private var listColumnContent: some View {
+        if pager.isLoading && pager.articles.isEmpty {
+            columnListSkeleton
+        } else if let error = pager.errorText, pager.articles.isEmpty {
+            columnErrorRow(error, column: selectedColumn!)
+        } else if pager.articles.isEmpty {
+            columnEmptyRow
+        } else {
+            LazyVStack(spacing: 10) {
+                ForEach(Array(pager.articles.enumerated()), id: \.element.id) { index, article in
+                    articleItem(article, index: index, sectionSiteId: selectedColumn!.siteId)
+                        .onAppear { loadMoreIfNeeded(currentArticle: article) }
+                }
+            }
+            if let column = selectedColumn {
+                columnLoadMoreFooter(column)
+            }
         }
     }
 
@@ -1469,9 +1651,26 @@ struct OrganizationDetailView: View {
                     .displayFont(11)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
+            } else if column.kind == .teacher {
+                // 师资形态：形态头显示真值总数（teacher/page total）
+                Text(teacherCountText)
+                    .displayFont(11)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            } else if column.kind == .content {
+                Text("· 单篇")
+                    .displayFont(11)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
             Spacer()
         }
+    }
+
+    /// 师资总数文案（未加载前隐藏，避免抖动）
+    private var teacherCountText: String {
+        guard let total = teacherTotal else { return "" }
+        return "· 共 \(total) 位"
     }
 
     private var columnListSkeleton: some View {
@@ -1500,9 +1699,7 @@ struct OrganizationDetailView: View {
 
     private var columnEmptyRow: some View {
         VStack(spacing: 8) {
-            Image(systemName: "tray")
-                .displaySymbolFont(24)
-                .foregroundStyle(.tertiary)
+            OrgEmptyArt(kind: .shelfEmpty, width: 112, height: 88)
             Text("这个栏目还没有内容")
                 .displayFont(14, weight: .medium)
                 .foregroundStyle(.primary)
@@ -1516,9 +1713,7 @@ struct OrganizationDetailView: View {
 
     private func columnErrorRow(_ message: String, column: OrgColumnSpec) -> some View {
         VStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .displaySymbolFont(22)
-                .foregroundStyle(Color.sjzOrange)
+            OrgEmptyArt(kind: .paperTorn, width: 96, height: 74)
             Text("内容加载失败")
                 .displayFont(14, weight: .medium)
                 .foregroundStyle(.primary)
@@ -1541,27 +1736,59 @@ struct OrganizationDetailView: View {
         .padding(.vertical, 24)
     }
 
-    private func columnWebFallbackRow(_ column: OrgColumnSpec) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: column.kind == .calendar ? "calendar" : "safari")
-                .displaySymbolFont(24)
-                .foregroundStyle(.tertiary)
-            Text(column.title)
-                .displayFont(15, weight: .semibold)
-                .foregroundStyle(.primary)
-            Text("该栏目需在官网查看")
-                .displayFont(12)
-                .foregroundStyle(.secondary)
-            if let url = unit.detailURL {
+    // MARK: 阶段三 · 九形态壳（content / video / teacher / recruit / link / 联动入口 / 空态）
+
+    /// ② 单篇形态：首屏即内容（标题 + 元信息 + 正文预览），点按进入完整详情（CSS 注入 WebView）
+    @ViewBuilder
+    private func contentDirectSection(_ column: OrgColumnSpec) -> some View {
+        if pager.isLoading && pager.articles.isEmpty {
+            columnListSkeleton
+        } else if let article = pager.articles.first {
+            VStack(alignment: .leading, spacing: 10) {
                 Button {
-                    LogManager.shared.info("organization", "非列表栏目·官网兜底打开", context: [
-                        "department": unit.name,
-                        "column": column.title,
-                        "url": url.absoluteString
-                    ])
-                    openURL(url)
+                    openContentArticle(article, column: column)
                 } label: {
-                    Text("在官网打开")
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(article.createTime.isEmpty ? article.updateTime : article.createTime)
+                            .displayFont(11)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                        Text(article.title)
+                            .displayFont(17, weight: .semibold)
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                        // 直渲正文预览（首屏即内容；正文来自 article/detail，剥离 HTML 防主线程挂起）
+                        if contentDetailIsLoading {
+                            HStack(spacing: 8) {
+                                ProgressView().scaleEffect(0.7)
+                                Text("正文加载中…")
+                                    .displayFont(12)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.top, 4)
+                        } else if let plain = contentDetailPlainText {
+                            Text(plain)
+                                .displayFont(13)
+                                .foregroundStyle(.secondary)
+                                .lineSpacing(4)
+                                .multilineTextAlignment(.leading)
+                                .lineLimit(9)
+                        } else if !article.description.isEmpty {
+                            Text(article.description)
+                                .displayFont(13)
+                                .foregroundStyle(.secondary)
+                                .lineSpacing(4)
+                                .multilineTextAlignment(.leading)
+                                .lineLimit(5)
+                        }
+                    }
+                }
+                .buttonStyle(OrganizationCardButtonStyle())
+
+                Button {
+                    openContentArticle(article, column: column)
+                } label: {
+                    Text("阅读全文")
                         .displayFont(13, weight: .semibold)
                         .foregroundStyle(unit.category.color)
                         .padding(.horizontal, 18)
@@ -1569,10 +1796,489 @@ struct OrganizationDetailView: View {
                         .background(Capsule().fill(unit.category.color.opacity(colorScheme == .dark ? 0.2 : 0.12)))
                 }
                 .buttonStyle(OrganizationCardButtonStyle())
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(14)
+            .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.shell))
+            .overlay(
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.shell)
+                    .stroke(OrgTheme.separator, lineWidth: 1)
+            )
+        } else if let error = pager.errorText {
+            columnErrorRow(error, column: column)
+        } else {
+            columnEmptyRow
+        }
+    }
+
+    /// 单篇正文纯文本预览（剥离 HTML；与旧有 `strippingHTMLTags()` 纪律一致，绝不走 NSAttributedString HTML）
+    private var contentDetailPlainText: String? {
+        guard let content = contentDetail?.content, !content.isEmpty else { return nil }
+        let raw = content.strippingHTMLTags()
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// 打开单篇全文（复用既有 zoom 转场详情页，正文 CSS 注入含视频区 — 设计稿② ✓）
+    private func openContentArticle(_ article: OrgArticle, column: OrgColumnSpec) {
+        OrgHaptics.light()
+        LogManager.shared.info("organization", "单篇栏目打开全文", context: [
+            "department": unit.name,
+            "column": column.title,
+            "articleId": article.articleId
+        ])
+        articleNavigation = ArticleNavigation(
+            article: article,
+            siteId: article.sectionSiteId ?? column.siteId,
+            color: unit.category.color
+        )
+    }
+
+    /// ④ 视频形态：主站 videos 板块封面卡（实证：板块=静态封面图，播放源在正文 WebView；设计稿 §8.1-7）
+    @ViewBuilder
+    private func videoCoverSection(_ column: OrgColumnSpec) -> some View {
+        switch videoState {
+        case .idle, .loading:
+            columnListSkeleton
+        case .empty:
+            formEmptyState(column)
+        case .failed:
+            columnErrorRow(videoErrorText ?? "视频板块加载失败", column: column)
+        case .loaded:
+            if videoArticles.isEmpty {
+                formEmptyState(column)
+            } else {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    // 来源标注：主站视频板块（学院站视频为首页静态封面，播放源阶段六前核对；§8.1-7）
+                    Text("来自主站视频板块 · 点按进入详情")
+                        .displayFont(10)
+                        .foregroundStyle(OrgTheme.textTertiary)
+                        .padding(.horizontal, 2)
+                    LazyVGrid(
+                        columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
+                        spacing: 10
+                    ) {
+                        ForEach(videoArticles) { article in
+                            videoCoverCard(article, column: column)
+                        }
+                    }
+                }
             }
         }
+    }
+
+    /// 视频封面卡（16:9 封面 + 标题；点按进入正文详情，视频区随 WebView 渲染 — 官网同源）
+    private func videoCoverCard(_ article: OrgArticle, column: OrgColumnSpec) -> some View {
+        Button {
+            openContentArticle(article, column: column)
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                // 图片区：Color.clear + aspectRatio 定高容器（根因修复同大图卡：图入 overlay 防原图固有尺寸撑高网格行）
+                Color.clear
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .overlay {
+                        if let imageUrl = article.imageUrl, let url = safeURL(from: imageUrl),
+                           imageUrl.contains("no_picture") == false {
+                            SJZCachedImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable().scaledToFill()
+                                default:
+                                    Color.clear
+                                }
+                            }
+                            .allowsHitTesting(false)
+                        } else {
+                            Image(systemName: "play.rectangle.fill")
+                                .displaySymbolFont(30)
+                                .foregroundStyle(unit.category.color.opacity(0.7))
+                        }
+                    }
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "play.fill")
+                            .displaySymbolFont(9, weight: .bold)
+                            .foregroundStyle(.white)
+                            .padding(7)
+                            .background(Circle().fill(.black.opacity(0.45)))
+                            .padding(6)
+                    }
+                    // 裁剪必须在 overlay 之后：否则 overlay 图越界绘出网格（同大图卡根因）
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                Text(article.title)
+                    .displayFont(12, weight: .medium)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .padding(.top, 7)
+                    .padding(.horizontal, 2)
+            }
+        }
+        .buttonStyle(OrganizationCardButtonStyle())
+    }
+
+    /// ⑤ 师资形态：首字头像 + 姓名 + 职务 + 简介收起/展开 + 分页（teacher/page）
+    @ViewBuilder
+    private func teacherSection(_ column: OrgColumnSpec) -> some View {
+        if teacherIsLoading && teachers.isEmpty {
+            columnListSkeleton
+        } else if let error = teacherError, teachers.isEmpty {
+            columnErrorRow(error, column: column)
+        } else if teachers.isEmpty {
+            formEmptyState(column)
+        } else {
+            LazyVStack(spacing: 10) {
+                ForEach(teachers, id: \.id) { teacher in
+                    teacherCard(teacher, column: column)
+                        .onAppear {
+                            guard let lastId = teachers.last?.id, teacher.id == lastId else { return }
+                            loadMoreTeachersIfNeeded(for: column)
+                        }
+                }
+            }
+            teacherLoadMoreFooter(column)
+        }
+    }
+
+    private func teacherLoadMoreFooter(_ column: OrgColumnSpec) -> some View {
+        VStack(spacing: 8) {
+            if teacherIsLoadingMore {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.8)
+                    Text("加载中…").displayFont(12).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+            } else if let total = teacherTotal, teachers.count >= total {
+                Text("已全部加载 · 共 \(total) 位")
+                    .displayFont(11)
+                    .monospacedDigit()
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+            } else {
+                Color.clear.frame(height: 1)
+            }
+        }
+    }
+
+    /// 师资卡：首字圆形头像 + 姓名 + 职称/职务 + 简介收起/展开
+    private func teacherCard(_ teacher: NetworkService.TeacherDTO, column: OrgColumnSpec) -> some View {
+        let name = teacher.name ?? "教师"
+        let titleLine = [teacher.position, teacher.title].compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+        let bio = teacher.text?.strippingHTMLTags().trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let hasBio = !bio.isEmpty && teacher.id != nil
+        let expanded = teacher.id.map { teacherExpandedIds.contains($0) } ?? false
+
+        return Button {
+            // 简介为空时无展开内容：不翻 chevron、不建立空交互（阶段四 P0 复核修正）
+            guard hasBio, let id = teacher.id else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                if teacherExpandedIds.contains(id) {
+                    teacherExpandedIds.remove(id)
+                } else {
+                    teacherExpandedIds.insert(id)
+                }
+            }
+            OrgHaptics.light()
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(unit.category.color.opacity(colorScheme == .dark ? 0.22 : 0.12))
+                            .frame(width: 44, height: 44)
+                        Text(String(name.prefix(1)))
+                            .displayFont(17, weight: .bold)
+                            .foregroundStyle(unit.category.color)
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(name)
+                            .displayFont(15, weight: .semibold)
+                            .foregroundStyle(.primary)
+                        if !titleLine.isEmpty {
+                            Text(titleLine)
+                                .displayFont(12)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    if hasBio {
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .displaySymbolFont(11, weight: .semibold)
+                            .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
+                    }
+                }
+                if expanded && !bio.isEmpty {
+                    Text(bio)
+                        .displayFont(12)
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(14)
+            .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.shell))
+            .overlay(
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.shell)
+                    .stroke(OrgTheme.separator, lineWidth: 1)
+            )
+        }
+        .buttonStyle(OrganizationCardButtonStyle())
+        .accessibilityLabel(hasBio ? (expanded ? "\(name)，收起简介" : "\(name)，展开简介") : name)
+    }
+
+    /// ⑥ 招生查询形态：表单壳 + 合规确认；RSA 公钥实现期取证前走「官网查询」保底内嵌（设计稿 §8.1-5）
+    private func recruitFormSection(_ column: OrgColumnSpec) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .displaySymbolFont(18, weight: .medium)
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(RoundedRectangle(cornerRadius: 11).fill(unit.category.color))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("录取查询")
+                        .displayFont(14, weight: .semibold)
+                        .foregroundStyle(.primary)
+                    Text("仅用于录取查询，不保存任何凭证")
+                        .displayFont(11)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            VStack(spacing: 10) {
+                TextField("考生姓名", text: $recruitName)
+                    .displayFont(14)
+                    .autocorrectionDisabled()
+                    .keyboardType(.default)
+                    .textInputAutocapitalization(.never)
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+                TextField("身份证号", text: $recruitIdCard)
+                    .displayFont(14)
+                    .autocorrectionDisabled()
+                    .keyboardType(.asciiCapable)
+                    .textInputAutocapitalization(.never)
+                    .accessibilityLabel("身份证号")
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+            }
+
+            // 结果三态
+            if let result = recruitResult {
+                if result.name != nil || result.major != nil {
+                    resultPill("查询成功 · \(result.name ?? "") \(result.major ?? "")", success: true)
+                } else {
+                    resultPill("未查询到录取信息，请核对后重试", success: false)
+                }
+            } else if let error = recruitError {
+                resultPill(error, success: false)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    submitRecruitQuery(column: column)
+                } label: {
+                    if recruitIsSubmitting {
+                        HStack(spacing: 8) {
+                            ProgressView().scaleEffect(0.8)
+                            Text("查询中…").displayFont(14, weight: .semibold)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Capsule().fill(unit.category.color))
+                    } else {
+                        Text("立即查询")
+                            .displayFont(14, weight: .semibold)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Capsule().fill(unit.category.color))
+                    }
+                }
+                .buttonStyle(OrganizationCardButtonStyle())
+                .disabled(recruitIsSubmitting || recruitName.trimmingCharacters(in: .whitespaces).isEmpty
+                          || recruitIdCard.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                Button {
+                    recruitShowWeb = true
+                    LogManager.shared.info("organization", "录取查询·官网页打开", context: [
+                        "department": unit.name,
+                        "column": column.title,
+                        "path": "保底 WKWebView"
+                    ])
+                } label: {
+                    Text("官网查询")
+                        .displayFont(13, weight: .semibold)
+                        .foregroundStyle(unit.category.color)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(RoundedRectangle(cornerRadius: 999).stroke(unit.category.color.opacity(0.5), lineWidth: 1))
+                }
+                .buttonStyle(OrganizationCardButtonStyle())
+            }
+
+            Text("查询服务由校招生办提供；身份信息仅用于本次查询，不保存凭证。")
+                .displayFont(10)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.shell))
+        .overlay(
+            RoundedRectangle(cornerRadius: OrgTheme.Radius.shell)
+                .stroke(OrgTheme.separator, lineWidth: 1)
+        )
+        .alert("个人信息确认", isPresented: $recruitShowConsent) {
+            Button("取消", role: .cancel) { recruitConsentChecked = false }
+            Button("同意并查询") {
+                recruitConsentChecked = true
+                performRecruitQuery(column: column)
+            }
+        } message: {
+            Text("仅用于录取查询，提交即同意；不保存凭证。")
+        }
+    }
+
+    private func resultPill(_ text: String, success: Bool) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .displaySymbolFont(12)
+                .foregroundStyle(success ? Color.green : Color.sjzOrange)
+            Text(text)
+                .displayFont(12, weight: .medium)
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill((success ? Color.green : Color.sjzOrange).opacity(colorScheme == .dark ? 0.15 : 0.10))
+        )
+    }
+
+    /// ⑦ 外链形态：无地址栏 Web 内嵌 + 系统浏览器入口；非 http(s)（菜单型）→ 空态
+    @ViewBuilder
+    private func linkEmbedSection(_ column: OrgColumnSpec) -> some View {
+        if let href = column.href, let url = URL(string: href), url.scheme == "http" || url.scheme == "https" {
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "globe")
+                        .displaySymbolFont(12, weight: .medium)
+                        .foregroundStyle(unit.category.color)
+                    Text(url.host ?? url.absoluteString)
+                        .displayFont(12)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Spacer()
+                    Button {
+                        LogManager.shared.info("organization", "外链·系统浏览器打开", context: [
+                            "department": unit.name,
+                            "column": column.title,
+                            "url": url.absoluteString
+                        ])
+                        openURL(url)
+                    } label: {
+                        Label("在系统浏览器打开", systemImage: "safari")
+                            .displayLabelFont(12, weight: .medium)
+                            .foregroundStyle(unit.category.color)
+                    }
+                    .buttonStyle(.plain)
+                }
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.shell)
+                    .fill(OrgTheme.surface)
+                    .frame(height: 500)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: OrgTheme.Radius.shell)
+                            .stroke(OrgTheme.separator, lineWidth: 1)
+                    )
+                    .overlay {
+                        // 桌面 UA：外链为 PC 站（知网/超星电子图书），移动 UA 会被跳转 App/渲染空白
+                        WebViewContainer(urlString: href, desktopUA: true)
+                            .clipShape(RoundedRectangle(cornerRadius: OrgTheme.Radius.shell))
+                            .accessibilityLabel("\(column.title)网页内容")
+                            .accessibilityHint("使用应用内置浏览器查看")
+                    }
+            }
+        } else {
+            formEmptyState(column)
+        }
+    }
+
+    /// ⑧/⑨ 校长信箱 & 校园日历联动入口卡（复用既有整页组件）
+    private func toolEntryCard(kind: OrgColumnToolModal) -> some View {
+        let icon: String = kind == .calendar ? "calendar" : "envelope.open.fill"
+        let tint: Color = kind == .calendar ? Color.sjzTeal : Color.sjzOrange
+        let title: String = kind == .calendar ? "校园日历" : "校长信箱"
+        let subtitle: String =
+            kind == .calendar ? "月历 · 休班 · 全年校历" : "查看来信 · 我要留言"
+
+        return Button {
+            withAnimation(.easeOut(duration: 0.25)) {
+                columnToolModal = kind
+            }
+            OrgHaptics.light()
+            LogManager.shared.info("organization", "栏目壳入口点击", context: [
+                "department": unit.name,
+                "entry": kind.rawValue
+            ])
+        } label: {
+            HStack(spacing: 14) {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(tint.opacity(colorScheme == .dark ? 0.22 : 0.12))
+                    .frame(width: 48, height: 48)
+                    .overlay {
+                        Image(systemName: icon)
+                            .displaySymbolFont(19, weight: .medium)
+                            .foregroundStyle(tint)
+                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .displayFont(15, weight: .semibold)
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .displayFont(12)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .displaySymbolFont(11, weight: .semibold)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(14)
+            .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.shell))
+            .overlay(
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.shell)
+                    .stroke(OrgTheme.separator, lineWidth: 1)
+            )
+        }
+        .buttonStyle(OrganizationCardButtonStyle())
+    }
+
+    /// 空态壳：官网确无内容（不提示前往官网，仅空态引导）
+    private func formEmptyState(_ column: OrgColumnSpec) -> some View {
+        VStack(spacing: 8) {
+            OrgEmptyArt(kind: .shelfEmpty, width: 112, height: 88)
+            Text("这个栏目还没有内容")
+                .displayFont(14, weight: .medium)
+                .foregroundStyle(.primary)
+            Text(column.kind == .webFallback ? "官网暂未发布相关内容，可稍后重试" : "切换其他栏目看看")
+                .displayFont(12)
+                .foregroundStyle(.secondary)
+        }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
+        .padding(.vertical, 28)
     }
 
     private func columnLoadMoreFooter(_ column: OrgColumnSpec) -> some View {
@@ -1684,19 +2390,32 @@ struct OrganizationDetailView: View {
     /// 选中栏目（首屏 / 切换；非列表类不发起请求）
     @MainActor
     private func selectColumn(_ column: OrgColumnSpec, reset: Bool) async {
-        guard column.kind == .list else {
+        // 防重入：非强制刷新且已选中同栏目时不再触发（覆全形态，含壳形态）
+        if !reset, selectedColumnId == column.id { return }
+        switch column.kind {
+        case .list, .content:
+            await selectListColumn(column, reset: reset)
+        case .teacher:
+            selectedColumnId = column.id
+            await loadTeacherFirstPage(for: column, reset: reset)
+        case .video:
+            selectedColumnId = column.id
+            await loadVideoColumn(for: column, reset: reset)
+        case .calendar, .opinion, .link, .recruit, .webFallback:
             selectedColumnId = column.id
             pager = OrgPagerState()
-            LogManager.shared.info("organization", "非列表栏目选中", context: [
+            LogManager.shared.info("organization", "形态壳栏目选中", context: [
                 "department": unit.name,
                 "column": column.title,
-                "componentType": column.componentType ?? "nil"
+                "kind": column.kind.rawValue
             ])
-            return
         }
+    }
 
+    /// 列表 & 单篇：经 /common/column/articles 分页（content 形态 total=1，加载后自动取正文预览）
+    @MainActor
+    private func selectListColumn(_ column: OrgColumnSpec, reset: Bool) async {
         if !reset, selectedColumnId == column.id { return }
-
         selectedColumnId = column.id
 
         if let cached = pagerCache[column.id], !cached.articles.isEmpty {
@@ -1704,9 +2423,13 @@ struct OrganizationDetailView: View {
             LogManager.shared.info("organization", "栏目切换（会话缓存命中）", context: [
                 "department": unit.name,
                 "column": column.title,
+                "kind": column.kind.rawValue,
                 "displayed": "\(cached.displayedCount)",
                 "total": "\(cached.total.map(String.init) ?? "nil")"
             ])
+            if column.kind == .content {
+                await loadContentDetailIfNeeded(for: column)
+            }
             return
         }
 
@@ -1723,6 +2446,9 @@ struct OrganizationDetailView: View {
             "seedTotal": "\(columnSeedTotals[column.columnId].map(String.init) ?? "nil")"
         ])
         await loadPage(for: column, page: 1, reset: true)
+        if column.kind == .content {
+            await loadContentDetailIfNeeded(for: column)
+        }
     }
 
     /// 加载栏目某一页（经 OrgRequestGate 闸控，≤3 并发）
@@ -1751,6 +2477,7 @@ struct OrganizationDetailView: View {
                     title: title,
                     description: dto.description ?? "",
                     imageUrl: dto.imageUrl,
+                    createTime: dto.createTime ?? "",
                     updateTime: dto.updateTime ?? "",
                     tag: dto.tag ?? "",
                     articleId: id,
@@ -1845,6 +2572,227 @@ struct OrganizationDetailView: View {
             "displayed": "\(pager.displayedCount)"
         ])
         Task { await loadPage(for: column, page: next, reset: false) }
+    }
+
+    // MARK: 阶段三 · 九形态数据加载（teacher / video / content 预览 / recruit）
+
+    /// teacher 形态：加载第一页（会话缓存命中直接回填）
+    @MainActor
+    private func loadTeacherFirstPage(for column: OrgColumnSpec, reset: Bool) async {
+        if !reset, let cached = teacherCache[column.id] {
+            teachers = cached.items
+            teacherTotal = cached.total
+            teacherPage = cached.pages
+            teacherError = nil
+            LogManager.shared.info("organization", "师资（会话缓存命中）", context: [
+                "department": unit.name,
+                "column": column.title,
+                "count": "\(cached.items.count)",
+                "total": "\(cached.total.map(String.init) ?? "nil")"
+            ])
+            return
+        }
+        teacherIsLoading = true
+        teacherError = nil
+        let started = Date()
+        do {
+            let dto = try await OrgRequestGate.shared.withPermit {
+                try await withTimeout(seconds: 12) {
+                    try await NetworkService.shared.fetchTeacherPage(siteId: column.siteId, page: 1, size: 20)
+                }
+            }
+            teachers = dto.list ?? []
+            teacherTotal = dto.total
+            teacherPage = 1
+            teacherCache[column.id] = TeacherPageCache(items: teachers, total: teacherTotal, pages: teacherPage)
+            let elapsed = Int(Date().timeIntervalSince(started) * 1000)
+            LogManager.shared.info("organization", "师资首屏加载完成", context: [
+                "department": unit.name,
+                "column": column.title,
+                "got": "\(teachers.count)",
+                "total": "\(teacherTotal.map(String.init) ?? "nil")",
+                "elapsed": "\(elapsed)ms"
+            ])
+        } catch {
+            teacherError = friendlyErrorText(error)
+            LogManager.shared.error("organization", "师资首屏加载失败", context: [
+                "department": unit.name,
+                "column": column.title,
+                "error": error.localizedDescription
+            ])
+        }
+        teacherIsLoading = false
+    }
+
+    /// teacher 形态：触底自动加载下一页（按 TeacherDTO.id 去重）
+    @MainActor
+    private func loadMoreTeachersIfNeeded(for column: OrgColumnSpec) {
+        guard !teacherIsLoading, !teacherIsLoadingMore else { return }
+        guard teacherPage > 0 else { return }
+        if let total = teacherTotal, teachers.count >= total { return }
+        teacherIsLoadingMore = true
+        let next = teacherPage + 1
+        Task {
+            defer { teacherIsLoadingMore = false }
+            do {
+                let dto = try await OrgRequestGate.shared.withPermit {
+                    try await withTimeout(seconds: 12) {
+                        try await NetworkService.shared.fetchTeacherPage(siteId: column.siteId, page: next, size: 20)
+                    }
+                }
+                var seen = Set(teachers.compactMap { $0.id })
+                let fresh = (dto.list ?? []).filter { item in
+                    guard let id = item.id else { return false }
+                    return seen.insert(id).inserted
+                }
+                teachers += fresh
+                if let total = dto.total { teacherTotal = total }
+                teacherPage = next
+                teacherCache[column.id] = TeacherPageCache(items: teachers, total: teacherTotal, pages: teacherPage)
+                if !fresh.isEmpty {
+                    OrgHaptics.light()
+                }
+                LogManager.shared.info("organization", "师资翻页加载完成", context: [
+                    "department": unit.name,
+                    "column": column.title,
+                    "page": "\(next)",
+                    "got": "\(fresh.count)",
+                    "total": "\(teacherTotal.map(String.init) ?? "nil")",
+                    "displayed": "\(teachers.count)"
+                ])
+            } catch {
+                LogManager.shared.error("organization", "师资翻页加载失败", context: [
+                    "department": unit.name,
+                    "column": column.title,
+                    "page": "\(next)",
+                    "error": error.localizedDescription
+                ])
+            }
+        }
+    }
+
+    /// video 形态：读取主站 videos 板块（实证：板块=静态封面图，正文 WebView 承载播放；设计稿 §8.1-7）
+    /// 主站板块全站同源 → 首次加载后全局缓存，跨栏目/机构不重复拉取（P1 复盘 #11）
+    @MainActor
+    private func loadVideoColumn(for column: OrgColumnSpec, reset: Bool) async {
+        if videoLoadedOnce { return }
+        videoState = .loading
+        videoErrorText = nil
+        let started = Date()
+        do {
+            let home2 = try await OrgRequestGate.shared.withPermit {
+                try await withTimeout(seconds: 12) {
+                    try await NetworkService.shared.fetchHome2()
+                }
+            }
+            let list = home2.videos?.articles?.list ?? []
+            videoArticles = list.compactMap { dto -> OrgArticle? in
+                guard let id = dto.id, let title = dto.resolvedTitle, !title.isEmpty else { return nil }
+                return OrgArticle(
+                    id: id,
+                    title: title,
+                    description: dto.description ?? "",
+                    imageUrl: dto.imageUrl,
+                    createTime: dto.createTime ?? "",
+                    updateTime: dto.updateTime ?? "",
+                    tag: dto.tag ?? "",
+                    articleId: id,
+                    sectionSiteId: column.siteId
+                )
+            }
+            videoState = videoArticles.isEmpty ? .empty : .loaded
+            videoLoadedOnce = true
+            let elapsed = Int(Date().timeIntervalSince(started) * 1000)
+            LogManager.shared.info("organization", "视频板块加载完成", context: [
+                "department": unit.name,
+                "column": column.title,
+                "got": "\(videoArticles.count)",
+                "source": "main-site videos",
+                "elapsed": "\(elapsed)ms"
+            ])
+        } catch {
+            videoState = .failed
+            videoErrorText = friendlyErrorText(error)
+            LogManager.shared.error("organization", "视频板块加载失败", context: [
+                "department": unit.name,
+                "column": column.title,
+                "error": error.localizedDescription
+            ])
+        }
+    }
+
+    /// content 形态：取首篇正文详情（useCache 命中秒回），供「首屏即内容」预览
+    @MainActor
+    private func loadContentDetailIfNeeded(for column: OrgColumnSpec) async {
+        guard column.kind == .content else { return }
+        guard !pager.articles.isEmpty else { return }
+        guard contentDetail == nil || selectedColumnId != column.id else { return }
+        guard let first = pager.articles.first else { return }
+        contentDetailIsLoading = true
+        defer { contentDetailIsLoading = false }
+        do {
+            let detail = try await OrgRequestGate.shared.withPermit {
+                try await NetworkService.shared.fetchArticleDetail(
+                    articleId: first.articleId,
+                    siteId: column.siteId,
+                    useCache: true
+                )
+            }
+            contentDetail = detail
+            LogManager.shared.info("organization", "单篇正文预览就绪", context: [
+                "department": unit.name,
+                "column": column.title,
+                "articleId": first.articleId,
+                "hasContent": "\(!(detail.content?.isEmpty ?? true))"
+            ])
+        } catch {
+            LogManager.shared.debugLog("organization", "单篇正文预览不可用（保留摘要兜底）", context: [
+                "department": unit.name,
+                "column": column.title,
+                "error": error.localizedDescription
+            ])
+        }
+    }
+
+    /// recruit 形态：提交前置合规确认（仅用于录取查询，提交即同意；不保存凭证）
+    private func submitRecruitQuery(column: OrgColumnSpec) {
+        let name = recruitName.trimmingCharacters(in: .whitespaces)
+        let idCard = recruitIdCard.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, !idCard.isEmpty else { return }
+        LogManager.shared.info("organization", "录取查询·提交合规确认", context: [
+            "department": unit.name,
+            "column": column.title,
+            "note": "consent prompt shown; no credential logged"
+        ])
+        recruitShowConsent = true
+    }
+
+    /// 已获合规同意后处理查询。RSA 公钥尚未实现期取证：不发起假请求，
+    /// 直接给出「接入中 → 官网查询」引导（设计稿 §8.1-5：真机捕获公钥后切回 POST /common/recruit/query）。
+    @MainActor
+    private func performRecruitQuery(column: OrgColumnSpec) {
+        let name = recruitName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        recruitResult = nil
+        recruitError = nil
+        LogManager.shared.info("organization", "录取查询·合规已同意（RSA 待取证→官网保底）", context: [
+            "department": unit.name,
+            "column": column.title,
+            "note": "no persistence; no fake request"
+        ])
+        recruitError = "录取查询服务接入中，请前往官网查询"
+    }
+
+    /// 统一错误文案（网络类给出可操作说明）
+    private func friendlyErrorText(_ error: Error) -> String {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .timedOut: return "网络较慢，加载超时"
+            case .notConnectedToInternet, .networkConnectionLost: return "当前无网络连接"
+            default: break
+            }
+        }
+        return error.localizedDescription
     }
 
     /// 单文章型机构：解析 article_id 并预取标题
@@ -2045,106 +2993,209 @@ struct OrganizationDetailView: View {
 
     private func articleListView(_ articles: [OrgArticle], sectionSiteId: String) -> some View {
         LazyVStack(spacing: 10) {
-            ForEach(articles) { article in
-                articleCard(article, sectionSiteId: sectionSiteId)
+            ForEach(Array(articles.enumerated()), id: \.element.id) { index, article in
+                articleItem(article, index: index, sectionSiteId: sectionSiteId)
             }
         }
     }
 
-    private func articleCard(_ article: OrgArticle, sectionSiteId: String) -> some View {
-        Button {
-            let actualSiteId = article.sectionSiteId ?? sectionSiteId
-            OrgHaptics.light()
-            LogManager.shared.info("organization", "文章点击", context: [
-                "department": unit.name,
-                "articleId": article.articleId,
-                "title": article.title,
-                "siteId": actualSiteId,
-                "sectionSiteId": sectionSiteId,
-                "articleSiteId": article.sectionSiteId ?? "nil"
-            ])
-            articleNavigation = ArticleNavigation(
-                article: article,
-                siteId: actualSiteId,
-                color: unit.category.color
-            )
+    // MARK: 阶段四 · 列表节奏模型（v2.2 §3.5①：大图卡 ↔ 铜金日期徽章文字卡交替，同屏 ≤1/3 大图卡）
+
+    /// 逢 4 行出一张大图卡（16:9）；其余为文字卡（左列铜金 MM.DD 日期徽章）
+    private func isHeroArticleRow(_ index: Int) -> Bool {
+        index.isMultiple(of: 4)
+    }
+
+    /// 行路由：大图卡 / 文字卡（按 index 交替）
+    @ViewBuilder
+    private func articleItem(_ article: OrgArticle, index: Int, sectionSiteId: String) -> some View {
+        if isHeroArticleRow(index) {
+            articleHeroCard(article, sectionSiteId: sectionSiteId)
+        } else {
+            articleTextCard(article, sectionSiteId: sectionSiteId)
+        }
+    }
+
+    /// 行点击动作（两卡共用：触觉 + 埋点 + zoom 转场）
+    private func openArticle(_ article: OrgArticle, sectionSiteId: String) {
+        let actualSiteId = article.sectionSiteId ?? sectionSiteId
+        OrgHaptics.light()
+        LogManager.shared.info("organization", "文章点击", context: [
+            "department": unit.name,
+            "articleId": article.articleId,
+            "title": article.title,
+            "siteId": actualSiteId,
+            "sectionSiteId": sectionSiteId,
+            "articleSiteId": article.sectionSiteId ?? "nil"
+        ])
+        articleNavigation = ArticleNavigation(
+            article: article,
+            siteId: actualSiteId,
+            color: unit.category.color
+        )
+    }
+
+    /// 未读光点（6pt 交互蓝；已读收敛消隐，占位恒定避免抖动）
+    private func unreadDot(_ isRead: Bool) -> some View {
+        Circle()
+            .fill(OrgTheme.tint)
+            .frame(width: 6, height: 6)
+            .scaleEffect(isRead ? 0.01 : 1)
+            .opacity(isRead ? 0 : 1)
+            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: isRead)
+            .accessibilityHidden(true)
+    }
+
+    /// 底部元信息行：tag / 阅读角标 / 时间
+    @ViewBuilder
+    private func articleMetaFooter(_ article: OrgArticle) -> some View {
+        HStack(spacing: 8) {
+            if !article.tag.isEmpty {
+                Text(article.tag)
+                    .displayFont(10)
+                    .foregroundStyle(unit.category.color)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
+                    )
+            }
+            ReadingTimeBadgeView(cachedID: article.readKey, summary: article.description)
+            Spacer(minLength: 0)
+            Text(formatDate(article.updateTime))
+                .displayFont(10)
+                .monospacedDigit()
+                .foregroundStyle(OrgTheme.textTertiary)
+        }
+    }
+
+    /// 铜金竖排日期徽章（MM / DD，序列连续感——图书馆排架隐喻，§3.5①）
+    private func columnDateBadge(_ raw: String) -> some View {
+        let comps = raw.split(separator: "T").first.map(String.init) ?? raw
+        let pieces = comps.split(separator: "-")
+        let month = pieces.count >= 2 ? String(pieces[1]) : "--"
+        let day = pieces.count >= 2 ? String(pieces[2].prefix(2)) : "--"
+
+        return VStack(alignment: .leading, spacing: 2) {
+            Rectangle()
+                .fill(OrgTheme.brassRule)
+                .frame(width: 14, height: 1)
+            Text(month)
+                .displayFont(11, weight: .medium)
+                .monospacedDigit()
+                .foregroundStyle(OrgTheme.brassStrong)
+            Text(day)
+                .displayFont(17, weight: .bold)
+                .monospacedDigit()
+                .foregroundStyle(OrgTheme.brass)
+        }
+        .frame(width: 34, alignment: .leading)
+        .accessibilityLabel("\(month) 月 \(day) 日")
+    }
+
+    /// 文字卡：左列铜金日期徽章 + 标题（2 行） + 摘要（2 行）+ 底部元信息
+    private func articleTextCard(_ article: OrgArticle, sectionSiteId: String) -> some View {
+        let isRead = readManager.isRead(article.readKey)
+
+        return Button {
+            openArticle(article, sectionSiteId: sectionSiteId)
         } label: {
-            let isRead = readManager.isRead(article.readKey)
-            HStack(spacing: 12) {
-                if let imageUrl = article.imageUrl, !imageUrl.isEmpty,
-                   !imageUrl.contains("no_picture") {
-                    SJZCachedImage(url: safeURL(from: imageUrl)) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 72, height: 72)
-                                .clipShape(RoundedRectangle(cornerRadius: OrgTheme.Radius.row))
-                        case .failure:
-                            placeholderIcon
-                        default:
-                            placeholderIcon
-                        }
+            HStack(alignment: .top, spacing: 10) {
+                columnDateBadge(article.updateTime)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        unreadDot(isRead)
+                        Text(article.title)
+                            .displayFont(15, weight: .semibold)
+                            .foregroundStyle(OrgTheme.textPrimary)
+                            .opacity(isRead ? 0.87 : 1)
+                            .animation(.easeInOut(duration: 0.3), value: isRead)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                     }
-                } else {
-                    placeholderIcon
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(article.title)
-                        .displayFont(15, weight: .semibold)
-                        .foregroundStyle(OrgTheme.textPrimary)
-                        // 阶段三 B：已读态标题 87% 不透明（0.3s 过渡，与光点收敛同步）
-                        .opacity(isRead ? 0.87 : 1)
-                        .animation(.easeInOut(duration: 0.3), value: isRead)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-
                     if !article.description.isEmpty {
                         Text(article.description)
                             .displayFont(12)
                             .foregroundStyle(OrgTheme.textSecondary)
                             .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                     }
-
-                    HStack(spacing: 8) {
-                        // 阶段三 B：未读光点（6pt 交互蓝；已读时收敛消隐，占位恒定避免抖动）
-                        Circle()
-                            .fill(OrgTheme.tint)
-                            .frame(width: 6, height: 6)
-                            .scaleEffect(isRead ? 0.01 : 1)
-                            .opacity(isRead ? 0 : 1)
-                            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: isRead)
-                            .accessibilityHidden(true)
-                        if !article.tag.isEmpty {
-                            Text(article.tag)
-                                .displayFont(10)
-                                .foregroundStyle(unit.category.color)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(
-                                    Capsule()
-                                        .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
-                                )
-                        }
-                        // 阶段三 B：阅读时长角标（受显示设置 readingStatsEnabled / readingListBadgeEnabled / readingTimeEnabled 三重管辖）
-                        ReadingTimeBadgeView(cachedID: article.readKey, summary: article.description)
-                        Spacer()
-                        Text(formatDate(article.updateTime))
-                            .displayFont(10)
-                            .monospacedDigit()
-                            .foregroundStyle(OrgTheme.textTertiary)
-                    }
+                    articleMetaFooter(article)
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityValue(isRead ? "已读" : "未读")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.row))
+            .overlay(
+                RoundedRectangle(cornerRadius: OrgTheme.Radius.row)
+                    .stroke(OrgTheme.separator, lineWidth: 1)
+            )
+        }
+        .buttonStyle(OrgPressStyle())
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(isRead ? "已读" : "未读")
+        .matchedTransitionSource(id: article.articleId, in: articleZoomNamespace)
+    }
 
-                Spacer(minLength: 0)
+    /// 大图卡：16:9 缩略图 + 标题（2 行） + 摘要（2 行）+ 底部元信息；占位 = 分类色 + photo 线性示意（§3.5①）
+    private func articleHeroCard(_ article: OrgArticle, sectionSiteId: String) -> some View {
+        let isRead = readManager.isRead(article.readKey)
 
-                Image(systemName: "chevron.right")
-                    .displaySymbolFont(10, weight: .semibold)
-                    .foregroundStyle(OrgTheme.textTertiary)
+        return Button {
+            openArticle(article, sectionSiteId: sectionSiteId)
+        } label: {
+            VStack(alignment: .leading, spacing: 9) {
+                // 图片区：Color.clear + aspectRatio 定高容器，图入 overlay → 尺寸不受原图固有像素影响
+                // （根因修复：scaledToFill 的 Image 固有尺寸=原始像素，直接放 ZStack 会在加载瞬间撑高整行，
+                //  把下方简介顶出屏幕；overlay 只绘制不参与 layout）
+                Color.clear
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .overlay {
+                        if let imageUrl = article.imageUrl, let url = safeURL(from: imageUrl),
+                           imageUrl.contains("no_picture") == false {
+                            SJZCachedImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable().scaledToFill()
+                                case .failure:
+                                    heroPlaceholder
+                                default:
+                                    heroPlaceholder
+                                }
+                            }
+                            .allowsHitTesting(false)
+                        } else {
+                            heroPlaceholder
+                        }
+                    }
+                    // 裁剪必须在 overlay 之后：否则 overlay 内容（scaledToFill 图）不被 mask 覆盖，
+                    // 会突破容器与 16pt 边距绘到屏幕边缘（阶段四 P0 复核：缩略图越界）
+                    .clipShape(RoundedRectangle(cornerRadius: OrgTheme.Radius.tile))
+                    .accessibilityHidden(true)
+
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    unreadDot(isRead)
+                    Text(article.title)
+                        .displayFont(16, weight: .semibold)
+                        .foregroundStyle(OrgTheme.textPrimary)
+                        .opacity(isRead ? 0.87 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isRead)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+
+                if !article.description.isEmpty {
+                    Text(article.description)
+                        .displayFont(12)
+                        .foregroundStyle(OrgTheme.textSecondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                articleMetaFooter(article)
             }
             .padding(12)
             .background(OrgTheme.surface, in: RoundedRectangle(cornerRadius: OrgTheme.Radius.row))
@@ -2152,11 +3203,22 @@ struct OrganizationDetailView: View {
                 RoundedRectangle(cornerRadius: OrgTheme.Radius.row)
                     .stroke(OrgTheme.separator, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.05), radius: 6, y: 3)
         }
         .buttonStyle(OrgPressStyle())
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(isRead ? "已读" : "未读")
         .matchedTransitionSource(id: article.articleId, in: articleZoomNamespace)
+    }
+
+    /// 大图卡占位：分类色 12%（深 18%）+ photo 线性示意（20% 透明；告别灰块）
+    private var heroPlaceholder: some View {
+        ZStack {
+            Image(systemName: "photo")
+                .displaySymbolFont(30, weight: .medium)
+                .foregroundStyle(unit.category.color.opacity(0.22))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var placeholderIcon: some View {
@@ -2164,7 +3226,7 @@ struct OrganizationDetailView: View {
             RoundedRectangle(cornerRadius: OrgTheme.Radius.row)
                 .fill(unit.category.color.opacity(OrgTheme.categoryTintOpacity(colorScheme)))
                 .frame(width: 72, height: 72)
-            Image(systemName: "doc.text.image")
+            Image(systemName: "photo")
                 .displaySymbolFont(20)
                 .foregroundStyle(unit.category.color.opacity(0.5))
         }
@@ -2282,6 +3344,7 @@ struct OrganizationDetailView: View {
                 applyColumnIndex(from: data)
 
                 isLoading = false
+                lastSyncAt = Date()   // 同步角标「更新到 HH:mm」时间源（阶段四 §3）
 
                 LogManager.shared.info("organization", "部门数据加载成功", context: [
                     "name": unit.name,
@@ -5038,7 +6101,10 @@ struct OrganizationArticleWebView: UIViewRepresentable {
           if (!el) { return 'missing'; }
           el.textContent = \(cssJSON);
           var b = getComputedStyle(document.body);
-          var props = ['font-family','font-size','line-height','letter-spacing','font-weight'];
+          // 2026-10-02 深色模式修复：props 追加 color——正文文字颜色与字体同链实时管辖，
+          // 覆盖原文内联色（span[style="color:rgb(0,0,0)"]），彻底消除深色模式黑字黑底；
+          // 链接由 buildHTMLPage 的 `body a { color: var(--link-color) !important }` 单独保护。
+          var props = ['font-family','font-size','line-height','letter-spacing','font-weight','color'];
           var vals = props.map(function(p){ return b.getPropertyValue(p); });
           var nodes = document.querySelectorAll('body, body *');
           for (var i = 0; i < nodes.length; i++) {
@@ -5203,6 +6269,9 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                     color: var(--link-color);
                     text-decoration: none;
                 }
+                /* 链接专属色保护（2026-10-02）：排版注入 `body, body * { color: var(--text-color) !important }`
+                   会按特异性压过 `a`，故此处提权为 `body a` 并加 !important，保证链接色不受正文颜色管辖影响 */
+                body a { color: var(--link-color) !important; }
                 hr {
                     border: none;
                     border-top: 1px solid var(--border-color);
@@ -5686,6 +6755,9 @@ struct HTMLWebView: UIViewRepresentable {
                     color: var(--link-color);
                     text-decoration: none;
                 }
+                /* 链接专属色保护（2026-10-02）：排版注入 `body, body * { color: var(--text-color) !important }`
+                   会按特异性压过 `a`，故此处提权为 `body a` 并加 !important，保证链接色不受正文颜色管辖影响 */
+                body a { color: var(--link-color) !important; }
                 hr {
                     border: none;
                     border-top: 1px solid var(--border-color);

@@ -17,30 +17,74 @@ import Foundation
 
 // MARK: - 栏目类型（渲染分派）
 
-/// 栏目渲染种类
+/// 栏目渲染种类（九形态 + 兜底，对应设计稿 v2.2 §2.1）
 enum OrgColumnKind: String {
-    /// 列表类：走 /common/column/articles 全量分页
+    /// 列表类：走 /common/column/articles 全量分页（news/notice/notice-small/news-important/download/electronic-book/thematic-center/tabs/tabs-sub）
     case list
-    /// 非列表类：空态 + 官网兜底入口（link / opinion / 未知类型）
-    case webFallback
-    /// 校园日历：专属板块（阶段二接入；阶段一按 webFallback 呈现）
+    /// 单篇：content（进入即直渲正文；列接口 total=1，2026-10-01 实证）
+    case content
+    /// 视频：videos（列接口 total=0，改读 college/home 内嵌板块；实现期核对播放源）
+    case video
+    /// 师资：teacher（须走 /common/teacher/page；官网直访页为空壳，2026-10-01 实证）
+    case teacher
+    /// 招生查询：recruit（POST /common/recruit/query，RSA 实现期取证）
+    case recruit
+    /// 校园日历：calendar（/school/events + CampusCalendarStore 联动）
     case calendar
+    /// 校长信箱/联系我们：opinion（/school/msg + PrincipalMailboxView 联动；判定见 classify）
+    case opinion
+    /// 外链：link（内嵌 Web；数据源 = nav.path 绝对 URL，2026-10-01 实证）
+    case link
+    /// 未知类型/空："0"/无映射 → 空态壳（官网确无列表内容）
+    case webFallback
 
-    /// componentType → 渲染分派
-    /// 全站实测分布（52 个 home2 响应）：tabs 49 / news 33 / notice 32 / opinion 26 / notice-small 24 /
-    /// news-important 14 / content 11 / download 9 / link 4 / tabs-sub 4 / teacher 2 / electronic-book 2 /
-    /// calendar 1 / thematic-center 1 / videos 1 / recruit 1 / "0" 8
-    static func classify(_ componentType: String?) -> OrgColumnKind {
+    /// componentType + 标题/path → 渲染分派
+    /// 全站实测分布（178 栏目）：news 25 / notice 26 / notice-small 16 / tabs 26 / tabs-sub 4 / content 11 /
+    /// download 7 / news-important 7 / opinion 10 / link 4 / teacher 2 / electronic-book 2 /
+    /// calendar 1 / thematic-center 1 / videos 1 / recruit 1 / "0" 7 / 空 27
+    ///
+    /// - Note: 官网许多栏目 componentType 为空串，但首页聚合数据块内嵌 articles.total 给出真值可读线索。
+    ///   2026-10-02 实证（信创学院）：「学院简介」componentType=""、内嵌 total=1 → 应走单篇 content；
+    ///   「学院发展」total=8 → 应走列表。此时若无内嵌 total 兜底会误落 webFallback（空态壳、不发请求）。
+    static func classify(_ componentType: String?, title: String? = nil, path: String? = nil,
+                         embeddedTotal: Int? = nil) -> OrgColumnKind {
         let t = (componentType ?? "").trimmingCharacters(in: .whitespaces)
         switch t {
-        case "news", "news-important", "notice", "notice-small", "content", "download",
-             "tabs", "tabs-sub", "teacher", "videos", "electronic-book", "thematic-center", "recruit":
+        case "content": return .content
+        case "videos": return .video
+        case "teacher": return .teacher
+        case "recruit": return .recruit
+        case "calendar": return .calendar
+        case "opinion": return .opinion
+        case "link": return .link
+        case "news", "news-important", "notice", "notice-small", "download", "electronic-book",
+             "thematic-center", "tabs", "tabs-sub":
             return .list
-        case "calendar":
-            return .calendar
         default:
-            return .webFallback
+            break
         }
+        let titleText = title ?? ""
+        // 简介类栏目：标题含「简介」且内嵌有文章 → 统一单篇直渲（官网简介页即单篇正文；
+        // 2026-10-02 实证：信创 total=1、文法 total=2，两院官网结构一致，App 取第一篇直渲保证同构）
+        if let total = embeddedTotal {
+            if total > 0 && titleText.contains("简介") {
+                return .content
+            }
+            if total > 1 { return .list }
+            if total == 1 { return .content }
+        }
+        // 官网 componentType 常为空：以标题 / path 二次判定（2026-10-01 实机实证）
+        let pathText = path ?? ""
+        // 师资形态：标题含「师资/队伍」或 path=teacher（马院「师资队伍」实证：componentType=None、
+        // data 无线索，但 /common/teacher/page 返回 total=23 → 必须走 teacher 形态否则空态）
+        if titleText.contains("师资") || pathText.contains("teacher") {
+            return .teacher
+        }
+        if titleText.contains("联系") || titleText.contains("意见") || titleText.contains("反馈")
+            || pathText.contains("contact") || pathText.contains("opinion") {
+            return .opinion
+        }
+        return .webFallback
     }
 }
 
@@ -53,10 +97,21 @@ struct OrgColumnSpec: Identifiable, Equatable {
     let columnId: String
     let siteId: String
     let componentType: String?
-    /// nav 项的 path（形如 `?toIndex:home=news` / `introduction`），仅作官网兜底线索
+    /// nav 项的 path（形如 `?toIndex:home=news` / `introduction` / 外链绝对 URL），仅作官网兜底/形态线索
     let href: String?
+    /// 渲染种类（构建时一次性判定，避免每帧重算）
+    let kind: OrgColumnKind
 
-    var kind: OrgColumnKind { OrgColumnKind.classify(componentType) }
+    init(id: String, title: String, columnId: String, siteId: String,
+         componentType: String?, href: String?, embeddedTotal: Int? = nil) {
+        self.id = id
+        self.title = title
+        self.columnId = columnId
+        self.siteId = siteId
+        self.componentType = componentType
+        self.href = href
+        self.kind = OrgColumnKind.classify(componentType, title: title, path: href, embeddedTotal: embeddedTotal)
+    }
 }
 
 // MARK: - 栏目索引构建（纯函数）
@@ -97,7 +152,7 @@ enum OrgColumnIndexBuilder {
         var seen = Set<String>()
 
         func appendColumn(columnId: String?, title: String, siteId: String?,
-                          componentType: String?, href: String?) {
+                          componentType: String?, href: String?, embeddedTotal: Int? = nil) {
             guard let cid = columnId, !cid.isEmpty, !seen.contains(cid) else { return }
             seen.insert(cid)
             let resolvedTitle = title.isEmpty ? "栏目" : title
@@ -107,8 +162,14 @@ enum OrgColumnIndexBuilder {
                 columnId: cid,
                 siteId: siteId ?? defaultSiteId,
                 componentType: componentType,
-                href: href
+                href: href,
+                embeddedTotal: embeddedTotal
             ))
+        }
+
+        /// 子栏目内嵌文章数：`articles` 键缺失时回退 `data` 键（2026-10-02 实证马院等机构用 data 键）
+        func childEmbeddedTotal(_ child: NetworkService.DeptChildDTO) -> Int? {
+            child.articles?.total ?? child.data?.total
         }
 
         for item in nav {
@@ -124,14 +185,16 @@ enum OrgColumnIndexBuilder {
                         }
                         for child in section.children?.list ?? [] {
                             guard let cid = child.id, !cid.isEmpty else { continue }
-                            if let total = child.articles?.total, total > 0 {
+                            let embedded = childEmbeddedTotal(child)
+                            if let total = embedded, total > 0 {
                                 seeds[cid] = max(seeds[cid] ?? 0, total)
                             }
                             appendColumn(columnId: cid,
                                          title: child.titleCn ?? child.titleEn ?? "",
                                          siteId: child.siteId ?? siteId,
                                          componentType: child.componentType,
-                                         href: child.href)
+                                         href: child.href,
+                                         embeddedTotal: embedded)
                         }
                     }
                 }
@@ -139,11 +202,33 @@ enum OrgColumnIndexBuilder {
             }
 
             // 2) 普通 nav 项 = 一个栏目（无论其 data 是否为菜单型字符串元数据）
+            //    例外：nav 项 data 内含 `children` 键（tabs-sub 容器，2026-10-02 实证马院「学院概况」），
+            //    自身列 total=0 只是容器壳，其子栏目才是真内容 → 跳过自身空栏目，仅下发子栏目。
+            if let dataChildren = item.dataChildren, !(dataChildren.list?.isEmpty ?? true) {
+                for child in dataChildren.list ?? [] {
+                    let childTitle = child.titleCn ?? child.titleEn ?? ""
+                    if isToolTitle(childTitle) {
+                        tools.append(ToolChild(title: childTitle,
+                                               columnId: child.id,
+                                               siteId: child.siteId ?? siteId,
+                                               href: child.href))
+                        continue
+                    }
+                    appendColumn(columnId: child.id,
+                                 title: childTitle,
+                                 siteId: child.siteId ?? siteId,
+                                 componentType: child.componentType,
+                                 href: child.href,
+                                 embeddedTotal: childEmbeddedTotal(child))
+                }
+                continue
+            }
             appendColumn(columnId: item.columnId,
                          title: title,
                          siteId: item.siteId,
                          componentType: item.componentType,
-                         href: item.path)
+                         href: item.path,
+                         embeddedTotal: item.articles?.total ?? item.data?["articles"]?.articles?.total)
 
             // 3) 子导航项（深层菜单）：工具入口单独收集，其余并入栏目
             for sub in item.children ?? [] {
@@ -159,7 +244,8 @@ enum OrgColumnIndexBuilder {
                              title: subTitle.isEmpty ? title : subTitle,
                              siteId: sub.siteId ?? siteId,
                              componentType: sub.componentType,
-                             href: sub.path)
+                             href: sub.path,
+                             embeddedTotal: sub.articles?.total)
             }
 
             // 4) nav 项 data 内的 children（菜单型栏目）：工具入口 / 子栏目
@@ -178,7 +264,8 @@ enum OrgColumnIndexBuilder {
                                      title: childTitle,
                                      siteId: child.siteId ?? siteId,
                                      componentType: child.componentType,
-                                     href: child.href)
+                                     href: child.href,
+                                     embeddedTotal: childEmbeddedTotal(child))
                     }
                 }
             }

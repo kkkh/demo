@@ -123,6 +123,57 @@ final class NetworkService: @unchecked Sendable {
         throw lastError ?? NetworkError.timeout
     }
 
+    /// 通用 POST（JSON body；与 inventory §0「POST+JSON body 需带 Content-Type: application/json」一致）。
+    /// 重试/取消语义与 `get` 完全一致（HTTP 恒 200 时业务码在 body，交由调用方判断）。
+    func post<T: Decodable>(_ path: String, body: [String: Any]? = nil, as type: T.Type) async throws -> T {
+        let startTime = Date()
+        var lastError: Error?
+        for attempt in 0...NetworkConfig.maxRetries {
+            do {
+                let url = try buildURL(path: path, params: nil)
+                var req = URLRequest(url: url)
+                req.httpMethod = "POST"
+                req.setValue("application/json", forHTTPHeaderField: "Accept")
+                if let body {
+                    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    req.httpBody = try JSONSerialization.data(withJSONObject: body)
+                }
+                req.timeoutInterval = NetworkConfig.requestTimeout
+
+                let (data, resp) = try await session.data(for: req)
+                try validate(resp, data)
+                let elapsed = Int(Date().timeIntervalSince(startTime) * 1000)
+                await LogManager.shared.info("network", "请求成功", context: [
+                    "path": path, "method": "POST", "status": "\( (resp as? HTTPURLResponse)?.statusCode ?? 0)",
+                    "elapsed": "\(elapsed)ms", "attempt": "\(attempt + 1)"
+                ])
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                lastError = error
+                if (error as? URLError)?.code == .cancelled {
+                    await LogManager.shared.debugLog("network", "请求已取消（跳过重试）", context: [
+                        "path": path, "attempt": "\(attempt + 1)"
+                    ])
+                    throw error
+                }
+                let elapsed = Int(Date().timeIntervalSince(startTime) * 1000)
+                if attempt < NetworkConfig.maxRetries {
+                    await LogManager.shared.warning("network", "请求失败，准备重试", context: [
+                        "path": path, "error": error.localizedDescription,
+                        "attempt": "\(attempt + 1)", "elapsed": "\(elapsed)ms"
+                    ])
+                    try? await Task.sleep(nanoseconds: 500_000_000 * UInt64(attempt + 1))
+                } else {
+                    await LogManager.shared.error("network", "请求最终失败", context: [
+                        "path": path, "error": error.localizedDescription,
+                        "attempts": "\(NetworkConfig.maxRetries + 1)", "elapsed": "\(elapsed)ms"
+                    ])
+                }
+            }
+        }
+        throw lastError ?? NetworkError.timeout
+    }
+
     /// 使用指定 URLSession 执行 GET 请求（用于缓存策略差异化）
     private func getWithSession<T: Decodable>(_ path: String, params: [String: String]? = nil, as type: T.Type, session: URLSession) async throws -> T {
         let startTime = Date()
@@ -214,11 +265,13 @@ final class NetworkService: @unchecked Sendable {
             let author = dataDict["author"] as? String ?? ""
             let source = dataDict["source"] as? String ?? ""
             let createTime = dataDict["create_time"] as? String ?? ""
+            let updateTime = dataDict["update_time"] as? String ?? ""
             let imageList = parseImages(from: dataDict)
             let plainText = content.strippingHTMLTags()
             return NewsDetailDTO(
                 title: title,
-                publishTime: createTime,
+                // create_time 为空（早期文章）时回退 update_time
+                publishTime: createTime.isEmpty ? updateTime : createTime,
                 author: author,
                 source: source,
                 fullHTMLContent: content,
@@ -759,8 +812,12 @@ extension NetworkService {
     /// - 注意：服务端只认 `page`/`size`——旧版传 `pageNo`/`pageSize` 会被**静默忽略**（恒返回第 1 页、默认 10 条，
     ///   表现为「加载更多」重复返回首批数据）。2026-09-30 机构接口摸查实测修复，
     ///   证据：`qin/docs/departments-api-evidence/raw/ep_article_page_*.json`（pageNo 被忽略对照）与 audit-report §7 P1。
+    /// - **2026-10-01 修复**：改走 `/common/column/articles`（官网列表页同源接口）。
+    ///   旧 `/common/article/page` 对招生栏目**固定只返回 12 条**（total=12、size/p 无效）——
+    ///   与官网总量 21（column/articles 口径）不符，是「招生公告数量远少于官网」的根因之二。
+    ///   `ZSWArticlePageDTO` 结构对齐：列接口的 data.articles.list 即全量列表。
     func fetchZSWArticlePage(siteId: String, columnId: String, page: Int = 1, size: Int = 20) async throws -> ZSWArticlePageDTO {
-        try await get("/common/article/page", params: [
+        try await get("/common/column/articles", params: [
             "site_id": siteId, "column_id": columnId,
             "page": "\(page)", "size": "\(size)"
         ], as: APIResponse<ZSWArticlePageDTO>.self).requireData()
@@ -872,9 +929,35 @@ extension NetworkService {
         }
     }
 
+    /// 招生网文章分页响应（兼容 `/common/column/articles` 嵌套结构 data.articles）
     struct ZSWArticlePageDTO: Codable {
         let total: Int?
         let list: [ZSWHome2DTO.ZSWArticleDTO]?
+        /// 从列接口嵌套 data.articles 中提取分页数据
+        var resolved: (total: Int?, list: [ZSWHome2DTO.ZSWArticleDTO]?) {
+            (total, list)
+        }
+
+        // 兼容旧扁平结构（data.total/list）与列接口嵌套（data.articles.total/list）
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            if let arts = try? c.decode(NestedArticles.self, forKey: .articles) {
+                total = arts.total
+                list = arts.list
+            } else {
+                total = try? c.decode(Int.self, forKey: .total)
+                list = try? c.decode([ZSWHome2DTO.ZSWArticleDTO].self, forKey: .list)
+            }
+        }
+        init(total: Int?, list: [ZSWHome2DTO.ZSWArticleDTO]?) {
+            self.total = total; self.list = list
+        }
+        struct NestedArticles: Codable {
+            let total: Int?
+            let list: [ZSWHome2DTO.ZSWArticleDTO]?
+        }
+        enum CodingKeys: String, CodingKey { case total, list, articles }
+        func encode(to encoder: Encoder) throws {}
     }
 
     /// 招生网文章详情
@@ -1393,6 +1476,10 @@ extension NetworkService {
         let children: [DeptNavItemDTO]?
         let data: [String: DeptSectionDTO]?
         let articles: DeptArticleListDTO?
+        /// 2026-10-02 实证（马院等机构）：nav 项的 data 里可能直接含 `children` 键（DeptChildrenDTO，
+        /// 形如 {"column_id":"...","children":{"total":2,"list":[...]}}），data 解码时该键会被当作
+        /// DeptSectionDTO 尝试解码而失败丢弃 → 子栏目丢失。此字段在解码期单独捕获该键。
+        let dataChildren: DeptChildrenDTO?
 
         enum CodingKeys: String, CodingKey {
             case columnId = "column_id"
@@ -1416,10 +1503,17 @@ extension NetworkService {
             articles = try container.decodeIfPresent(DeptArticleListDTO.self, forKey: .articles)
 
             // 自定义解码 data 字段：跳过字符串等非对象值
+            var dataChildrenValue: DeptChildrenDTO?
             if container.contains(.data) {
                 let dataContainer = try container.nestedContainer(keyedBy: DynamicCodingKeys.self, forKey: .data)
                 var result: [String: DeptSectionDTO] = [:]
                 for key in dataContainer.allKeys {
+                    // data 里键名为 "children" 的 DeptChildrenDTO（马院等 nav 项结构）单独捕获
+                    if key.stringValue == "children",
+                       let childrenDTO = try? dataContainer.decode(DeptChildrenDTO.self, forKey: key) {
+                        dataChildrenValue = childrenDTO
+                        continue
+                    }
                     if let section = try? dataContainer.decode(DeptSectionDTO.self, forKey: key) {
                         result[key.stringValue] = section
                     }
@@ -1428,6 +1522,7 @@ extension NetworkService {
             } else {
                 data = nil
             }
+            dataChildren = dataChildrenValue
         }
 
         /// 标准编码（仅用于缓存，不需要特殊处理）
@@ -1488,6 +1583,9 @@ extension NetworkService {
         let siteId: String?
         let componentType: String?
         let articles: DeptArticleListDTO?
+        /// 2026-10-02 实证（马院等部分机构）：子栏目文章列表可能内嵌在 `data` 键而非 `articles` 键
+        /// （马院「学院简介」child：articles=null、data.total=1；信创/文法用 articles 键）。双键兼容。
+        let data: DeptArticleListDTO?
 
         enum CodingKeys: String, CodingKey {
             case id
@@ -1499,6 +1597,7 @@ extension NetworkService {
             case siteId = "site_id"
             case componentType
             case articles
+            case data
         }
     }
 
@@ -1512,6 +1611,7 @@ extension NetworkService {
         let title: String?
         let description: String?
         let imageUrl: String?
+        let createTime: String?
         let updateTime: String?
         let tag: String?
         let sort: Int?
@@ -1519,8 +1619,54 @@ extension NetworkService {
         enum CodingKeys: String, CodingKey {
             case id, title, description, tag, sort
             case imageUrl = "image_url"
+            case createTime = "create_time"
             case updateTime = "update_time"
         }
+    }
+
+    // MARK: - 师资（/common/teacher/page；teacher 型栏目专属，列接口对其返 500，2026-10-01 实证）
+
+    /// 师资条目（`id` 数字型；`text` 为简介 HTML，含姓名/职称等富文本）
+    struct TeacherDTO: Codable, Identifiable {
+        let id: Int?
+        let name: String?
+        let position: String?
+        let title: String?
+        let text: String?
+    }
+
+    struct TeacherPageDTO: Codable {
+        let total: Int?
+        let list: [TeacherDTO]?
+    }
+
+    /// 师资分页（`is_leader` 必传：0=全部，1=领导；校验顺序 is_leader 先于 site_id，见 inventory §11.1-10）
+    func fetchTeacherPage(siteId: String, page: Int = 1, size: Int = 40, isLeader: Int = 0) async throws -> TeacherPageDTO {
+        let data = try await get("/common/teacher/page", params: [
+            "site_id": siteId, "is_leader": "\(isLeader)", "page": "\(page)", "size": "\(size)"
+        ], as: APIResponse<TeacherPageDTO>.self).requireData()
+        return data
+    }
+
+    // MARK: - 招生录取查询（POST /common/recruit/query；idcard 需 RSA 加密——加密实现见设计稿 §8.1-5，实现期于真机取证后接入）
+
+    /// 招生查询结果（命中 data.{name,major}；未命中 data:null；假数据 → 500）
+    struct RecruitResultDTO: Codable {
+        let name: String?
+        let major: String?
+    }
+
+    /// 执行录取查询。`encryptedIdCard` 由 RSA 公钥加密（实现期从官网录取查询页 chunk 提取公钥，见设计稿 §8.1-5）。
+    /// 合规：调用方须先弹「仅用于录取查询，提交即同意；不保存凭证」；本方法不落库、日志仅记 hash 痕迹。
+    /// - Returns: 命中 → 结果；`data:null` → `nil`（未命中）；业务码非 200 → 抛 `NetworkError.serverError`。
+    func queryRecruit(name: String, encryptedIdCard: String) async throws -> RecruitResultDTO? {
+        let resp = try await post("/common/recruit/query", body: [
+            "name": name, "idcard": encryptedIdCard
+        ], as: APIResponse<RecruitResultDTO>.self)
+        if let code = resp.code, code != 200 {
+            throw NetworkError.serverError(resp.message ?? "查询失败")
+        }
+        return resp.data
     }
 }
 

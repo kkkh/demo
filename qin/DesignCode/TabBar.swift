@@ -4882,9 +4882,18 @@ struct FullScreenImageView: View {
 
 struct WebViewContainer: View {
     let urlString: String
+    /// 是否以桌面 UA 加载（外链 PC 站典型需求：知网等对移动 UA 会跳 App/空白；
+    /// 仅 link 形态传入，内嵌的校园网页面保持移动 UA）
+    var desktopUA: Bool = false
+    /// 标签页集合：每次跨站导航（页面内「知网」「电子图书」等入口）自动新建独立页签，
+    /// 各页签独立前进/后退，互不覆盖——即浏览器标签页行为。
+    @State private var tabs: [WebViewTab] = []
+    @State private var activeTabID: UUID?
     @State private var isLoading = true
     @State private var loadError: String?
     @State private var loadingProgress: Double = 0
+    /// 浏览器导航句柄（作用于当前激活页签）
+    @StateObject private var control = WebViewControl()
 
     private var safeURL: URL? {
         // 处理 SPA hash URL（如 https://xxx/#/path?query=value）
@@ -4900,73 +4909,272 @@ struct WebViewContainer: View {
         return nil
     }
 
+    /// 站点短名（页签标题）；www. / wap. 前缀去除
+    private func hostLabel(_ url: URL) -> String {
+        let host = url.host ?? "网页"
+        return host.replacingOccurrences(of: "www.", with: "")
+            .replacingOccurrences(of: "wap.", with: "")
+    }
+
+    private var activeTab: WebViewTab? {
+        tabs.first { $0.id == activeTabID }
+    }
+
+    /// 新建页签并激活（跨站导航 / window.open 统一入口）
+    private func openNewTab(_ url: URL) {
+        // 去重：同 URL 已存在则仅切换激活，避免重复页签
+        if let existing = tabs.first(where: { $0.url.absoluteString == url.absoluteString }) {
+            activeTabID = existing.id
+            return
+        }
+        let tab = WebViewTab(url: url)
+        tabs.append(tab)
+        activeTabID = tab.id
+        loadError = nil
+        LogManager.shared.info("webview", "新页签打开", context: [
+            "url": String(url.absoluteString.prefix(120)),
+            "tabs": "\(tabs.count)"
+        ])
+    }
+
     var body: some View {
-        ZStack {
-            if let url = safeURL {
-                WebView(url: url, isLoading: $isLoading, loadError: $loadError, loadingProgress: $loadingProgress)
-                    .edgesIgnoringSafeArea(.bottom)
-            } else {
-                VStack(spacing: 16) {
-                    Image(systemName: "link.badge.plus")
-                        .displaySymbolFont(48)
-                        .foregroundStyle(.secondary)
-                    Text("无法打开链接")
-                        .displayFont(17, weight: .semibold)
-                    Text("链接格式无效")
-                        .displayFont(12)
+        VStack(spacing: 0) {
+            // 页签条：跨站入口（「知网」「电子图书」等）各开独立页签，点按切换、×关闭
+            // 始终显示（单页签时也可见），便于页面层级透明
+            ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(tabs) { tab in
+                            let isActive = tab.id == activeTabID
+                            Button {
+                                activeTabID = tab.id
+                                loadError = nil
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Text(hostLabel(tab.url))
+                                        .displayFont(11, weight: .semibold)
+                                        .lineLimit(1)
+                                        .foregroundStyle(isActive ? Color.sjzAccent : .secondary)
+                                    Button {
+                                        closeTab(tab.id)
+                                    } label: {
+                                        Image(systemName: "xmark")
+                                            .displaySymbolFont(8, weight: .bold)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("关闭 \(hostLabel(tab.url))")
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(
+                                    Capsule()
+                                        .fill(isActive ? Color.sjzAccent.opacity(0.12) : Color(.systemGray6))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityAddTraits(isActive ? [.isSelected] : [])
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                }
+                .frame(height: 30)
+
+            // 浏览器导航条：返回 / 前进 / 刷新（作用于当前页签）
+            HStack(spacing: 22) {
+                Button {
+                    control.back()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .displaySymbolFont(14, weight: .semibold)
+                        .foregroundStyle(control.canGoBack ? Color.primary : Color.secondary.opacity(0.4))
+                }
+                .disabled(!control.canGoBack)
+                .accessibilityLabel("后退")
+
+                Button {
+                    control.forward()
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .displaySymbolFont(14, weight: .semibold)
+                        .foregroundStyle(control.canGoForward ? Color.primary : Color.secondary.opacity(0.4))
+                }
+                .disabled(!control.canGoForward)
+                .accessibilityLabel("前进")
+
+                Button {
+                    control.reload()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .displaySymbolFont(13, weight: .medium)
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("刷新")
+
+                Spacer()
             }
-            // 加载指示器
-            if isLoading {
-                VStack(spacing: 12) {
-                    ProgressView(value: loadingProgress, total: 1.0)
-                        .progressViewStyle(.linear)
-                        .tint(Color.sjzAccent)
-                        .frame(width: 200)
-                    Text("正在加载...")
-                        .displayFont(12)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(24)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-            }
-            // 错误提示
-            if let error = loadError {
-                VStack(spacing: 16) {
-                    Image(systemName: "wifi.slash")
-                        .displaySymbolFont(40)
-                        .foregroundStyle(.orange)
-                    Text("加载失败")
-                        .displayFont(17, weight: .semibold)
-                    Text(error)
-                        .displayFont(12)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Button {
-                        loadError = nil
-                        isLoading = true
-                        loadingProgress = 0
-                    } label: {
-                        Label("重新加载", systemImage: "arrow.clockwise")
-                            .displayLabelFont(14, weight: .medium)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 20).padding(.vertical, 10)
-                            .background(Color.sjzAccent, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 14)
+            .frame(height: 34)
+
+            ZStack {
+                if let url = safeURL, !tabs.isEmpty {
+                    ForEach(tabs) { tab in
+                        let isActive = tab.id == activeTabID
+                        WebView(url: tab.url,
+                                desktopUA: desktopUA,
+                                isLoading: $isLoading, loadError: $loadError, loadingProgress: $loadingProgress,
+                                onNewWindow: { newURL in
+                                    openNewTab(newURL)
+                                },
+                                control: isActive ? control : nil,
+                                referenceHost: tab.url.host)
+                            .opacity(isActive ? 1 : 0)
+                            .allowsHitTesting(isActive)
+                            .accessibilityHidden(!isActive)
+                    }
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "link.badge.plus")
+                            .displaySymbolFont(48)
+                            .foregroundStyle(.secondary)
+                        Text("无法打开链接")
+                            .displayFont(17, weight: .semibold)
+                        Text("链接格式无效")
+                            .displayFont(12)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .padding(24)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                // 加载指示器
+                if isLoading {
+                    VStack(spacing: 12) {
+                        ProgressView(value: loadingProgress, total: 1.0)
+                            .progressViewStyle(.linear)
+                            .tint(Color.sjzAccent)
+                            .frame(width: 200)
+                        Text("正在加载...")
+                            .displayFont(12)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(24)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
+                // 错误提示
+                if let error = loadError {
+                    VStack(spacing: 16) {
+                        Image(systemName: "wifi.slash")
+                            .displaySymbolFont(40)
+                            .foregroundStyle(.orange)
+                        Text("加载失败")
+                            .displayFont(17, weight: .semibold)
+                        Text(error)
+                            .displayFont(12)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button {
+                            loadError = nil
+                            isLoading = true
+                            loadingProgress = 0
+                        } label: {
+                            Label("重新加载", systemImage: "arrow.clockwise")
+                                .displayLabelFont(14, weight: .medium)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 20).padding(.vertical, 10)
+                                .background(Color.sjzAccent, in: RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                    .padding(24)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
             }
         }
+        .onAppear {
+            // 初始化首标签页（首次出现时；tabs 已由 openNewTab/外部注入者填充则跳过）
+            if tabs.isEmpty, let url = safeURL {
+                tabs = [WebViewTab(url: url)]
+                activeTabID = tabs.first?.id
+            }
+        }
+        .onChange(of: urlString) { _, newValue in
+            // 外部切换链接（link 形态壳内在「知网」↔「电子图书」等栏目间切换）：
+            // SwiftUI 会复用同一 WebViewContainer 视图身份（同 switch 分支、同位置），
+            // 若仅依赖 onAppear 则 tabs 保持旧站不重载——这里按"浏览器标签页行为"
+            // 重置页签为新站会话（点知网开知网页、点电子图书开电子图书页）。
+            guard let newURL = Self.parsedURL(newValue) else { return }
+            if tabs.first?.url == newURL { return }
+            tabs = [WebViewTab(url: newURL)]
+            activeTabID = tabs.first?.id
+            loadError = nil
+            isLoading = true
+            loadingProgress = 0
+            LogManager.shared.info("webview", "外链切换·页签重置", context: [
+                "url": String(newURL.absoluteString.prefix(120))
+            ])
+        }
     }
+
+    /// 解析外部传入链接（含中文等非 ASCII 的 URL 编码兜底）
+    private static func parsedURL(_ string: String) -> URL? {
+        if let url = URL(string: string) { return url }
+        if let encoded = string.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed),
+           let url = URL(string: encoded) {
+            return url
+        }
+        return nil
+    }
+
+    /// 关闭页签：至少保留一个；关闭激活页签时激活相邻页签
+    private func closeTab(_ id: UUID) {
+        guard let idx = tabs.firstIndex(where: { $0.id == id }), tabs.count > 1 else { return }
+        tabs.remove(at: idx)
+        if activeTabID == id {
+            let newIndex = min(idx, tabs.count - 1)
+            activeTabID = tabs[newIndex].id
+        }
+        loadError = nil
+    }
+}
+
+// MARK: - WebViewTab（内嵌网页标签页）
+
+/// 独立页签：每次跨站导航/新窗口打开的独立 WebView（各自前进/后退历史）
+struct WebViewTab: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+// MARK: - WebViewControl（内嵌网页浏览器导航句柄）
+
+/// 浏览器式前进/后退/刷新句柄：主帧 JS 导航（如电子图书页「知网/电子图书」互切）走 back/forward 往返
+final class WebViewControl: ObservableObject {
+    weak var webView: WKWebView?
+    @Published private(set) var canGoBack = false
+    @Published private(set) var canGoForward = false
+    func attach(_ webView: WKWebView) {
+        self.webView = webView
+        refreshState(webView)
+    }
+    func refreshState(_ webView: WKWebView) {
+        canGoBack = webView.canGoBack
+        canGoForward = webView.canGoForward
+    }
+    func back() { webView?.goBack() }
+    func forward() { webView?.goForward() }
+    func reload() { webView?.reload() }
 }
 
 struct WebView: UIViewRepresentable {
     let url: URL
+    var desktopUA: Bool = false
     @Binding var isLoading: Bool
     @Binding var loadError: String?
     @Binding var loadingProgress: Double
+    /// 页面内 window.open / target=_blank 的新窗口回调（外层弹独立页面，不改当前页）
+    var onNewWindow: ((URL) -> Void)? = nil
+    /// 浏览器导航句柄（返回/前进/刷新）
+    var control: WebViewControl? = nil
+    /// 页签参照域（= 该页签初始 URL 的 host）：跨域导航据此开新页签；
+    /// 不能用 webView.url 实时判断（JS 导航发起时 webView.url 已指向目标页，存在竞态导致永不触发）
+    var referenceHost: String? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -4977,21 +5185,96 @@ struct WebView: UIViewRepresentable {
         config.defaultWebpagePreferences = prefs
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
+        // 站点导航常以 JS 开窗（window.open）进入子站（如超星电子图书页的「知网」入口）
+        config.preferences.javaScriptCanOpenWindowsAutomatically = true
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
+        if desktopUA {
+            // 桌面 UA：外链 PC 站（知网/超星等）对移动 UA 会跳转 App/渲染空白
+            webView.customUserAgent = Self.desktopUserAgent
+        }
         webView.addObserver(context.coordinator, forKeyPath: #keyPath(WKWebView.estimatedProgress), options: .new, context: nil)
         webView.load(URLRequest(url: url))
+        control?.attach(webView)
         return webView
     }
 
+    /// 桌面 Safari UA（Safari 17 桌面）
+    static let desktopUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         var parent: WebView
-        init(_ parent: WebView) { self.parent = parent }
+        /// 新窗口回调（独立页面，避免"当前页替换导致原页入口失效"）
+        private let onNewWindow: (URL) -> Void
+        init(_ parent: WebView) {
+            self.parent = parent
+            self.onNewWindow = parent.onNewWindow ?? { _ in }
+        }
+        // 页面内 `target=_blank` / `window.open`（如图书馆电子图书页的「知网」「超星」等入口）：
+        // 委托外层弹独立页面；原页面保留可返回、其余入口仍可点击。
+        func webView(_ webView: WKWebView,
+                     createWebViewWith configuration: WKWebViewConfiguration,
+                     for navigationAction: WKNavigationAction,
+                     windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if let url = navigationAction.request.url,
+               url.scheme == "http" || url.scheme == "https" {
+                onNewWindow(url)
+            } else {
+                LogManager.shared.warning("webview", "外链新窗口·非 http(s) 忽略", context: [
+                    "url": navigationAction.request.url?.absoluteString ?? "nil"
+                ])
+            }
+            return nil
+        }
+        // 导航可观测 + 跨站主帧导航 → 新页签（浏览器标签页行为）：
+        // 页面内「知网」「电子图书」等跨域入口（JS 主帧跳转）各自打开独立页签，互不覆盖；
+        // 同站页内导航（页内链接/翻页）留在当前页签前进。
+        func webView(_ webView: WKWebView,
+                     decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            let url = navigationAction.request.url?.absoluteString ?? "nil"
+            let reqURL = navigationAction.request.url
+            let currentURL = webView.url
+            LogManager.shared.debugLog("webview", "导航请求", context: [
+                "url": String(url.prefix(120)),
+                "type": "\(navigationAction.navigationType.rawValue)",
+                "mainFrame": "\(navigationAction.targetFrame?.isMainFrame ?? false)",
+                "refHost": parent.referenceHost ?? "nil",
+                "destHost": reqURL?.host ?? "nil"
+            ])
+            // 页签参照域跨站导航 → 新页签（浏览器标签页行为）：
+            // 页面内「知网」等跨域入口（JS 主帧跳转）各自打开独立页签，互不覆盖；
+            // 同域页内导航（页内链接/翻页）留在当前页签。同族登录/API 域（chaoxing 系）放行保持登录流。
+            if let reqURL,
+               reqURL.scheme == "http" || reqURL.scheme == "https",
+               let refHost = parent.referenceHost,
+               reqURL.host != refHost {
+                let host = reqURL.host ?? ""
+                let isAuthFlow = host.hasSuffix("chaoxing.com") || host.hasSuffix("sslibrary.com")
+                if !isAuthFlow {
+                    onNewWindow(reqURL)
+                    decisionHandler(.cancel)
+                    return
+                }
+            }
+            decisionHandler(.allow)
+        }
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            LogManager.shared.debugLog("webview", "导航开始", context: [
+                "url": String(webView.url?.absoluteString.prefix(120) ?? "nil")
+            ])
+        }
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             parent.isLoading = false
             parent.loadingProgress = 1.0
+            parent.control?.refreshState(webView)
+            LogManager.shared.info("webview", "页面加载完成", context: [
+                "url": String((webView.url?.absoluteString ?? "nil").prefix(120)),
+                "title": String((webView.title ?? "").prefix(40))
+            ])
         }
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             parent.isLoading = false

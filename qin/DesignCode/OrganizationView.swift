@@ -1554,7 +1554,7 @@ extension OrganizationView {
                 }
                 .padding(.horizontal, 16)
 
-                // 深度检索入口（有结果时同样提供：全部栏目 × 8 页，覆盖更早文章，追求 100% 覆盖）
+                // 深度检索入口（有结果时同样提供：全部栏目按 total 全量覆盖，挖出更早文章）
                 if !articleSearchResults.isEmpty {
                     Button {
                         triggerDeepSearch()
@@ -1562,7 +1562,7 @@ extension OrganizationView {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.triangle.2.circlepath")
                                 .displaySymbolFont(10)
-                            Text("还有更早的文章？深度检索全部栏目（每栏至多 400 条）")
+                            Text("还有更早的文章？深度检索全部栏目（覆盖各栏目全部文章）")
                                 .displayFont(11)
                         }
                         .foregroundStyle(Color.sjzTeal)
@@ -1664,7 +1664,7 @@ extension OrganizationView {
                 .displayFont(13)
                 .foregroundStyle(.tertiary)
 
-            // 深度检索：扩大至每栏 400 条并跳过缓存，覆盖更早文章
+            // 深度检索：全部栏目按 total 全量覆盖并跳过缓存，挖出更早文章
             Button {
                 triggerDeepSearch()
             } label: {
@@ -1688,7 +1688,7 @@ extension OrganizationView {
         .padding(.vertical, 60)
     }
 
-    /// 触发深度检索（每栏 8 页 400 条、跳过查询缓存；覆盖全部栏目更早文章）
+    /// 触发深度检索（全部栏目按 total 全量覆盖、跳过查询缓存；可挖出各栏目更早文章）
     private func triggerDeepSearch() {
         LogManager.shared.info("organization", "深度检索已触发", context: [
             "keyword": trimmedSearchText
@@ -1904,7 +1904,7 @@ extension OrganizationView {
     }
 
     /// 执行文章搜索 - 并行搜索主站全栏目 + 全部机构子站全部栏目，按关键词匹配，计算相关性得分
-    /// - Parameter deep: 深度检索（常规每栏至多 4 页 200 条；deep 时扩至 8 页 400 条并跳过缓存）
+    /// - Parameter deep: 深度检索（各栏目按服务端 total 全量覆盖并跳过查询缓存）
     private func performArticleSearch(keyword: String, deep: Bool = false) async {
         let trimmed = keyword.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else {
@@ -1965,10 +1965,14 @@ extension OrganizationView {
             ) { group in
                 for (name, colId) in columnIds {
                     group.addTask {
+                        // total 驱动动态翻页：大栏目全量覆盖（原固定页数上限改为
+                        // 由服务端 total 决定页数，仅保留极端安全上限防死循环）
                         var all: [NetworkService.ArticleDTO] = []
-                        let maxPages = deep ? 8 : 4
+                        var page = 1
+                        var totalSeen = 0
                         do {
-                            for page in 1...maxPages {
+                            while true {
+                                if page > 200 { break } // 极端安全上限（异常时防死循环）
                                 let result = try await NetworkService.shared.fetchArticles(
                                     columnId: colId,
                                     siteId: "1",
@@ -1977,9 +1981,14 @@ extension OrganizationView {
                                 )
                                 let list = result.articles?.list ?? []
                                 all.append(contentsOf: list)
-                                let total = result.articles?.total ?? 0
-                                // 提前终止：本页空 / 已取满 / 首屏即不足一页
-                                if list.isEmpty || all.count >= total || (page == 1 && all.count < 50) { break }
+                                totalSeen = result.articles?.total ?? totalSeen
+                                // 提前终止：本页空 / 已按 total 取满 / 无 total 时本页即不足一页
+                                if list.isEmpty
+                                    || (totalSeen > 0 && all.count >= totalSeen)
+                                    || (totalSeen == 0 && list.count < 50) {
+                                    break
+                                }
+                                page += 1
                             }
                             return (name, all)
                         } catch {
@@ -2155,8 +2164,7 @@ extension OrganizationView {
     /// 检索全部机构子站真实文章：
     /// - 机构清单来自 OrganizationManager（静态 siteKey 去重，仅保留有详情页的机构）；
     /// - 每机构先解析子站栏目索引（30 分钟缓存 + 运行时 home2 兜底），
-    ///   全栏目检索（不设栏目数上限），每栏按 total 动态分页：
-    ///   常规至多 4 页 200 条；深度检索（deep）至多 8 页 400 条；
+    ///   全栏目检索（不设栏目数上限），每栏按服务端 total 动态分页全量覆盖；
     /// - 并发分批（每批 8 个机构）拉取并逐批流式合入搜索结果，进度实时可见。
     private func searchOrganizationArticles(keyword: String, deep: Bool) async -> Int {
         let trimmed = keyword.trimmingCharacters(in: .whitespaces)
@@ -2184,7 +2192,6 @@ extension OrganizationView {
         ])
 
         let batchSize = 8
-        let maxPages = deep ? 8 : 4
         var totalOrgMatched = 0
         var knownIDs = Set(articleSearchResults.map(\.id))
 
@@ -2197,7 +2204,7 @@ extension OrganizationView {
                 await withTaskGroup(of: [(orgName: String, siteId: String, columnTitle: String, dto: NetworkService.ArticleDTO)].self) { group in
                     for (orgName, siteKey) in batch {
                         group.addTask {
-                            await Self.fetchOrgArticles(siteKey: siteKey, orgName: orgName, maxPages: maxPages)
+                            await Self.fetchOrgArticles(siteKey: siteKey, orgName: orgName)
                         }
                     }
                     var hits: [[(orgName: String, siteId: String, columnTitle: String, dto: NetworkService.ArticleDTO)]] = []
@@ -2241,9 +2248,9 @@ extension OrganizationView {
 
     /// 拉取单个机构子站全部候选文章：
     /// - 全栏目检索（不设栏目数上限，覆盖所有子栏目）；
-    /// - 每栏按 total 动态分页（size 50，至多 maxPages 页），真实覆盖栏目全量文章；
+    /// - 每栏按 total 动态分页（size 50，翻到取满为止），真实覆盖栏目全量文章；
     /// - 返回原始 DTO 供上层评分。
-    private static func fetchOrgArticles(siteKey: String, orgName: String, maxPages: Int) async -> [(orgName: String, siteId: String, columnTitle: String, dto: NetworkService.ArticleDTO)] {
+    private static func fetchOrgArticles(siteKey: String, orgName: String) async -> [(orgName: String, siteId: String, columnTitle: String, dto: NetworkService.ArticleDTO)] {
         // ① 栏目索引：30 分钟缓存优先，落空则运行时解析 home2
         var index: OrgIndexEntry?
         if let cached = cachedOrgIndex(siteKey) {
@@ -2280,7 +2287,8 @@ extension OrganizationView {
         }
         guard !ordered.isEmpty else { return [] }
 
-        // ③ 逐栏动态分页拉取（首页按 total 决定后续页数，最多 maxPages 页 50 条/页）
+        // ③ 逐栏动态分页拉取（首页按 total 决定后续页数，翻到取满为止——大栏目全量覆盖；
+        //    极端安全上限 200 页防异常死循环）
         //    栏组流水分批（每批 6 栏）控制并发水位：全栏目纳入后每站栏目数可达 20+，
         //    避免批内 8 站同时全栏并发造成网络风暴
         var results: [(orgName: String, siteId: String, columnTitle: String, dto: NetworkService.ArticleDTO)] = []
@@ -2299,7 +2307,11 @@ extension OrganizationView {
                             all.append(contentsOf: list)
                             let total = first.articles?.total ?? 0
                             var page = 2
-                            while page <= maxPages, all.count < total, !list.isEmpty {
+                            // total 驱动翻页到取满（total>0 时以 all.count>=total 结束；
+                            // 无 total 时按页连续翻，极端安全上限 200 页兜底）
+                            while page <= 200,
+                                  (total <= 0 || all.count < total),
+                                  !list.isEmpty {
                                 let next = try await NetworkService.shared.fetchArticles(
                                     columnId: col.id, siteId: index.siteId, page: page, size: 50
                                 )
