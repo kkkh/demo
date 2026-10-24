@@ -1174,7 +1174,7 @@ xcodebuild -project DesignCode.xcodeproj -scheme DesignCode \
 
 > 已修复（历史）：RefererHeaderURLProtocol 曾每请求新建 URLSession 导致无连接复用、URLCache 禁用导致图片不缓存——现已改共享静态会话 + 统一扩容 URLCache（80/400MB）+ 图片 7 天缓存头（见 §4.15）；机构搜索硬编码栏目 ID / 仅拉 30 条 / 缺内容页栏目 → 已改官网机构树 + 子站索引双通道 + 动态分页（§5.2）。
 
-> **2026-09-27 修复（三项，真机 83/83 终验）**：① 机构降级搜索 4 个已失效硬编码栏目 ID（联网实测 500）→ `resolveMainSiteSearchColumns()` 运行时动态解析（OrganizationDetailView 两调用点共用，旧 ID 全库清零）；② AnnouncementManager `isLoading` 转圈卡死 → `defer` 复位（见上表）；③ 字体下载悬挂（实机日志实证）→ 60s 超时兜底 + 跨尝试令牌竞态防护（DisplaySettingsManager.ensureFontFamily，超时后二次实查自愈）。证据：`build/verify/retest_20260927_fix.log`。
+> **2026-09-27 修复（四项，真机 83/83 终验）**：① 机构降级搜索 4 个已失效硬编码栏目 ID（联网实测 500）→ `resolveMainSiteSearchColumns()` 运行时动态解析（OrganizationDetailView 两调用点共用，旧 ID 全库清零）；② AnnouncementManager `isLoading` 转圈卡死 → `defer` 复位（见上表）；③ 字体下载悬挂（实机日志实证）→ 60s 超时兜底 + 跨尝试令牌竞态防护（DisplaySettingsManager.ensureFontFamily，超时后二次实查自愈）；④ **图片「重复加载」根治**（实机日志时间线定案：URLCache 半失效条目 × 旧流程「预判→读不出→回落」每次进入重复代偿）→ 缓存读取改**直读+自愈**（`usableCachedResponse` 预判与读取一次完成、空数据体条目即时清理、解码失败安全回落不误删），全屏图同构改造，预取器升级为可用性判存并顺带自愈（消灭「预判命中→读不出」双击模式）。证据：`build/verify/retest_20260927_fix.log`、`build/verify/retest_20260927_imgfix.log`。
 
 ### 12.3 文档与工程卫生
 

@@ -20,7 +20,7 @@
 
 **风格与协作**：改动前先出方案文档并确认（根因优先，不搞模糊正确）；所有代码注释中文；任何功能点接 LogManager 埋点（模块短名）；回复要点式、行号/出处必备。
 
-**已知坑**：BookmarkManager.swift L242 区 `await` 后复用 idx 下标越界；LogManager.swift L218-275 `cleanEmptyFiles` 与"保留 7 天"注释矛盾；搜索 columnId 三处硬编码（OrganizationView L1441-1446、OrganizationDetailView L737-742/L3497-3502）；生产 `print` 残留（DataService L846-860、TabBar LongImage/FullScreenImage；全库实测 32 处/5 文件）。（2026-09-27 修复：机构降级搜索失效 ID → 运行时动态解析；AnnouncementManager isLoading → defer 复位；字体下载 → 60s 超时兜底；均经真机 83/83 终验。）
+**已知坑**：BookmarkManager.swift L242 区 `await` 后复用 idx 下标越界；LogManager.swift L218-275 `cleanEmptyFiles` 与"保留 7 天"注释矛盾；搜索 columnId 三处硬编码（OrganizationView L1441-1446、OrganizationDetailView L737-742/L3497-3502）；生产 `print` 残留（DataService L846-860、TabBar LongImage/FullScreenImage；全库实测 32 处/5 文件）。（2026-09-27 修复：机构降级搜索失效 ID → 运行时动态解析；AnnouncementManager isLoading → defer 复位；字体下载 → 60s 超时兜底；图片缓存直读+自愈（根治进文章重复加载，列表/全屏/预取三路）；均经真机 83/83 终验。）
 
 ## 二、架构地图
 

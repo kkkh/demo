@@ -3605,32 +3605,31 @@ struct FullScreenImageView: View {
         }
 
         let request = SJZImageKit.makeRequest(url: url)
-        let isCacheExpected = SJZImageKit.cachedExpectation(for: request)
         let startTime = Date()
 
-        if !isCacheExpected {
-            LogManager.shared.debugLog("imageCache", "全屏图片开始下载", context: [
-                "url": url.lastPathComponent
-            ])
-        }
-
-        // 缓存优先读取（原图，不降采样，保证全屏清晰度）
-        if isCacheExpected {
-            var cacheRequest = request
-            cacheRequest.cachePolicy = .returnCacheDataDontLoad
-            if let data = try? await SJZImageKit.imageSession.data(for: cacheRequest).0,
-               let image = UIImage(data: data) {
+        // 缓存直读（原图不降采样，保证全屏清晰度；坏条目即时清理自愈）
+        if let cached = SJZImageKit.usableCachedResponse(for: request) {
+            if let image = UIImage(data: cached.data) {
                 isFromCache = true
                 SJZDecodedImageCache.shared.store(image, forKey: memoryKey)
                 CacheModeManager.shared.recordImageHit(url: url.absoluteString)
-                CacheModeManager.shared.recordSavedTraffic(bytes: Int64(data.count))
+                CacheModeManager.shared.recordSavedTraffic(bytes: Int64(cached.data.count))
                 finishLoad(image: image)
                 LogManager.shared.debugLog("imageCache", "全屏图片缓存命中，秒开", context: [
                     "url": url.lastPathComponent,
-                    "size": ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)
+                    "size": ByteCountFormatter.string(fromByteCount: Int64(cached.data.count), countStyle: .file)
                 ])
                 return
             }
+            // 解码失败不删缓存（防误删健康条目）：网络重下成功后新响应会覆盖重建该条目
+            LogManager.shared.warning("imageCache", "全屏图片缓存数据不可用，回落网络加载", context: [
+                "url": url.lastPathComponent,
+                "action": "fallback(noRemove)"
+            ])
+        } else {
+            LogManager.shared.debugLog("imageCache", "全屏图片开始下载", context: [
+                "url": url.lastPathComponent
+            ])
         }
 
         // 网络下载（进度上报）
@@ -10604,24 +10603,20 @@ struct SJZCachedImage<Content: View>: View {
 
         let request = SJZImageKit.makeRequest(url: url)
         let startTime = Date()
-        let isCacheExpected = SJZImageKit.cachedExpectation(for: request)
-        if isCacheExpected {
+
+        // ① 缓存直读（预判与读取一次完成；坏条目即时清理自愈，杜绝重复「预判命中→回落」）
+        if let cached = SJZImageKit.usableCachedResponse(for: request) {
             LogManager.shared.debugLog("imageCache", "缓存命中预判", context: [
                 "url": url.lastPathComponent
             ])
-        }
-
-        // ① 缓存优先读取（无需网络，理论零延迟）
-        if isCacheExpected {
-            var cacheRequest = request
-            cacheRequest.cachePolicy = .returnCacheDataDontLoad
-            if let data = try? await SJZImageKit.imageSession.data(for: cacheRequest).0,
-               let image = await SJZImageKit.decode(data: data, maxPixel: maxPixel) {
-                finishSuccess(image: image, url: url, startTime: startTime, hit: true, dataSize: data.count, memoryKey: memoryKey)
+            if let image = await SJZImageKit.decode(data: cached.data, maxPixel: maxPixel) {
+                finishSuccess(image: image, url: url, startTime: startTime, hit: true, dataSize: cached.data.count, memoryKey: memoryKey)
                 return
             }
+            // 解码失败不删缓存（防误删健康条目/不可解码内容）：网络重下成功后新响应会覆盖重建该条目
             LogManager.shared.warning("imageCache", "缓存命中但数据不可用，回落到网络加载", context: [
-                "url": url.lastPathComponent
+                "url": url.lastPathComponent,
+                "action": "fallback(noRemove)"
             ])
         }
 
@@ -10784,11 +10779,22 @@ enum SJZImageKit {
         return request
     }
 
-    /// 判断请求是否存在可用缓存响应（2xx）
-    static func cachedExpectation(for request: URLRequest) -> Bool {
+    /// 读取并校验「可用」缓存响应（2xx 且数据体非空）——预判与读取合为一次，避免二次请求。
+    /// 索引存在但数据体缺失/损坏的半失效条目（App 重装、进程被强杀等场景后可能出现）会即时清理自愈，
+    /// 杜绝后续每次进入都重复「预判命中 → 读不出 → 回落网络」（2026-09-27 重复加载修复）。
+    @MainActor
+    static func usableCachedResponse(for request: URLRequest) -> CachedURLResponse? {
         guard let cached = URLCache.shared.cachedResponse(for: request),
-              let http = cached.response as? HTTPURLResponse else { return false }
-        return (200...299).contains(http.statusCode)
+              let http = cached.response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode) else { return nil }
+        guard !cached.data.isEmpty else {
+            URLCache.shared.removeCachedResponse(for: request)
+            LogManager.shared.debugLog("imageCache", "缓存条目数据体缺失，已清理自愈", context: [
+                "url": request.url?.lastPathComponent ?? ""
+            ])
+            return nil
+        }
+        return cached
     }
 
     /// 单图解码像素护栏（E4）：超过该像素数的原图强制降采样，防内存峰值
@@ -11010,9 +11016,21 @@ final class SJZDecodedImageCache: @unchecked Sendable {
 enum SJZImagePrefetcher {
 
     /// 预取一批图片 URL：命中的跳过，未命中的并发≤maxConcurrent 下载
+    /// 判存升级为「可用性判存」（2xx 且数据体非空）：半失效条目主动清理并纳入预取，顺带自愈（2026-09-27）
     static func prefetch(urls: [URL], maxConcurrent: Int = 4) async {
-        let valid = urls.filter {
-            URLCache.shared.cachedResponse(for: SJZImageKit.makeRequest(url: $0)) == nil
+        let valid = urls.filter { url in
+            let request = SJZImageKit.makeRequest(url: url)
+            guard let cached = URLCache.shared.cachedResponse(for: request),
+                  let http = cached.response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode) else { return true }   // 无缓存 → 需预取
+            if cached.data.isEmpty {
+                URLCache.shared.removeCachedResponse(for: request)           // 半失效条目：清理自愈并预取
+                LogManager.shared.debugLog("cache", "预取清理失效缓存条目", context: [
+                    "url": url.lastPathComponent
+                ])
+                return true
+            }
+            return false                                                     // 可用缓存 → 跳过
         }
         guard !valid.isEmpty else {
             LogManager.shared.debugLog("cache", "预取跳过：全部已缓存", context: ["count": "\(urls.count)"])
