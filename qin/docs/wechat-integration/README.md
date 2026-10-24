@@ -24,6 +24,7 @@
 
 > 应用官网 / Bundle ID（iPhone 与测试同为 `com.qinchao`）/ Team：`https://jl.43322.cn` · `F2JL9GNLCC`
 > **AppSecret 不入库**：仅存本机 `qin/.secrets/wechat-credentials.env`（已被 `.gitignore` 排除），只用于**服务端**换取 access_token，客户端不得接触。
+> **外部状态（2026-09-28）**：AppID / Universal Link / 域名 ✅ 已落地；AASA ✅ 已部署且 Apple CDN 已收录；**唯一缺项 = Associated Domains 能力**，受限于签名团队为免费「个人团队」（需付费 ADP，详见 §3.4）——影响面：分享/登录的 UL 回跳与回执不可达（发送动作本身可用）。
 
 ---
 
@@ -109,20 +110,29 @@ curl -s  https://app-site-association.cdn-apple.com/a/v1/jl.43322.cn | python3 -
 curl -sI https://jl.43322.cn/app/ | head -3
 ```
 
-### 3.4 启用 Associated Domains（官方要求④ · 当前唯一阻塞项）
+### 3.4 启用 Associated Domains（官方要求④ · 受账号类型限制，当前未启用）
 
-**实测结论（2026-09-27，两轮验证）**：把 `CODE_SIGN_ENTITLEMENTS = DesignCode/DesignCode.entitlements` 打开后，命令行构建（含关闭沙箱重试）均报
-`No Accounts: Add a new account in Accounts settings` + `Provisioning profile "iOS Team Provisioning Profile: com.qinchao" doesn't include the Associated Domains capability`
-→ 本机 **Xcode 未登录 Apple ID**，命令行无法向开发者门户开通/更新该能力，故工程默认**不启用**此设置（保证日常命令行构建/测试不被破坏）。
+**根因（2026-09-28 现场核实，非配置/代码问题）**：本工程当前签名的团队是**免费「个人团队」（Personal Team）**，而 **Associated Domains 属于 Apple Developer Program（付费 ADP）专属能力** → 免费团队无法启用，也无法通过改配置绕过。
 
-**请完成一次（二选一，之后命令行构建也会带上该能力）**：
+| 现场证据 | 内容 |
+| --- | --- |
+| Xcode → Target → Signing & Capabilities | Team = **「Chao Qin (Personal Team)」**；证书 `Apple Development: 56967916@qq.com (K6Z3LTPM79)`；Bundle ID `com.qinchao` |
+| 真机安装包描述文件 `DesignCode.app/embedded.mobileprovision` | 创建 `2026-09-27 07:28:59` → 过期 `2026-10-04 07:28:59`（**恰好 7 天**，免费个人团队特征；付费团队为 1 年）；Entitlements 仅 `application-identifier` / `team-identifier` / `get-task-allow` |
+| [Apple 官方：开发者账户概览](https://developer.apple.com/cn/help/account/basics/about-your-developer-account/) | 账号未关联开发者计划时 Xcode 显示为「私人团队」：App ID / 设备 / 描述文件 **7 天后过期**（最多 10 个 App ID、3 台设备） |
+| [Apple 官方：支持的功能 (iOS)](https://developer.apple.com/cn/help/account/reference/supported-capabilities-ios) | 预置描述文件可用能力**取决于计划会员资格**（Associated Domain 为 ADP 能力） |
 
-- **方式 A（推荐）**：Xcode → Settings → **Accounts** 登录 Apple ID（Team `F2JL9GNLCC`）→ 打开 `qin/DesignCode.xcodeproj` → Target `DesignCode` → **Signing & Capabilities** → **+ Capability** → **Associated Domains** → 添加 `applinks:jl.43322.cn` → ⌘R 跑一次（Xcode 自动更新描述文件）；Build Settings 的 `CODE_SIGN_ENTITLEMENTS` 会由 Xcode 自动写入（文件已就绪，值由 `$(WECHAT_UL_HOST)` 注入）；
-- **方式 B（纯 GUI 最快）**：登录账号后直接 ⌘R；若报缺能力，再按方式 A 加一次 Capability。
+**当前默认策略：保持不启用**（`CODE_SIGN_ENTITLEMENTS` 关闭）——保证日常命令行构建/测试不被破坏；开启后 CLI 构建会报
+`Provisioning profile "iOS Team Provisioning Profile: com.qinchao" doesn't include the Associated Domains capability`，且免费团队无法通过门户开通（`No Accounts` 在 CLI 侧属次要现象）。
 
-完成后进入「微信集成」运行**七步自检**，七步全绿即全链打通。
+**升级到付费账号后的完成步骤（唯一解法）**：
 
-> 未启用前：微信**分享/登录的返回回调**无法送达本 App（微信自 SDK 1.8.6 起统一经 Universal Link 回跳），表现为微信侧返回失败或本 App 收不到 onResp。
+1. Xcode → Settings → **Accounts** 添加已加入 Apple Developer Program 的 Apple ID；
+2. Target `DesignCode` → Signing & Capabilities → **Team 切换到付费团队**（App ID `com.qinchao` 将在该团队下重新注册）；
+3. **+ Capability → Associated Domains** → 添加 `applinks:jl.43322.cn`（或把 `CODE_SIGN_ENTITLEMENTS` 指向已就绪的 `DesignCode/DesignCode.entitlements`，值由 `$(WECHAT_UL_HOST)` 注入）；
+4. ⌘R 让 Xcode 更新描述文件 → 进入「微信集成 → 七步自检」，第 5/6 步应转为通过。
+
+> **未启用期间的可预期表现**：微信**分享/登录的返回回调无法送达本 App**（SDK 1.8.6+ 统一经 Universal Link 回跳）——分享动作本身可以发起、消息可正常送达微信，但需在微信中手动返回，且收不到成功/取消回执（`wechat` 域不会出现对应 onResp 记录）；「七步自检」会在第 5/6 步明确报出该限制。
+> **附带事实（与微信无关）**：免费个人团队描述文件 7 天到期 → 每 7 天需重新构建安装一次，否则 App 会因描述文件过期而无法打开。
 
 ### 3.5 自检与验收
 
@@ -154,6 +164,7 @@ curl -sI https://jl.43322.cn/app/ | head -3
 
 | 场景 | 行为 | 日志级别 |
 | --- | --- | --- |
+| 已配置但缺 Associated Domains（**当前状态**） | 分享可发起、消息可送达微信；**收不到回执**（无 onResp），登录授权码同理不可达；七步自检第 5/6 步报错 | 自检 WARNING（含 errorInfo/suggestion） |
 | 未配置（占位） | 提示「未配置」+ 修复指引，不发起请求 | WARNING |
 | 未安装微信 / 版本过低 | 分享菜单给出提示与 App Store 安装入口 | WARNING（发起时） |
 | 用户取消分享/登录 | 视为正常行为，横幅「已取消」 | **INFO**（不计失败，对齐工程取消语义红线） |
@@ -186,6 +197,8 @@ curl -sI https://jl.43322.cn/app/ | head -3
 
 | 现象 | 原因与处理 |
 | --- | --- |
+| 构建报 `Provisioning profile ... doesn't include the Associated Domains capability`；Xcode 里 Team 显示为「Personal Team」 | **免费个人团队不支持该能力**（付费 ADP 专属）；不要试图通过改 pbxproj 绕过，按 §3.4 升级账号后切换团队并添加能力 |
+| 分享发出后本 App 收不到回执 / 微信返回失败 | 同上：Associated Domains 未启用 → UL 回跳不可达；先跑七步自检确认第 5/6 步状态 |
 | 分享返回 `errCode = -4（授权拒绝）` | 微信开放平台未开通「分享到微信」能力，或 **Bundle ID / 签名与后台不一致**；核对后台配置 |
 | 分享返回 `errCode = -1（普通错误）` | 常见于 Universal Link 校验不通过；先跑七步自检，按 `errorInfo` / `suggestion` 修复 |
 | 自检第 3 步失败（微信版本检查） | 微信版本过低或未安装；升级微信 |
@@ -209,3 +222,4 @@ curl -sI https://jl.43322.cn/app/ | head -3
 | --- | --- |
 | 2026-09-27 | 首次接入：OpenSDK 2.0.8 XCFramework、分享/登录/小程序/自检全链、设置页集成中心、契约测试、本指南 |
 | 2026-09-27 | **真实配置落地**：AppID `wx8e60d3a37d3cff47`、UL `https://jl.43322.cn/app/`、域名 `jl.43322.cn` 写入构建设置（Debug/Release）；构建产物 Info.plist 实测注入正确；全量编译 0/0 + 真机 104/104 通过（`build/verify/wechat_test_real.log`）；AASA 部署物料生成（[`deploy/`](./deploy)），实测域名侧尚未部署（404）；AppSecret 仅存本机 `qin/.secrets/`（gitignore），不入仓库 |
+| 2026-09-28 | **根因定位（现场核实）**：签名团队为免费「个人团队」（Team 显示 Personal Team；真机描述文件 7 天有效期），**Associated Domains 属付费 ADP 能力** → 按「保持现状」处理：`CODE_SIGN_ENTITLEMENTS` 保持关闭，限制、证据与升级步骤写入 §3.4；同时复核：AASA 已部署且 Apple CDN 已收录，真机 `registerApp=true / availability=ready` |
