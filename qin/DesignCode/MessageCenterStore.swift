@@ -492,7 +492,7 @@ final class MessageCenterStore: ObservableObject {
         recomputeUnread()
         latestItem = items.first
         save()
-        LogManager.shared.warning("messageCenter", "消息中心历史已清空", context: [
+        LogManager.shared.info("messageCenter", "消息中心历史已清空", context: [
             "scope": scope == .all ? "all" : "readOnly",
             "removed": "\(before - items.count)"
         ])

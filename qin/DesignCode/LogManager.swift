@@ -269,7 +269,20 @@ enum LogExportFormat: String, CaseIterable, Identifiable {
 
 @MainActor
 final class LogManager: ObservableObject {
-    static let shared = LogManager()
+    /// 共享实例：测试宿主（XCTest）中自动切换为「仅驻内存」——
+    /// 不读/不写真实日志文件，杜绝单元用例故意构造的错误路径（损坏存储 / 超限 / 空 id 等）
+    /// 污染用户在「应用日志」里看到的真实日志内容。
+    /// （2026-09-28 真机日志复核实证：日志页 4 条 ERROR 的字节数与测试夹具逐一吻合，真实存储完好）
+    static let shared = LogManager(persistsToDisk: !LogManager.isRunningTests)
+
+    /// 是否运行在 XCTest 宿主（测试环境中共享实例仅驻内存）
+    nonisolated static let isRunningTests: Bool = {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+    }()
+
+    /// 是否持久化到磁盘（共享实例在测试宿主下为 false；注入初始化默认 true，测试可断言落盘行为）
+    let persistsToDisk: Bool
 
     // MARK: 注入（测试隔离：独立 defaults / 目录 / 轮转参数）
 
@@ -383,8 +396,10 @@ final class LogManager: ObservableObject {
          storageDirectory: URL? = nil,
          defaultRetentionDays: Int = 7,
          defaultMaxEntries: Int = 3000,
-         maxEntriesPerFile: Int = 1000) {
+         maxEntriesPerFile: Int = 1000,
+         persistsToDisk: Bool = true) {
         self.defaults = defaults
+        self.persistsToDisk = persistsToDisk
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
         self.storageDir = storageDirectory ?? docs.appendingPathComponent("SXJZIT_Cache/Logs", isDirectory: true)
@@ -402,13 +417,15 @@ final class LogManager: ObservableObject {
             ? defaults.integer(forKey: SettingsKeys.retentionDays) : defaultRetentionDays
 
         Self.crashCaptureEnabledSnapshot = crashCaptureEnabled
-        Self.crashContext = CrashContext(dir: self.storageDir, maxPerFile: maxEntriesPerFile)
+        if persistsToDisk {
+            Self.crashContext = CrashContext(dir: self.storageDir, maxPerFile: maxEntriesPerFile)
 
-        // 崩溃捕获始终安装处理器（写入门由线程安全快照控制）→ 开关运行中即时生效
-        setupCrashCapture()
+            // 崩溃捕获始终安装处理器（写入门由线程安全快照控制）→ 开关运行中即时生效
+            setupCrashCapture()
 
-        loadFromDisk()
-        applyRetention(reason: "启动")
+            loadFromDisk()
+            applyRetention(reason: "启动")
+        }
 
         log(level: .info, module: "log", message: "日志管理器初始化", context: [
             "max": "\(maxEntries)",
@@ -553,6 +570,7 @@ final class LogManager: ObservableObject {
     /// 走 ioQueue 同步执行：与删除/清理任务严格串行，杜绝「先删后写」竞态导致已清日志复活
     @discardableResult
     func flushPendingNow() -> Int {
+        guard persistsToDisk else { return 0 }
         var failures = 0
         ioQueue.sync {
             failures = Self.flush(box: pendingBox,
@@ -801,6 +819,7 @@ final class LogManager: ObservableObject {
 
     /// 应用保留天数：清理过期日文件（后台执行 + 完成留痕）
     func applyRetention(reason: String) {
+        guard persistsToDisk else { return }
         let days = retentionDays
         let dir = storageDir
         ioQueue.async { [weak self] in
@@ -832,6 +851,7 @@ final class LogManager: ObservableObject {
     // MARK: 落盘（追加合并）
 
     private func scheduleFlush() {
+        guard persistsToDisk else { return }
         saveWorkItem?.cancel()
         let box = pendingBox
         let dir = storageDir

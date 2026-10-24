@@ -489,6 +489,14 @@ final class LogManagerTests: XCTestCase {
                        "重新加载后不应出现已删除条目")
     }
 
+    /// 生产日志隔离：XCTest 宿主下共享实例必须仅驻内存（不得把用例故意构造的
+    /// 错误路径写入真实日志文件，污染用户「应用日志」），注入实例保持标准落盘能力
+    func testSharedInstanceRunsEphemeralUnderXCTest() {
+        XCTAssertTrue(LogManager.isRunningTests, "XCTest 宿主应被识别")
+        XCTAssertFalse(LogManager.shared.persistsToDisk, "测试宿主下共享实例必须仅驻内存")
+        XCTAssertTrue(makeManager().persistsToDisk, "注入实例必须保持落盘能力（落盘契约不受影响）")
+    }
+
     // MARK: 模型辅助
 
     func testEntryHelpers() {
