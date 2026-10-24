@@ -5456,14 +5456,18 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                         ])
                     }
                     // 看图桥就绪探针（阶段三 A 验收增强）：回传「可查看图集」计数与桥绑定状态，
-                    // 供真机验收脚本区分「未点」与「点了无反应」（无此探针时 A1 判定模糊）
-                    webView.evaluateJavaScript(OrganizationArticleWebView.imageBridgeProbeJS) { result, _ in
-                        let raw = (result as? String) ?? "-"
-                        Task { @MainActor in
-                            LogManager.shared.debugLog("organization", "正文看图桥就绪探针", context: [
-                                "result": raw, // 形如 "true|3|5"：桥绑定|可查看图数|总 img 数
-                                "articleId": self.articleId
-                            ])
+                    // 供真机验收脚本区分「未点」与「点了无反应」（无此探针时 A1 判定模糊）。
+                    // 延迟 1.2s 采样：didFinish 时图片往往尚未完成加载（rect/naturalWidth 仍为 0），
+                    // 立即采样会把「有图但未就绪」误报为「无可查看图」（2026-09-30 真机日志实证 true|0|2）
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        webView.evaluateJavaScript(OrganizationArticleWebView.imageBridgeProbeJS) { result, _ in
+                            let raw = (result as? String) ?? "-"
+                            Task { @MainActor in
+                                LogManager.shared.debugLog("organization", "正文看图桥就绪探针", context: [
+                                    "result": raw, // 形如 "true|3|5"：桥绑定|可查看图数|总 img 数
+                                    "articleId": self.articleId
+                                ])
+                            }
                         }
                     }
                     // 验收自测钩子（仅 DEBUG + 启动参数 -uiTestOrgImageBridge）：自动派发一次正文图片点击，
