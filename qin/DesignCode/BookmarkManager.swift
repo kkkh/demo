@@ -982,7 +982,8 @@ final class BookmarkManager: ObservableObject {
                     deepLink: DeepLinkPayload(
                         articleId: bookmark.articleId ?? "",
                         articleCategory: bookmark.category,
-                        articleTitle: bookmark.title))
+                        articleTitle: bookmark.title,
+                        isBookmarkUpdate: true))
                 LogManager.shared.info("favorite", "收藏更新通知已发送", context: [
                     "readKey": bookmark.readKey, "title": bookmark.title
                 ])

@@ -5,7 +5,7 @@
 //  覆盖：ingest 新增/去重/测试排除、FIFO 截断、存储损坏自愈、逐条抢救、
 //  markRead 幂等（id / kind+articleId / kind）、markAllRead 单次批量、
 //  清空两种 scope、筛选纯函数、latestItem 派生、未读计数兜底、
-//  launch 无载荷失败降级、自动检查节流、快速修复重写。
+//  launch 无载荷失败降级、深链归因（收藏更新 kind 标志补全）、自动检查节流、快速修复重写。
 //
 //  全部用例注入临时存储目录 + 独立 UserDefaults suite，互不污染。
 //
@@ -255,6 +255,61 @@ final class MessageCenterStoreTests: XCTestCase {
             XCTFail("无深链载荷应进入 failed 状态")
             return
         }
+    }
+
+    // MARK: 深链归因（2026-09-29：收藏更新通道 kind 标志补全）
+
+    func testDeepLinkPayloadEncodesBookmarkFlag() {
+        let payload = DeepLinkPayload(articleId: "a9", articleCategory: "校园", articleTitle: "T",
+                                      isBookmarkUpdate: true)
+        let info = payload.asUserInfo
+        XCTAssertEqual(info["isBookmarkUpdate"] as? Bool, true)
+        XCTAssertEqual(info["articleId"] as? String, "a9")
+    }
+
+    func testDeepLinkPayloadOmitsBookmarkFlagByDefault() {
+        XCTAssertNil(newsPayload.asUserInfo["isBookmarkUpdate"])
+        XCTAssertNil(DeepLinkPayload(schoolProfile: true).asUserInfo["isBookmarkUpdate"])
+    }
+
+    func testDeliveryUserInfoCarriesBookmarkFlagFromPayload() {
+        let store = makeStore()
+        store.ingest(kind: .bookmarkUpdate, id: "bookmark-update-k1", title: "收藏文章已更新",
+                     subtitle: "「T」有新的内容更新",
+                     deepLink: DeepLinkPayload(articleId: "a9", articleCategory: "校园", articleTitle: "T",
+                                               isBookmarkUpdate: true))
+        guard let item = store.items.first else {
+            XCTFail("应存在收藏更新条目")
+            return
+        }
+        let info = MessageCenterStore.deliveryUserInfo(for: item)
+        XCTAssertEqual(info["isBookmarkUpdate"] as? Bool, true)
+        XCTAssertEqual(info["articleId"] as? String, "a9")
+    }
+
+    func testDeliveryUserInfoBackfillsFlagForLegacyBookmarkMessage() {
+        // 历史消息（本修复前入盒）：payload 无 flag，launch 侧兜底必须补齐（否则按 news- 通道标已读）
+        let store = makeStore()
+        store.ingest(kind: .bookmarkUpdate, id: "bookmark-update-legacy", title: "t", subtitle: "s",
+                     deepLink: DeepLinkPayload(articleId: "a9", articleCategory: "校园", articleTitle: "T"))
+        guard let item = store.items.first else {
+            XCTFail("应存在收藏更新条目")
+            return
+        }
+        let info = MessageCenterStore.deliveryUserInfo(for: item)
+        XCTAssertEqual(info["isBookmarkUpdate"] as? Bool, true)
+    }
+
+    func testDeliveryUserInfoLeavesOtherKindsUntouched() {
+        let store = makeStore()
+        store.ingest(kind: .news, id: "news-a9", title: "t", subtitle: "s", deepLink: newsPayload)
+        guard let item = store.items.first else {
+            XCTFail("应存在新闻条目")
+            return
+        }
+        let info = MessageCenterStore.deliveryUserInfo(for: item)
+        XCTAssertNil(info["isBookmarkUpdate"])
+        XCTAssertEqual(info["articleId"] as? String, "a1")
     }
 
     // MARK: 自动检查节流（不发网络）
