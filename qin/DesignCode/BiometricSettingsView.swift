@@ -45,7 +45,7 @@ struct BiometricSettingsView: View {
                 HStack(spacing: 8) {
                     Circle().fill(Color.sjzGreen).frame(width: 8, height: 8)
                     Text(stateTitle)
-                        .font(.system(size: 13))
+                        .displayFont(13)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button {
@@ -54,7 +54,7 @@ struct BiometricSettingsView: View {
                         LogManager.shared.debugLog("biometric", "设置页手动锁定")
                     } label: {
                         Text("立即锁定")
-                            .font(.system(size: 13, weight: .medium))
+                            .displayFont(13, weight: .medium)
                     }
                     .disabled(security.state != .unlocked)
                 }
@@ -62,10 +62,10 @@ struct BiometricSettingsView: View {
                 if security.consecutiveFailures > 0 {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 12))
+                            .displaySymbolFont(12)
                             .foregroundStyle(.orange)
                         Text("本次累计失败 \(security.consecutiveFailures) 次，满 5 次将自动改用设备密码")
-                            .font(.system(size: 12))
+                            .displayFont(12)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -75,13 +75,13 @@ struct BiometricSettingsView: View {
                 Label("设备能力", systemImage: "cpu")
                 Spacer()
                 Text(security.capability.title)
-                    .font(.system(size: 13))
+                    .displayFont(13)
                     .foregroundStyle(security.capability.isUsable ? Color.secondary : Color.orange)
             }
 
             if enableErrorMessage != nil {
                 Text(enableErrorMessage!)
-                    .font(.system(size: 12))
+                    .displayFont(12)
                     .foregroundStyle(.red)
             }
         } header: {

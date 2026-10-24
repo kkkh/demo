@@ -599,7 +599,7 @@ final class DisplaySettingsLogicTests: XCTestCase {
     }
 
     func testColorHistoryRejectsInvalidHex() {
-        var history = ["1A1A1A"]
+        let history = ["1A1A1A"]
         XCTAssertEqual(DisplayHistoryOperator.pushColor("XYZ", into: history), history, "非法 hex 不改历史")
         XCTAssertEqual(DisplayHistoryOperator.pushColor("12345", into: history), history, "5 位 hex 拒绝")
         XCTAssertEqual(DisplayHistoryOperator.pushColor("1234567", into: history), history, "7 位 hex 拒绝")
@@ -750,6 +750,41 @@ final class DisplaySettingsLogicTests: XCTestCase {
                 XCTAssertEqual(withBold, [family.fontName], "无独立粗体字面时不应追加")
             }
         }
+    }
+
+    /// 机构子站原文页 CSS 排版注入契约：字体栈/字号/行高/字距/粗细必须与显示设置联动
+    /// （两处 WebView 模板的 body 规则消费同一份声明，见 OrganizationDetailView.buildHTMLPage）
+    @MainActor
+    func testArticleCSSTypographyFollowsDisplaySettings() {
+        let settings = DisplaySettingsManager.shared
+        let decl = settings.articleCSSTypographyDeclaration
+        XCTAssertTrue(decl.contains("font-family: "), "必须注入字体栈")
+        XCTAssertTrue(
+            decl.contains("font-size: \(String(format: "%.1f", 16 * settings.fontSizeTier.scale))px"),
+            "字号必须随档位（16 × scale）"
+        )
+        XCTAssertTrue(
+            decl.contains("line-height: \(String(format: "%.2f", 0.85 + settings.lineSpacingFactor))"),
+            "行高必须随行距系数"
+        )
+        XCTAssertTrue(
+            decl.contains("letter-spacing: \(String(format: "%.2f", settings.letterSpacingValue))px"),
+            "字距必须注入"
+        )
+        XCTAssertTrue(
+            decl.contains("font-weight: \(settings.boldTextEnabled ? 700 : 400)"),
+            "粗细必须随粗体开关"
+        )
+        if settings.useSystemFont || settings.fontFamily == .system {
+            XCTAssertTrue(decl.contains("'PingFang SC'"), "系统家族回退栈必须包含苹方")
+        } else {
+            let faces = [settings.fontFamily.fontName, settings.fontFamily.boldFontName].compactMap { $0 }
+            XCTAssertTrue(faces.contains { decl.contains("'\($0)'") }, "自定义家族必须按 PostScript 字面名注入")
+        }
+        // 日志上下文与声明同源（构建日志可核验）
+        let logContext = settings.articleCSSTypographyLogContext
+        XCTAssertEqual(logContext["fontSizePx"], String(format: "%.1f", settings.articleCSSFontSize))
+        XCTAssertEqual(logContext["lineHeight"], String(format: "%.2f", settings.articleCSSLineHeight))
     }
 
     /// 苹方为 iOS 唯一恒内置中文家族（书法字体为系统按需下载，覆盖安装后会重置）

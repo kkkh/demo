@@ -1007,6 +1007,61 @@ final class DisplaySettingsManager: ObservableObject {
         articleTextColorPreset == .system ? "跟随系统" : articleTextColorPreset.title
     }
 
+    // MARK: - 文章 WebView 排版注入（机构子站原文页 CSS，与 SwiftUI 排版链同口径）
+
+    /// WebView 正文 CSS 字体栈：随「字体家族 / 粗体文本」联动。
+    /// 系统书法字体下载后为设备级注册，WebKit 可直接按 PostScript 字面名引用；未下载/系统家族时回退系统栈。
+    var articleCSSFontFamily: String {
+        guard !useSystemFont, fontFamily != .system else {
+            return "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif"
+        }
+        let preferredBoldFace = boldTextEnabled ? fontFamily.boldFontName : nil
+        let face: String
+        if let preferredBoldFace, UIFont(name: preferredBoldFace, size: 17) != nil {
+            face = preferredBoldFace
+        } else {
+            face = fontFamily.fontName
+        }
+        return "'\(face)', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
+    }
+
+    /// WebView 正文基准字号（px）= 16 × 档位系数（与 SwiftUI 正文 `.displayText(size: 16)` 同口径）
+    var articleCSSFontSize: Double { 16 * fontSizeTier.scale }
+
+    /// WebView 正文行高（倍数）：以 1.85 为基线按行距系数平移（系数 1.0 → 1.85，与纯文本模式观感一致）
+    var articleCSSLineHeight: Double { 0.85 + lineSpacingFactor }
+
+    /// WebView 正文字间距（px，与 SwiftUI `.tracking` 同值同单位）
+    var articleCSSLetterSpacing: Double { letterSpacingValue }
+
+    /// WebView 正文粗细：开启「粗体文本」时 700，否则 400
+    var articleCSSFontWeight: Int { boldTextEnabled ? 700 : 400 }
+
+    /// WebView 排版一行式 CSS 片段（两处模板共用，便于日志取证）
+    var articleCSSTypographyDeclaration: String {
+        String(
+            format: "font-family: %@; font-size: %.1fpx; line-height: %.2f; letter-spacing: %.2fpx; font-weight: %d;",
+            articleCSSFontFamily,
+            articleCSSFontSize,
+            articleCSSLineHeight,
+            articleCSSLetterSpacing,
+            articleCSSFontWeight
+        )
+    }
+
+    /// WebView 排版注入日志上下文字典（两处模板共用，完整埋点）
+    var articleCSSTypographyLogContext: [String: String] {
+        [
+            "family": useSystemFont ? "system" : fontFamily.rawValue,
+            "tier": fontSizeTier.rawValue,
+            "fontSizePx": String(format: "%.1f", articleCSSFontSize),
+            "lineHeight": String(format: "%.2f", articleCSSLineHeight),
+            "letterSpacingPx": String(format: "%.2f", articleCSSLetterSpacing),
+            "bold": "\(boldTextEnabled)",
+            "fontStack": articleCSSFontFamily
+        ]
+    }
+
     // MARK: - 非隔离快照（主线程外上下文：长图渲染器等）
 
     /// 从 UserDefaults 直读正文浅色 hex（线程安全），供非主线程渲染上下文解析配色
@@ -1773,25 +1828,28 @@ private extension View {
     }
 }
 
-// MARK: - 专注灰度跨 presentation 注入（sheet/fullScreenCover 场景）
+// MARK: - 弹出层呈现链（外观 + 专注灰度，跨 presentation 统一注入）
 
-/// 灰度呈现修饰器：sheet 内容经 presentation host 渲染，不在根 modifier 链内，
-/// 主树的 .saturation 不会作用于 sheet 内容——须在每个页级 sheet 内容根显式挂本修饰器。
-/// 系统分享面板属系统 UI，不在 App 灰度承诺范围。
-struct SJZGrayScaleModifier: ViewModifier {
+/// 弹出层呈现链：**每个内容级 sheet / fullScreenCover 内容根都必须挂载本修饰器**（2026-09-27 全链审计固化）。
+/// 原因：`.preferredColorScheme` 与 `.saturation` 属「呈现/渲染修饰器」而非环境值，
+/// 根视图（MainTabView）上的注入链不会作用于 presentation 内容——外观模式与专注灰度必须在此单独注入。
+/// 其余设置均为环境值（`.tint` 主题色、字号/家族/粗体/行距/字距自定义 EnvironmentKey、`.buttonStyle` 按钮形状），
+/// 会自动传播进弹出层，无需重复挂载。系统分享面板属系统 UI，不在承诺范围。
+struct SJZPresentationChromeModifier: ViewModifier {
     @ObservedObject private var displaySettings = DisplaySettingsManager.shared
 
     func body(content: Content) -> some View {
         content
+            .preferredColorScheme(displaySettings.appearanceMode.resolvedColorScheme)
             .saturation(displaySettings.grayScaleEnabled ? 0 : 1)
             .animation(.easeInOut(duration: 0.4), value: displaySettings.grayScaleEnabled)
     }
 }
 
 extension View {
-    /// 挂载到 sheet / fullScreenCover 内容根，保证专注灰度模式覆盖 presentation 场景
-    func sjzGrayScale() -> some View {
-        modifier(SJZGrayScaleModifier())
+    /// 挂载到 sheet / fullScreenCover 内容根：外观模式 + 专注灰度跨 presentation 注入（全链审计强制项）
+    func sjzPresentationChrome() -> some View {
+        modifier(SJZPresentationChromeModifier())
     }
 }
 
@@ -2556,9 +2614,9 @@ struct ReadingTimeBadgeView: View {
                 let tier = ReadingDurationTier.tier(forMinutes: minutes)
                 HStack(spacing: 2.5) {
                     Image(systemName: "clock.fill")
-                        .font(.system(size: 8, weight: .bold))
+                        .displaySymbolFont(8, weight: .bold)
                     Text(ReadingStatsCalculator.compactMinutes(minutes))
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .displayFont(10, weight: .bold, design: .rounded)
                         .monospacedDigit()
                 }
                 .foregroundStyle(.white)

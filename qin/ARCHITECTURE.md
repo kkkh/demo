@@ -301,6 +301,7 @@ checkForUpdates(pushToSystem:)：
 | 8 | 低 | 搜索 columnId 硬编码：机构降级链两处已改运行时动态解析（2026-09-27，`resolveMainSiteSearchColumns`），持续核验 | OrganizationDetailView |
 | 9 | 环境 | Team ID 明文（ExportOptions.plist）；git 已于 2026-09-27 重建 | 仓库根 |
 | 10 | — | 已修复（2026-09-27，五项+追加）：AnnouncementManager isLoading（defer）；**字体按需下载根治**（根因=家族名当字面名传匹配引擎→静默零下载；改 PostScript 字面名契约 + 无进展看门狗 + 终态实查自愈 + 真实粗体字面 + 进度环/全部下载 UI）；机构降级 ID（见 #8）；图片缓存直读+自愈（重复加载根治）；警告误报治理（取消静默化 + 图片并发闸 ≤4 + netmon TTFB 口径）。真机 BUILD 0/0 + 86/86 全绿 | — |
+| 11 | — | 已修复（2026-09-27，显示设置全链覆盖审计）：排版链 **261 处原始字体全部接入**（137 文本 + 17 Label + 124 图标；图表 AxisValueLabel 经字体工厂）；**59 处弹出层统一 `sjzPresentationChrome()`**（外观 + 灰度一处挂载双效，替换旧 sjzGrayScale）；**机构子站 WebView CSS 排版联动**（字体栈/字号/行高/字距/粗细 + 标题 em 缩放）；收藏列表补挂阅读时长角标；**构建期护栏** `Scripts/display_coverage_guard.py`（新功能绕过即 BUILD FAILED，已注入违规实测拦截）；真机 BUILD 0/0 + 87/87 全绿 | — |
 
 ---
 
@@ -316,6 +317,7 @@ checkForUpdates(pushToSystem:)：
 8. 模块退役必须处理旧值（`retiredRawValues` 静默清理）。
 9. **高密度导航控件必须「预览与提交分离」**（校园设施目录轮播 v1-v3 教训：拖动只移指针，点按才提交）。
 10. 需单独确认的敏感区：PrivacyPolicyView（exit(0)）、RefererHeaderURLProtocol（全局拦截）、NotificationManager delegate 区、OrganizationDetailView 下拉刷新区、project.pbxproj。
+11. **显示设置必须全链覆盖（构建期强制）**：文本/图标一律走 `displayFont / displayText / displaySymbolFont / displayLabelFont / DisplayFontFactory`；每个 `.sheet / .fullScreenCover` 内容根必须挂 `.sjzPresentationChrome()`（外观 + 专注灰度；分享面板 ShareSheet 豁免）；原文 WebView CSS 必须消费 `articleCSSTypography*` 注入；违规由 `Scripts/display_coverage_guard.py` 在构建阶段直接中断（例外登记 `Scripts/display_coverage_allowlist.txt`）。
 
 ---
 

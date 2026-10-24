@@ -79,12 +79,12 @@ struct MessageCenterView: View {
         .navigationTitle("消息中心")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
-        .sheet(isPresented: $showSettings) { MessageCenterSettingsPanel().sjzGrayScale() }
+        .sheet(isPresented: $showSettings) { MessageCenterSettingsPanel().sjzPresentationChrome() }
         .sheet(item: $showDetailItem) { item in
             MessageDetailCard(item: item)
-                .sjzGrayScale()
+                .sjzPresentationChrome()
         }
-        .sheet(isPresented: $showRepairPanel) { repairPanel.sjzGrayScale() }
+        .sheet(isPresented: $showRepairPanel) { repairPanel.sjzPresentationChrome() }
         .overlay {
             if let toast = launchFailedToast {
                 VStack {

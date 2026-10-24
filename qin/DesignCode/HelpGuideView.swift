@@ -135,7 +135,7 @@ struct HelpGuideView: View {
             NavigationStack {
                 HelpArticleDetailView(article: article)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
     }
 

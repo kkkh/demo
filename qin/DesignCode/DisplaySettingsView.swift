@@ -136,7 +136,7 @@ struct DisplaySettingsView: View {
     private func toastCapsule(_ text: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 14, weight: .semibold))
+                .displaySymbolFont(14, weight: .semibold)
                 .foregroundStyle(settings.themeStyle.color)
             Text(text)
                 .displayLabelFont(13, weight: .semibold)
@@ -156,10 +156,10 @@ struct DisplaySettingsView: View {
                 // 状态徽章行
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 14, weight: .semibold))
+                        .displaySymbolFont(14, weight: .semibold)
                         .foregroundStyle(.white)
                     Text("所见即所得")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .displayFont(13, weight: .bold, design: .rounded)
                         .foregroundStyle(.white)
                     Spacer()
                     heroStatusBadge
@@ -169,7 +169,7 @@ struct DisplaySettingsView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 12) {
                         Image(systemName: "graduationcap.fill")
-                            .font(.system(size: 22))
+                            .displaySymbolFont(22)
                             .foregroundStyle(.white)
                             .frame(width: 46, height: 46)
                             .background(Circle().fill(LinearGradient(
@@ -252,7 +252,7 @@ struct DisplaySettingsView: View {
                 .fill(Color.white.opacity(0.9))
                 .frame(width: 6, height: 6)
             Text(count > 0 ? "\(count) 项已个性化" : "全部为默认值")
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .displayFont(10, weight: .semibold, design: .rounded)
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 9)
@@ -372,7 +372,7 @@ struct DisplaySettingsView: View {
         } label: {
             VStack(spacing: 8) {
                 Image(systemName: modeIcon(mode))
-                    .font(.system(size: 20, weight: .semibold))
+                    .displaySymbolFont(20, weight: .semibold)
                     .displayBounce(reduceMotion: systemReduceMotion, value: isSelected)
                     .foregroundStyle(isSelected ? settings.themeStyle.color : .secondary)
                     .frame(width: 50, height: 50)
@@ -381,7 +381,7 @@ struct DisplaySettingsView: View {
                         in: RoundedRectangle(cornerRadius: 13, style: .continuous)
                     )
                 Text(mode.title)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .displayFont(12, weight: isSelected ? .semibold : .regular)
                     .foregroundStyle(isSelected ? .primary : .secondary)
             }
             .frame(maxWidth: .infinity)
@@ -442,7 +442,7 @@ struct DisplaySettingsView: View {
                     }
                     if isSelected {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
+                            .displaySymbolFont(12, weight: .bold)
                             .displayBounce(reduceMotion: systemReduceMotion, value: isSelected)
                             .foregroundStyle(.white)
                             .transition(.scale.combined(with: .opacity))
@@ -453,7 +453,7 @@ struct DisplaySettingsView: View {
                         .padding(-5)
                 )
                 Text(style.title)
-                    .font(.system(size: 10))
+                    .displayFont(10)
                     .foregroundStyle(isSelected ? .primary : .secondary)
             }
         }
@@ -491,22 +491,22 @@ struct DisplaySettingsView: View {
         } label: {
             VStack(spacing: 7) {
                 Image(systemName: preset.icon)
-                    .font(.system(size: 17, weight: .semibold))
+                    .displaySymbolFont(17, weight: .semibold)
                     .displayBounce(reduceMotion: systemReduceMotion, options: .nonRepeating, value: "\(schemeTicker):\(preset.rawValue)")
                     .foregroundStyle(settings.themeStyle.color)
                     .frame(width: 40, height: 40)
                     .background(settings.themeStyle.color.opacity(0.09), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                 Text(preset.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .displayFont(13, weight: .semibold)
                     .foregroundStyle(.primary)
                 Text(preset.shortBadgeText)
-                    .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                    .displayFont(9.5, weight: .medium, design: .rounded)
                     .foregroundStyle(settings.themeStyle.color)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2.5)
                     .background(settings.themeStyle.color.opacity(0.09), in: Capsule())
                 Text(preset.subtitle)
-                    .font(.system(size: 9.5))
+                    .displayFont(9.5)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -580,7 +580,7 @@ struct DisplaySettingsView: View {
                         .displayFont(12, weight: .semibold)
                         .foregroundStyle(settings.themeStyle.color)
                     Text(String(format: "%.2f×", settings.fontSizeTier.scale))
-                        .font(.system(size: 11, design: .monospaced))
+                        .displayFont(11, design: .monospaced)
                         .foregroundStyle(.secondary)
                         .displayNumericTransition(reduceMotion: systemReduceMotion)
                 }
@@ -615,7 +615,7 @@ struct DisplaySettingsView: View {
                             .fill(settings.fontSizeTier == tier ? settings.themeStyle.color : Color.gray.opacity(0.3))
                             .frame(width: 1.5, height: settings.fontSizeTier == tier ? 8 : 5)
                         Text(tier == .medium ? "中" : String(format: "%.2f", tier.scale))
-                            .font(.system(size: 8))
+                            .displayFont(8)
                             .foregroundStyle(.tertiary)
                     }
                     .frame(maxWidth: .infinity)
@@ -623,7 +623,7 @@ struct DisplaySettingsView: View {
             }
             .accessibilityHidden(true)
             Text("极小 → 最大，六档联动全局文字；「中」档跟随系统文字大小。")
-                .font(.system(size: 10))
+                .displayFont(10)
                 .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 4)
@@ -653,9 +653,9 @@ struct DisplaySettingsView: View {
                     } label: {
                         HStack(spacing: 3) {
                             Image(systemName: "arrow.down.circle")
-                                .font(.system(size: 10, weight: .semibold))
+                                .displaySymbolFont(10, weight: .semibold)
                             Text("全部下载")
-                                .font(.system(size: 11, weight: .medium))
+                                .displayFont(11, weight: .medium)
                         }
                         .foregroundStyle(settings.themeStyle.color)
                         .padding(.horizontal, 8)
@@ -730,7 +730,7 @@ struct DisplaySettingsView: View {
                     Spacer()
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 14))
+                            .displaySymbolFont(14)
                             .displayBounce(reduceMotion: systemReduceMotion, value: isSelected)
                             .foregroundStyle(settings.themeStyle.color)
                     }
@@ -740,7 +740,7 @@ struct DisplaySettingsView: View {
                     }
                 }
                 Text(fontStateLine(family, state: state))
-                    .font(.system(size: 10))
+                    .displayFont(10)
                     .foregroundStyle(state == .unavailable && family != .system ? Color.sjzOrange : .secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -790,7 +790,7 @@ struct DisplaySettingsView: View {
             }
         case .unavailable:
             Image(systemName: "arrow.down.circle")
-                .font(.system(size: 12, weight: .semibold))
+                .displaySymbolFont(12, weight: .semibold)
                 .foregroundStyle(Color.sjzOrange)
                 .accessibilityLabel("\(family.title)字体未下载，点击即下载")
         }
@@ -816,7 +816,7 @@ struct DisplaySettingsView: View {
                     .displayFont(14)
                 Spacer()
                 Text(String(format: "%.2f", settings.lineSpacingFactor))
-                    .font(.system(size: 13, design: .monospaced))
+                    .displayFont(13, design: .monospaced)
                     .foregroundStyle(.secondary)
                     .displayNumericTransition(reduceMotion: systemReduceMotion)
             }
@@ -833,7 +833,7 @@ struct DisplaySettingsView: View {
                 // 当前值段落 + 行距基线标尺
                 VStack(alignment: .leading, spacing: settings.lineSpacingFactor * 6) {
                     Text("当前")
-                        .font(.system(size: 9, weight: .semibold))
+                        .displayFont(9, weight: .semibold)
                         .foregroundStyle(settings.themeStyle.color)
                     Text(abSampleText)
                         .displayText(size: 12, baseLineSpacing: 0)
@@ -853,7 +853,7 @@ struct DisplaySettingsView: View {
                 // 默认对照
                 VStack(alignment: .leading, spacing: 6) {
                     Text("默认 1.00")
-                        .font(.system(size: 9, weight: .semibold))
+                        .displayFont(9, weight: .semibold)
                         .foregroundStyle(.secondary)
                     Text(abSampleText)
                         .displayText(size: 12, baseLineSpacing: 0)
@@ -883,7 +883,7 @@ struct DisplaySettingsView: View {
                     .displayFont(14)
                 Spacer()
                 Text(String(format: "%.1f pt", settings.letterSpacingValue))
-                    .font(.system(size: 13, design: .monospaced))
+                    .displayFont(13, design: .monospaced)
                     .foregroundStyle(.secondary)
                     .displayNumericTransition(reduceMotion: systemReduceMotion)
             }
@@ -911,7 +911,7 @@ struct DisplaySettingsView: View {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("当前")
-                        .font(.system(size: 9, weight: .semibold))
+                        .displayFont(9, weight: .semibold)
                         .foregroundStyle(settings.themeStyle.color)
                     Text(abSampleText)
                         .displayText(size: 12)
@@ -924,7 +924,7 @@ struct DisplaySettingsView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("默认 0 pt")
-                        .font(.system(size: 9, weight: .semibold))
+                        .displayFont(9, weight: .semibold)
                         .foregroundStyle(.secondary)
                     Text(abSampleText)
                         .displayText(size: 12)
@@ -997,16 +997,16 @@ struct DisplaySettingsView: View {
                 HStack(spacing: 5) {
                     Circle().fill(paperPreviewLightColor).frame(width: 7, height: 7)
                     Text("白纸晨读")
-                        .font(.system(size: 9, weight: .semibold))
+                        .displayFont(9, weight: .semibold)
                         .foregroundStyle(.secondary)
                 }
                 Text("深秋的午后，阳光从图书馆高大的落地窗斜斜地洒进来。")
-                    .font(.system(size: 12))
+                    .displayFont(12)
                     .foregroundStyle(paperPreviewLightColor)
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(contrastText(hex: paperPreviewLightHex, backgroundHex: "FFFFFF"))
-                    .font(.system(size: 9, design: .monospaced))
+                    .displayFont(9, design: .monospaced)
                     .foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1020,16 +1020,16 @@ struct DisplaySettingsView: View {
                 HStack(spacing: 5) {
                     Circle().fill(paperPreviewDarkColor).frame(width: 7, height: 7)
                     Text("深纸夜读")
-                        .font(.system(size: 9, weight: .semibold))
+                        .displayFont(9, weight: .semibold)
                         .foregroundStyle(Color.white.opacity(0.6))
                 }
                 Text("路灯把梧桐的影子投在石板路上，夜晚的校园安静而温柔。")
-                    .font(.system(size: 12))
+                    .displayFont(12)
                     .foregroundStyle(paperPreviewDarkColor)
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(contrastText(hex: paperPreviewDarkHex, backgroundHex: "262626"))
-                    .font(.system(size: 9, design: .monospaced))
+                    .displayFont(9, design: .monospaced)
                     .foregroundStyle(Color.white.opacity(0.45))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1096,7 +1096,7 @@ struct DisplaySettingsView: View {
                 .fill(contrastLevelColor(worst))
                 .frame(width: 7, height: 7)
             Text(contrastLevelText(worst))
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .displayFont(11, weight: .semibold, design: .rounded)
         }
         .foregroundStyle(contrastLevelColor(worst))
         .padding(.horizontal, 10)
@@ -1111,16 +1111,16 @@ struct DisplaySettingsView: View {
         let level = DisplayContrastChecker.level(for: ratio)
         return HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
+                .displaySymbolFont(11, weight: .semibold)
                 .foregroundStyle(contrastLevelColor(level))
             Text(title)
                 .displayFont(11, weight: .medium)
             Spacer()
             Text(String(format: "%.1f:1", ratio))
-                .font(.system(size: 11, design: .monospaced))
+                .displayFont(11, design: .monospaced)
                 .foregroundStyle(.secondary)
             Image(systemName: level == .pass ? "checkmark.circle.fill" : (level == .suggest ? "exclamationmark.circle.fill" : "xmark.octagon.fill"))
-                .font(.system(size: 12))
+                .displaySymbolFont(12)
                 .foregroundStyle(contrastLevelColor(level))
         }
         .padding(.horizontal, 10)
@@ -1159,7 +1159,7 @@ struct DisplaySettingsView: View {
                 .fill(settings.articleBodyColor ?? Color.primary.opacity(0.55))
                 .frame(width: 7, height: 7)
             Text("\(settings.articleTextColorSummary) · 已生效")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .displayFont(11, weight: .semibold, design: .rounded)
         }
         .foregroundStyle(settings.themeStyle.color)
         .padding(.horizontal, 10)
@@ -1188,19 +1188,19 @@ struct DisplaySettingsView: View {
                         .shadow(color: articleColorCardAccent(preset).opacity(isSelected ? 0.45 : 0.2), radius: 6, y: 2)
                     if isSelected {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
+                            .displaySymbolFont(13, weight: .bold)
                             .displayBounce(reduceMotion: systemReduceMotion, value: isSelected)
                             .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.35), radius: 1)
                             .transition(.scale.combined(with: .opacity))
                     } else if preset == .system {
                         Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 12, weight: .bold))
+                            .displaySymbolFont(12, weight: .bold)
                             .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.3), radius: 1)
                     } else if preset == .custom {
                         Image(systemName: "paintbrush.fill")
-                            .font(.system(size: 14, weight: .semibold))
+                            .displaySymbolFont(14, weight: .semibold)
                             .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.3), radius: 1)
                     }
@@ -1210,10 +1210,10 @@ struct DisplaySettingsView: View {
                         .padding(-5)
                 )
                 Text(preset.title)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                    .displayFont(11, weight: isSelected ? .semibold : .regular)
                     .foregroundStyle(isSelected ? .primary : .secondary)
                 Text(preset.subtitle)
-                    .font(.system(size: 9))
+                    .displayFont(9)
                     .foregroundStyle(.secondary.opacity(0.85))
             }
             .frame(maxWidth: .infinity)
@@ -1273,10 +1273,10 @@ struct DisplaySettingsView: View {
 
             HStack(spacing: 10) {
                 Image(systemName: "number")
-                    .font(.system(size: 13, weight: .semibold))
+                    .displaySymbolFont(13, weight: .semibold)
                     .foregroundStyle(settings.themeStyle.color)
                 TextField("1A1A1A", text: $customHexText)
-                    .font(.system(size: 14, design: .monospaced))
+                    .displayFont(14, design: .monospaced)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
                     .submitLabel(.done)
@@ -1285,12 +1285,12 @@ struct DisplaySettingsView: View {
                     }
                 if isCustomHexValid(customHexText) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 15))
+                        .displaySymbolFont(15)
                         .foregroundStyle(Color.sjzGreen)
                         .transition(.scale.combined(with: .opacity))
                 } else {
                     Image(systemName: "exclamationmark.circle")
-                        .font(.system(size: 15))
+                        .displaySymbolFont(15)
                         .foregroundStyle(Color.sjzOrange)
                 }
             }
@@ -1461,7 +1461,7 @@ struct DisplaySettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
                     Image(systemName: "text.magnifyingglass")
-                        .font(.system(size: 13, weight: .semibold))
+                        .displaySymbolFont(13, weight: .semibold)
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(settings.themeStyle.color)
                     Text("阅读统计实时预览")
@@ -1506,7 +1506,7 @@ struct DisplaySettingsView: View {
             // 服务自检：最近一次统计结果 + 持久化诊断计数（打开任意文章后自动更新）
             HStack(spacing: 8) {
                 Image(systemName: readingStatsLastText != nil ? "checkmark.seal.fill" : "clock.badge.questionmark")
-                    .font(.system(size: 13, weight: .semibold))
+                    .displaySymbolFont(13, weight: .semibold)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(readingStatsLastText != nil ? Color.sjzGreen : Color.secondary)
                 VStack(alignment: .leading, spacing: 2) {
@@ -1558,7 +1558,7 @@ struct DisplaySettingsView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         Image(systemName: "paintpalette.fill")
-                            .font(.system(size: 13, weight: .semibold))
+                            .displaySymbolFont(13, weight: .semibold)
                             .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(settings.themeStyle.color)
                         Text(settings.readingListBadgeEnabled ? "角标设置 · 分级配色" : "角标设置 · 已关闭")
@@ -1595,7 +1595,7 @@ struct DisplaySettingsView: View {
                     ForEach(ReadingSpeedTier.allCases) { tier in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tier.title)
-                            Text(tier.subtitle).font(.caption2).foregroundStyle(.secondary)
+                            Text(tier.subtitle).displayFont(11).foregroundStyle(.secondary)
                         }
                         .tag(tier)
                     }
@@ -1634,7 +1634,7 @@ struct DisplaySettingsView: View {
                 .fill(settings.readingStatsEnabled ? Color.sjzGreen : Color.gray)
                 .frame(width: 7, height: 7)
             Text(settings.readingStatsEnabled ? "已启用 · \(settings.readingSpeedTier.title)" : "已关闭")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .displayFont(11, weight: .semibold, design: .rounded)
         }
         .foregroundStyle(settings.readingStatsEnabled ? settings.themeStyle.color : Color.secondary)
         .padding(.horizontal, 10)
@@ -1671,9 +1671,9 @@ struct DisplaySettingsView: View {
     private func badgePreviewCapsule(_ sample: BadgePreviewSample) -> some View {
         HStack(spacing: 2.5) {
             Image(systemName: "clock.fill")
-                .font(.system(size: 8, weight: .bold))
+                .displaySymbolFont(8, weight: .bold)
             Text(sample.text)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .displayFont(10, weight: .bold, design: .rounded)
                 .monospacedDigit()
         }
         .foregroundStyle(.white)
@@ -1706,11 +1706,11 @@ struct DisplaySettingsView: View {
                     Spacer()
                     // 光感太阳：随亮度真实缩放与明暗（视觉直觉）
                     Image(systemName: brightnessSunIcon)
-                        .font(.system(size: brightnessSunSize, weight: .semibold))
+                        .displaySymbolFont(brightnessSunSize, weight: .semibold)
                         .foregroundStyle(brightnessSunColor)
                         .animation(systemReduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8), value: effectiveBrightness)
                     Text(userBrightnessText)
-                        .font(.system(size: 13, design: .monospaced))
+                        .displayFont(13, design: .monospaced)
                         .foregroundStyle(.secondary)
                         .displayNumericTransition(reduceMotion: systemReduceMotion)
                 }
@@ -1792,7 +1792,7 @@ struct DisplaySettingsView: View {
             ])
         } label: {
             Text("\(percent)%")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .displayFont(11, weight: .semibold, design: .rounded)
                 .foregroundStyle(isCurrent ? .white : settings.themeStyle.color)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
@@ -1830,7 +1830,7 @@ struct DisplaySettingsView: View {
                         .foregroundStyle(Color.primary)
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .displaySymbolFont(12)
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -1851,7 +1851,7 @@ struct DisplaySettingsView: View {
                         colors: [Color(hex: "F59E0B"), Color(hex: "F97316")],
                         startPoint: .topLeading, endPoint: .bottomTrailing)
                     Image(systemName: "sun.max.fill")
-                        .font(.system(size: 18, weight: .semibold))
+                        .displaySymbolFont(18, weight: .semibold)
                         .foregroundStyle(.white)
                 }
                 .frame(width: 40, height: 40)
@@ -2058,7 +2058,7 @@ struct DisplaySettingsView: View {
                         .foregroundStyle(Color.primary)
                     Spacer()
                     Image(systemName: "arrow.up.right.square")
-                        .font(.caption)
+                        .displaySymbolFont(12)
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -2072,20 +2072,20 @@ struct DisplaySettingsView: View {
     private func accessibilityRow(title: String, icon: String, enabled: Bool, guidance: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
+                .displaySymbolFont(14, weight: .semibold)
                 .foregroundStyle(enabled ? settings.themeStyle.color : .secondary)
                 .frame(width: 28, height: 28)
                 .background((enabled ? settings.themeStyle.color : Color.gray).opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 15))
+                    .displayFont(15)
                 Text(guidance)
-                    .font(.system(size: 12))
+                    .displayFont(12)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             Text(enabled ? "已开启" : "未开启")
-                .font(.system(size: 12, weight: .medium))
+                .displayFont(12, weight: .medium)
                 .foregroundStyle(enabled ? settings.themeStyle.color : .secondary)
         }
         .contentShape(Rectangle())
@@ -2106,7 +2106,7 @@ struct DisplaySettingsView: View {
             if settings.changeHistory.isEmpty {
                 HStack(spacing: 10) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 15, weight: .semibold))
+                        .displaySymbolFont(15, weight: .semibold)
                         .foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("尚无改动记录")
@@ -2170,7 +2170,7 @@ struct DisplaySettingsView: View {
                         .displayFont(12, weight: .semibold)
                         .foregroundStyle(.primary)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 9, weight: .semibold))
+                        .displaySymbolFont(9, weight: .semibold)
                         .foregroundStyle(.tertiary)
                     Text(record.value)
                         .displayFont(12)
@@ -2178,7 +2178,7 @@ struct DisplaySettingsView: View {
                         .lineLimit(1)
                 }
                 Text(record.at.formatted(.relative(presentation: .named)))
-                    .font(.system(size: 10))
+                    .displayFont(10)
                     .foregroundStyle(.tertiary)
             }
             .padding(.bottom, 14)
@@ -2199,7 +2199,7 @@ struct DisplaySettingsView: View {
                     Label("分享我的排版配置", systemImage: "square.and.arrow.up")
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .displaySymbolFont(12)
                         .foregroundStyle(.tertiary)
                 }
             }

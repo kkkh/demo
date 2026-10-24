@@ -108,7 +108,7 @@ struct CacheModeSettingsView: View {
             // 状态胶囊 + 跳过统计（直观状态提示）
             HStack(spacing: 8) {
                 Image(systemName: cacheManager.imageFreeModeEnabled ? "leaf.fill" : "photo.fill")
-                    .font(.system(size: 13, weight: .semibold))
+                    .displaySymbolFont(13, weight: .semibold)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(cacheManager.imageFreeModeEnabled ? Color.sjzGreen : Color.secondary)
                 VStack(alignment: .leading, spacing: 3) {
@@ -207,7 +207,7 @@ struct CacheModeSettingsView: View {
                             .fill(cacheManager.isCacheEnabled ? Color.sjzGreen.opacity(0.12) : Color.sjzAccent.opacity(0.12))
                             .frame(width: 60, height: 60)
                         Image(systemName: cacheManager.mode.icon)
-                            .font(.system(size: 28, weight: .medium))
+                            .displaySymbolFont(28, weight: .medium)
                             .foregroundStyle(cacheManager.mode.accentColor)
                     }
 
@@ -377,7 +377,7 @@ struct CacheModeSettingsView: View {
                         .fill(Color.sjzOrange.opacity(0.1))
                         .frame(width: 44, height: 44)
                     Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 22))
+                        .displaySymbolFont(22)
                         .foregroundStyle(Color.sjzOrange)
                 }
                 VStack(alignment: .leading, spacing: 3) {
@@ -452,7 +452,7 @@ struct CacheModeSettingsView: View {
                         .foregroundColor(.primary)
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .displaySymbolFont(12)
                         .foregroundStyle(.secondary.opacity(0.5))
                 }
             }
@@ -465,7 +465,7 @@ struct CacheModeSettingsView: View {
                         .foregroundColor(.red)
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .displaySymbolFont(12)
                         .foregroundStyle(.secondary.opacity(0.5))
                 }
             }
@@ -508,7 +508,7 @@ private struct ModeSelectionCard: View {
                         .fill(isSelected ? mode.accentColor : mode.accentColor.opacity(0.1))
                         .frame(width: 50, height: 50)
                     Image(systemName: mode.icon)
-                        .font(.system(size: 22, weight: .medium))
+                        .displaySymbolFont(22, weight: .medium)
                         .foregroundStyle(isSelected ? .white : mode.accentColor)
                 }
 
@@ -519,7 +519,7 @@ private struct ModeSelectionCard: View {
                             .foregroundColor(.primary)
                         if isSelected {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 16))
+                                .displaySymbolFont(16)
                                 .foregroundStyle(mode.accentColor)
                         }
                     }
@@ -557,7 +557,7 @@ private struct StatMiniCard: View {
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .displaySymbolFont(16)
                 .foregroundStyle(color)
                 .frame(height: 22)
             Text(value)
@@ -581,7 +581,7 @@ private struct StatRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 13))
+                .displaySymbolFont(13)
                 .foregroundStyle(color)
                 .frame(width: 20)
 

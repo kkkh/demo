@@ -614,7 +614,7 @@ struct PartySubjectView: View {
             NavigationStack {
                 PartyArticleDetailView(ref: ref)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .task {
             store.loadIfNeeded()
@@ -784,7 +784,7 @@ struct PartySubjectView: View {
                     .frame(width: 58, height: 58)
                     .overlay {
                         Image(systemName: "flag.fill")
-                            .font(.system(size: 24, weight: .semibold))
+                            .displaySymbolFont(24, weight: .semibold)
                             .foregroundStyle(.white)
                     }
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -1126,7 +1126,7 @@ struct PartySubjectView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     if isSearching {
                         highlightedText(ref.article.title, keyword: trimmedSearch, baseColor: .primary)
-                            .font(.system(size: 15, weight: .semibold))
+                            .displayFont(15, weight: .semibold)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
                     } else {
@@ -1448,7 +1448,7 @@ struct PartySubjectView: View {
     private var emptySearchView: some View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 34, weight: .light))
+                .displaySymbolFont(34, weight: .light)
                 .foregroundStyle(Color.sjzRed.opacity(0.7))
             Text("未找到匹配「\(trimmedSearch)」的文章")
                 .displayFont(14, weight: .semibold)
@@ -1483,7 +1483,7 @@ struct PartySubjectView: View {
     private var emptyColumnView: some View {
         VStack(spacing: 12) {
             Image(systemName: "tray")
-                .font(.system(size: 34, weight: .light))
+                .displaySymbolFont(34, weight: .light)
                 .foregroundStyle(Color.sjzRed.opacity(0.7))
             Text("该栏目暂无文章")
                 .displayFont(14, weight: .semibold)
@@ -1499,7 +1499,7 @@ struct PartySubjectView: View {
     private var emptyDataView: some View {
         VStack(spacing: 12) {
             Image(systemName: "flag.slash")
-                .font(.system(size: 34, weight: .light))
+                .displaySymbolFont(34, weight: .light)
                 .foregroundStyle(Color.sjzRed.opacity(0.7))
             Text("暂无专题内容")
                 .displayFont(14, weight: .semibold)
@@ -1525,7 +1525,7 @@ struct PartySubjectView: View {
     private func errorCard(_ message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 34, weight: .light))
+                .displaySymbolFont(34, weight: .light)
                 .foregroundStyle(Color.sjzOrange.opacity(0.8))
             Text("专题数据加载失败")
                 .displayFont(14, weight: .semibold)
@@ -2164,7 +2164,7 @@ struct PartyArticleDetailView: View {
         .accessibilityHint("轻点放大查看，长按可保存或分享")
         .sheet(item: $fullScreenImage) { payload in
             FullScreenImageView(url: payload.url, title: payload.title)
-                .sjzGrayScale()
+                .sjzPresentationChrome()
         }
     }
 

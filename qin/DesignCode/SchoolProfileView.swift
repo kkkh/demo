@@ -966,23 +966,23 @@ struct SchoolProfileView: View {
             NavigationStack {
                 ProfileTextDetailView(entry: leader)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .sheet(item: $selectedSceneryAlbum) { article in
             NavigationStack {
                 ProfileAlbumView(article: article)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .sheet(item: $selectedCooperate) { item in
             NavigationStack {
                 ProfileCooperateDetailView(entry: item)
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .fullScreenCover(item: $fullScreenImage) { item in
             FullScreenImageView(url: item.url, title: item.title)
-                .sjzGrayScale()
+                .sjzPresentationChrome()
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: shareItems)
@@ -1131,7 +1131,7 @@ struct SchoolProfileView: View {
                             .frame(width: 54, height: 54)
                             .overlay {
                                 Image(systemName: "building.columns.fill")
-                                    .font(.system(size: 22, weight: .semibold))
+                                    .displaySymbolFont(22, weight: .semibold)
                                     .foregroundStyle(.white)
                             }
                     }
@@ -1416,13 +1416,13 @@ struct SchoolProfileView: View {
                                         image.resizable().scaledToFill()
                                     } else {
                                         Image(systemName: "person.fill")
-                                            .font(.system(size: 30, weight: .medium))
+                                            .displaySymbolFont(30, weight: .medium)
                                             .foregroundStyle(Color.sjzPrimary.opacity(0.4))
                                     }
                                 }
                             } else {
                                 Image(systemName: "person.fill")
-                                    .font(.system(size: 30, weight: .medium))
+                                    .displaySymbolFont(30, weight: .medium)
                                     .foregroundStyle(Color.sjzPrimary.opacity(0.4))
                             }
                         }
@@ -1584,7 +1584,7 @@ struct SchoolProfileView: View {
                 } else {
                     VStack(spacing: 10) {
                         Image(systemName: "play.slash")
-                            .font(.system(size: 26, weight: .medium))
+                            .displaySymbolFont(26, weight: .medium)
                             .foregroundStyle(Color.sjzPrimary.opacity(0.5))
                         Text("视频暂不可用")
                             .displayFont(13)
@@ -1620,7 +1620,7 @@ struct SchoolProfileView: View {
             if store.sceneryArticles.isEmpty && !store.isLoading {
                 VStack(spacing: 10) {
                     Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 30, weight: .light))
+                        .displaySymbolFont(30, weight: .light)
                         .foregroundStyle(Color.sjzPrimary.opacity(0.5))
                     Text("暂无风光图片")
                         .displayFont(13, weight: .semibold)
@@ -1679,7 +1679,7 @@ struct SchoolProfileView: View {
                                             .overlay(Capsule().strokeBorder(Color.sjzGold.opacity(0.35), lineWidth: 0.5))
                                     } else {
                                         Image(systemName: "photo.stack.fill")
-                                            .font(.system(size: 9, weight: .semibold))
+                                            .displaySymbolFont(9, weight: .semibold)
                                             .foregroundStyle(Color.sjzPrimary.opacity(0.7))
                                     }
                                 }
@@ -1716,7 +1716,7 @@ struct SchoolProfileView: View {
             if store.cooperateEntries.isEmpty && !store.isLoading {
                 VStack(spacing: 10) {
                     Image(systemName: "globe.asia.australia")
-                        .font(.system(size: 30, weight: .light))
+                        .displaySymbolFont(30, weight: .light)
                         .foregroundStyle(Color.sjzPrimary.opacity(0.5))
                     Text("暂无合作交流信息")
                         .displayFont(13, weight: .semibold)
@@ -2046,7 +2046,7 @@ struct SchoolProfileView: View {
         if searchResults.isEmpty {
             VStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 34, weight: .light))
+                    .displaySymbolFont(34, weight: .light)
                     .foregroundStyle(Color.sjzPrimary.opacity(0.7))
                 Text("未找到匹配「\(trimmedSearch)」的内容")
                     .displayFont(14, weight: .semibold)
@@ -2096,12 +2096,12 @@ struct SchoolProfileView: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 highlightedText(entry.title, keyword: trimmedSearch, baseColor: .primary)
-                    .font(.system(size: 14, weight: .semibold))
+                    .displayFont(14, weight: .semibold)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 if !entry.detail.isEmpty {
                     highlightedText(entry.detail, keyword: trimmedSearch, baseColor: .secondary)
-                        .font(.system(size: 12))
+                        .displayFont(12)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                 }
@@ -2179,7 +2179,7 @@ struct SchoolProfileView: View {
     private func errorCard(_ message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 34, weight: .light))
+                .displaySymbolFont(34, weight: .light)
                 .foregroundStyle(Color.sjzOrange.opacity(0.8))
             Text("学校概况加载失败")
                 .displayFont(14, weight: .semibold)
@@ -2452,7 +2452,7 @@ struct RollingNumberView: View {
 
     var body: some View {
         Text(Self.formatted(display))
-            .font(.system(size: 30, weight: .heavy, design: .rounded))
+            .displayFont(30, weight: .heavy, design: .rounded)
             .monospacedDigit()
             .foregroundStyle(LinearGradient(
                 colors: [Color.sjzPrimary, Color.sjzAccent],
@@ -2589,7 +2589,7 @@ struct ProfileTextDetailView: View {
                     FullScreenImageView(url: url, title: entry.title)
                 }
             }
-            .sjzGrayScale()
+            .sjzPresentationChrome()
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: shareItems)
@@ -2839,7 +2839,7 @@ struct ProfileAlbumView: View {
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: saveToast)
         .fullScreenCover(item: $fullScreenItem) { item in
             FullScreenImageView(url: item.url, title: item.title)
-                .sjzGrayScale()
+                .sjzPresentationChrome()
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: shareItems)
@@ -3074,7 +3074,7 @@ struct ProfileAlbumView: View {
     private func albumErrorCard(_ message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "photo.badge.exclamationmark")
-                .font(.system(size: 32, weight: .light))
+                .displaySymbolFont(32, weight: .light)
                 .foregroundStyle(Color.sjzPrimary.opacity(0.7))
             Text(message)
                 .displayFont(14, weight: .semibold)
@@ -3215,7 +3215,7 @@ struct ProfileCooperateDetailView: View {
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: saveToast)
         .fullScreenCover(item: $fullScreenItem) { item in
             FullScreenImageView(url: item.url, title: item.title)
-                .sjzGrayScale()
+                .sjzPresentationChrome()
         }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: shareItems)
@@ -3452,7 +3452,7 @@ struct ProfileCooperateDetailView: View {
     private var detailErrorCard: some View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 26, weight: .light))
+                .displaySymbolFont(26, weight: .light)
                 .foregroundStyle(Color.sjzOrange.opacity(0.8))
             Text(loadError ?? "详情加载失败")
                 .displayFont(12, weight: .semibold)
