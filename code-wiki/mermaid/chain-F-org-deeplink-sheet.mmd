@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    participant SRC as 触发源（消息中心点击 / 系统通知）
+    participant NM as NotificationManager
+    participant MC as MessageCenterStore
+    participant Tab as MainTabView
+    participant OAD as OrganizationArticleDetailView
+
+    SRC->>NM: pendingOrgArticleDeepLink = 请求（source=message_center 或 notification）
+    NM->>Tab: consumePendingOrgArticleDeepLink(:90)
+    Tab->>Tab: 记录 fromMessageCenter = source == "message_center"
+    Tab->>Tab: Task { @MainActor 消费循环，上限 40 × 100ms }
+    loop 每 100ms
+        Tab->>Tab: scenePhase == .active 且 !isLockEngaged 且 messageCenterGone()
+        Note over Tab: messageCenterGone() = MessageCenterStore.messageCenterDismissedAt(:186)<br/>距 consume 开始 ≤ 3s（只看本次会话的「新鲜」退场）
+    end
+    alt 消息中心来源
+        Tab->>Tab: sleep(550ms)【覆盖前置 sheet 的 dismiss 动画收尾（约 0.4–0.5s）+ 冷启动首帧余量】
+    else 系统通知来源
+        Tab->>Tab: sleep(300ms)【既有节奏】
+    end
+    Tab->>Tab: pendingOrgArticle = request
+    Tab->>OAD: sheet(item:)(:416)【单状态驱动，closure 快照必非 nil】
+    Note over OAD: 数据存在即呈现——详情视图必然创建 → .task 必然执行<br/>不再出现「isPresented=true 但 item=nil」空容器白屏
+    OAD-->>Tab: onDismiss → pendingOrgArticle = nil（无悬挂引用）

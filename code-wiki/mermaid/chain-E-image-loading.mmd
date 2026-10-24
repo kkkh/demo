@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    participant V as SJZCachedImage
+    participant DC as SJZDecodedImageCache
+    participant K as SJZImageKit
+    participant G as SJZImageConcurrencyGate(actor)
+    participant P as RefererHeaderURLProtocol
+    participant N as 学校图床
+
+    V->>DC: init 同步查内存缓存
+    alt 命中
+        DC-->>V: 首帧直出（零闪烁）
+    else 未命中
+        V->>V: .task(id: SJZLoadToken)
+        V->>K: usableCachedResponse(url)
+        alt 磁盘/URLCache 命中
+            K-->>V: 直接用其 data（并清理坏条目自愈）
+        else 未命中
+            V->>G: acquire()（limit = 4）
+            G->>K: imageSession.data(from:)
+            K->>P: 拦截（scheme http(s) && host 含 sxjzit.edu.cn）
+            P->>N: 注入 Referer/UA + 图片响应注入 Cache-Control
+            N-->>P: 图片数据
+            P-->>K: data
+            K->>K: ImageIO 降采样解码（E4 护栏：>4000 万像素强制 4096）
+            K->>DC: 回填内存（cost = 像素字节）
+            K->>V: 平均色 blur-up 占位
+        end
+    end
