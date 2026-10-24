@@ -121,7 +121,7 @@ qin/
 - [ARCHITECTURE.md](qin/ARCHITECTURE.md) - Complete architecture documentation
 - [CODE_WIKI.md](qin/CODE_WIKI.md) - Code encyclopedia and module details
 - [DEBUG_REPORT.md](qin/DEBUG_REPORT.md) - Data synchronization troubleshooting report
-- `.trae/documents/` - Various implementation plans and specifications
+- `.trae/documents/` - Various implementation plans and specifications (**local-only, not tracked in git**)
 
 ## Notes
 

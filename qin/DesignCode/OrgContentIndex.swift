@@ -8,7 +8,7 @@
 //  - 请求并发闸 OrgRequestGate（≤3，与图片闸 SJZImageConcurrencyGate 独立）
 //  - 分页状态机 OrgPagerState（纯值类型：去重追加 / total 真值 / 翻到底判定）
 //
-//  依据（2026-09-30 实测，见 .trae/documents/org-module-upgrade/02-设计稿.md v1.2）：
+//  依据（2026-09-30 实测，见 .trae/documents/org-module-upgrade/02-设计稿.md v1.2；该目录本地保留、不入库）：
 //  - /college/home 对全部学院站 nav 为空 → 学院与部门统一走 /dept/home2
 //  - nav 项顶层无 articles；total 需从首页嵌套区块种子或分页响应的 data.articles.total 获取
 //
