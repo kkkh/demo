@@ -1,0 +1,6528 @@
+{
+ "api_base": "https://gwqietap.sxjzit.edu.cn/mapi",
+ "size_used": 20,
+ "entries_with_site_key": [
+  {
+   "group": "党委机构",
+   "id": 121,
+   "name": "党委办公室",
+   "site_key": "dzbgs",
+   "org_site_id": "57c7fc7a00924d1b8113d77d9729d7eb"
+  },
+  {
+   "group": "党委机构",
+   "id": 146,
+   "name": "党委学生工作部(武装部)",
+   "site_key": "dwxsgzb",
+   "org_site_id": "9fbfe21fde4e4620af51382cd893be6f"
+  },
+  {
+   "group": "群团机构",
+   "id": 123,
+   "name": "团委",
+   "site_key": "tw",
+   "org_site_id": "e1acf637f93242bbbc1426c04f14145c"
+  },
+  {
+   "group": "行政机构",
+   "id": 124,
+   "name": "校长办公室",
+   "site_key": "dzbgs",
+   "org_site_id": null
+  },
+  {
+   "group": "行政机构",
+   "id": 125,
+   "name": "人力资源处",
+   "site_key": "rlzyc",
+   "org_site_id": "571d4b7547804e2397a12a4f0503a571"
+  },
+  {
+   "group": "行政机构",
+   "id": 130,
+   "name": "财务与资产管理处",
+   "site_key": "cwc",
+   "org_site_id": "9725697bdad041d38a0246cbbbd89b20"
+  },
+  {
+   "group": "行政机构",
+   "id": 131,
+   "name": "教务处",
+   "site_key": "jwc",
+   "org_site_id": "222fa53591a3494e9c860390039b0844"
+  },
+  {
+   "group": "行政机构",
+   "id": 133,
+   "name": "学生工作处",
+   "site_key": "dwxsgzb",
+   "org_site_id": null
+  },
+  {
+   "group": "行政机构",
+   "id": 134,
+   "name": "招生就业处",
+   "site_key": "zsw",
+   "org_site_id": "cb3b1fe4fcdf40999b0c162015c3326d"
+  },
+  {
+   "group": "行政机构",
+   "id": 135,
+   "name": "后勤管理处",
+   "site_key": "hqglc",
+   "org_site_id": "27c4a698e7fc4abea886eb4610f374e3"
+  },
+  {
+   "group": "行政机构",
+   "id": 137,
+   "name": "科研处",
+   "site_key": "kyc",
+   "org_site_id": "6030fbf696d543f3a93bf537ca0af899"
+  },
+  {
+   "group": "行政机构",
+   "id": 136,
+   "name": "保卫处",
+   "site_key": "dwbwb",
+   "org_site_id": null
+  },
+  {
+   "group": "教学机构",
+   "id": 127,
+   "name": "信创与大数据学院",
+   "site_key": "xcdsj",
+   "org_site_id": "890cf93e62aa47a0983aa5f551c92e4a"
+  },
+  {
+   "group": "教学机构",
+   "id": 126,
+   "name": "智能制造与车辆学院",
+   "site_key": "znzzcl",
+   "org_site_id": "6fe4387f78ba4b42b9807ff86ca0df1f"
+  },
+  {
+   "group": "教学机构",
+   "id": 150,
+   "name": "商学院",
+   "site_key": "sxy",
+   "org_site_id": "c85524251e1b4ca19d7f4c7b0de482bb"
+  },
+  {
+   "group": "教学机构",
+   "id": 149,
+   "name": "材料与环境学院",
+   "site_key": "clhj",
+   "org_site_id": "7575582d988949a0a3d70fcceba26cb5"
+  },
+  {
+   "group": "教学机构",
+   "id": 151,
+   "name": "文法学院",
+   "site_key": "wfxy",
+   "org_site_id": "e684aa6d75c340559aa4f7a2668cf3e4"
+  },
+  {
+   "group": "教学机构",
+   "id": 152,
+   "name": "艺术学院",
+   "site_key": "ysxy",
+   "org_site_id": "cdd28a001afc418bb2b77ad704ed12a6"
+  },
+  {
+   "group": "教学机构",
+   "id": 155,
+   "name": "马克思主义学院",
+   "site_key": "mkszy",
+   "org_site_id": "93ef50506d1f4e2a92477a21ecc8b52f"
+  },
+  {
+   "group": "教学机构",
+   "id": 153,
+   "name": "通识教育学院",
+   "site_key": "tsxuey",
+   "org_site_id": "e62a313fe40746438fdaea3cfc33123f"
+  },
+  {
+   "group": "教学机构",
+   "id": 154,
+   "name": "国际交流与继续教育学院",
+   "site_key": "gjjljxjy",
+   "org_site_id": "4b9a6b4591ef4e23aa4dd5fc54aebd84"
+  },
+  {
+   "group": "教学机构",
+   "id": 157,
+   "name": "创新创业学院",
+   "site_key": "scxy",
+   "org_site_id": "1e4acf8fff9148ce933f47610a87ca48"
+  },
+  {
+   "group": "知识拓展·技能转换",
+   "id": 128,
+   "name": "图书馆",
+   "site_key": "tsg",
+   "org_site_id": "69bc8045bfdb4ff5bb442e04bad86986"
+  },
+  {
+   "group": "知识拓展·技能转换",
+   "id": 129,
+   "name": "实践教学管理中心",
+   "site_key": "sjjxglzx",
+   "org_site_id": "d99e0d78612149ce99b9f00edf45ca4f"
+  }
+ ],
+ "unique_site_key_count": 22,
+ "sites": [
+  {
+   "site_key": "dzbgs",
+   "site_id": "57c7fc7a00924d1b8113d77d9729d7eb",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "党政办公室",
+   "nav_count": 7,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "548b325c3c5a429399993f149afcf9eb",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=548b325c3c5a429399993f149afcf9eb&page=1&size=20",
+     "raw_file": "raw/list_dzbgs_548b325c3c5a429399993f149afcf9eb.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "5975850f3b8b43aa9ad9e8114def1178",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=5975850f3b8b43aa9ad9e8114def1178&page=1&size=20",
+     "raw_file": "raw/list_dzbgs_5975850f3b8b43aa9ad9e8114def1178.json",
+     "total": 23,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "4eebc91d4ba545aba90644a11a0d3ead",
+      "title": "关于2026年中秋节、国庆节放假安排的通知",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-09-10 15:42:23",
+      "update_time": "2026-09-10T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "党建工作",
+     "names": [
+      "党建工作"
+     ],
+     "column_id": "68b3567f6b404d08a09a1421636fddf9",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:party-construction",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=68b3567f6b404d08a09a1421636fddf9&page=1&size=20",
+     "raw_file": "raw/list_dzbgs_68b3567f6b404d08a09a1421636fddf9.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "行政工作",
+     "names": [
+      "行政工作"
+     ],
+     "column_id": "10094dafff844c939dcb0cc6133bee0c",
+     "component_type": "notice-small",
+     "sources": [
+      "home-block:administration",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=10094dafff844c939dcb0cc6133bee0c&page=1&size=20",
+     "raw_file": "raw/list_dzbgs_10094dafff844c939dcb0cc6133bee0c.json",
+     "total": 21,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "a923b52e0f4b4b3faae09993c6a6e677",
+      "title": "关于2025年端午节放假安排的通知",
+      "description": "根据《国务院办公厅关于2025年部分节假日安排的通知》内容，结合我校工作实际，经学校研究决定，现将2025年端午节放假安排通知如下：",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-05-23 11:37:25",
+      "update_time": "2025-05-23T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "资料下载",
+     "names": [
+      "资料下载"
+     ],
+     "column_id": "be80c27b1b724afebb53bde65d212917",
+     "component_type": "download",
+     "sources": [
+      "home-block:download",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=be80c27b1b724afebb53bde65d212917&page=1&size=20",
+     "raw_file": "raw/list_dzbgs_be80c27b1b724afebb53bde65d212917.json",
+     "total": 10,
+     "pages": 1,
+     "got_items": 10,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "f50f7e8d057d446f946653c6ecedb8dd",
+      "title": "山西晋中理工学院车辆通行审批表",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-03-01 11:00:33",
+      "update_time": "2026-03-01T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "aacdf30bfd184b28829176c9317c1e13",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=aacdf30bfd184b28829176c9317c1e13&page=1&size=20",
+     "raw_file": "raw/list_dzbgs_aacdf30bfd184b28829176c9317c1e13.json",
+     "total": 1,
+     "pages": 1,
+     "got_items": 1,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "d0161eafe1ce4f288ca0f90bb1c3e3de",
+      "title": "党政办公室",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/04/10/图层 733_20250410202304A005.webp",
+      "create_time": "2025-03-31 18:11:01",
+      "update_time": "2025-04-10T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "规章制度",
+     "names": [
+      "规章制度"
+     ],
+     "column_id": "9ff9d81c8a974d30b1ad6165e42d9d69",
+     "component_type": "notice-small",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=9ff9d81c8a974d30b1ad6165e42d9d69&page=1&size=20",
+     "raw_file": "raw/list_dzbgs_9ff9d81c8a974d30b1ad6165e42d9d69.json",
+     "total": 5,
+     "pages": 1,
+     "got_items": 5,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "2478",
+      "title": "山西晋中理工学院公务用车管理办法（试行）",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "",
+      "update_time": "2024-04-09T09:52:28",
+      "tag": "tag",
+      "sort": 10000
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "b4651b925328422a88b45a25c62a3c91",
+     "component_type": "opinion",
+     "sources": [
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=b4651b925328422a88b45a25c62a3c91&page=1&size=20",
+     "raw_file": "raw/list_dzbgs_b4651b925328422a88b45a25c62a3c91.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "5975850f3b8b43aa9ad9e8114def1178",
+    "column_name": "通知公告",
+    "total": 23,
+    "last_page": 2,
+    "got_items": 3,
+    "expected_items": 3,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=5975850f3b8b43aa9ad9e8114def1178&page=2&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=57c7fc7a00924d1b8113d77d9729d7eb&column_id=5975850f3b8b43aa9ad9e8114def1178&page=3&size=20",
+    "last_plus_1_total": 23,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "dwxsgzb",
+   "site_id": "9fbfe21fde4e4620af51382cd893be6f",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "党委学生工作部(武装部)",
+   "nav_count": 9,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "0d1465a0513849478c548011f79d2627",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=0d1465a0513849478c548011f79d2627&page=1&size=20",
+     "raw_file": "raw/list_dwxsgzb_0d1465a0513849478c548011f79d2627.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "5e5ccfadac6141d29528c277d282d989",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=5e5ccfadac6141d29528c277d282d989&page=1&size=20",
+     "raw_file": "raw/list_dwxsgzb_5e5ccfadac6141d29528c277d282d989.json",
+     "total": 187,
+     "pages": 10,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "cbd9875180554685a0e06e615698c4b9",
+      "title": "关于做好2025-2026学年国家奖学金评定工作的通知",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-09-15 11:35:38",
+      "update_time": "2026-09-15T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学工动态",
+     "names": [
+      "学工动态"
+     ],
+     "column_id": "96860085dd1343fe943695b3fd32ae4e",
+     "component_type": "news",
+     "sources": [
+      "home-block:news",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=96860085dd1343fe943695b3fd32ae4e&page=1&size=20",
+     "raw_file": "raw/list_dwxsgzb_96860085dd1343fe943695b3fd32ae4e.json",
+     "total": 131,
+     "pages": 7,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "45b73eb5f6844c67bace4d677d7987e6",
+      "title": "凝心聚力谋部署，厉兵秣马启新程——我校召开2026级新生军训工作安排部署大会暨军训教官动员大会",
+      "description": "凝心聚力谋部署，厉兵秣马启新程——我校召开2026级新生军训工作安排部署大会暨军训教官动员大会",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/dwxsgzb/images/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20250419102702.jpg",
+      "create_time": "2026-09-07 19:58:18",
+      "update_time": "2026-09-06T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学生事务",
+     "names": [
+      "学生事务"
+     ],
+     "column_id": "6aa596bc755e42bab6533741123499b6",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:student-affairs",
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=6aa596bc755e42bab6533741123499b6&page=1&size=20",
+     "raw_file": "raw/list_dwxsgzb_6aa596bc755e42bab6533741123499b6.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "心理健康",
+     "names": [
+      "心理健康"
+     ],
+     "column_id": "07e58186827f41359eca42c0534f1ea6",
+     "component_type": "notice-small",
+     "sources": [
+      "home-block:psychological-health",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=07e58186827f41359eca42c0534f1ea6&page=1&size=20",
+     "raw_file": "raw/list_dwxsgzb_07e58186827f41359eca42c0534f1ea6.json",
+     "total": 160,
+     "pages": 8,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "a558fa3d3637426da33d8d63f31a8a56",
+      "title": "2026级普本班级心理委员面试选拔启动",
+      "description": "2026级普本班级心理委员面试选拔启动",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/dwxsgzb/images/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20250419102702.jpg",
+      "create_time": "2026-09-07 19:11:09",
+      "update_time": "2026-09-07T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "3e79dec310144d7c9a9219a1bcf2dc78",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=3e79dec310144d7c9a9219a1bcf2dc78&page=1&size=20",
+     "raw_file": "raw/list_dwxsgzb_3e79dec310144d7c9a9219a1bcf2dc78.json",
+     "total": 2,
+     "pages": 1,
+     "got_items": 2,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "cdc0aa8c6147454d85fc0eeef30a9105",
+      "title": "学生工作处",
+      "description": "山西晋中理工学院学生工作处部门简介",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/16/图层 733_20250324153829A001_20250516155808A359.webp",
+      "create_time": "2025-04-15 11:51:31",
+      "update_time": "2025-04-16T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "一站式学生社区",
+     "names": [
+      "一站式学生社区"
+     ],
+     "column_id": "ef48b3ce3bdc48289e30bfdfd211e6e3",
+     "component_type": "news",
+     "sources": [
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=ef48b3ce3bdc48289e30bfdfd211e6e3&page=1&size=20",
+     "raw_file": "raw/list_dwxsgzb_ef48b3ce3bdc48289e30bfdfd211e6e3.json",
+     "total": 3,
+     "pages": 1,
+     "got_items": 3,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "4578845e2c7f4842991a621f7ce33a4a",
+      "title": "“一站式”学生服务大厅暖心护航，高效完成新生军训服发放工作",
+      "description": "“一站式”学生服务大厅暖心护航，高效完成新生军训服发放工作",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/dwxsgzb/images/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20250419102702.jpg",
+      "create_time": "2026-09-07 20:03:01",
+      "update_time": "2026-09-06T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "资料下载",
+     "names": [
+      "资料下载"
+     ],
+     "column_id": "5004cc34130044858bf7cc0c1006928a",
+     "component_type": "download",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=5004cc34130044858bf7cc0c1006928a&page=1&size=20",
+     "raw_file": "raw/list_dwxsgzb_5004cc34130044858bf7cc0c1006928a.json",
+     "total": 12,
+     "pages": 1,
+     "got_items": 12,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "06e4faa2ceb042e2a643454d983d7fd9",
+      "title": "山西晋中理工学院学生退学退费审批表",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/dwxsgzb/images/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20250419102702.jpg",
+      "create_time": "2026-09-02 12:16:38",
+      "update_time": "2026-09-02T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "abb5b948056542609cda4afdb1f39382",
+     "component_type": "opinion",
+     "sources": [
+      "nav[8]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=abb5b948056542609cda4afdb1f39382&page=1&size=20",
+     "raw_file": "raw/list_dwxsgzb_abb5b948056542609cda4afdb1f39382.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "5e5ccfadac6141d29528c277d282d989",
+    "column_name": "通知公告",
+    "total": 187,
+    "last_page": 10,
+    "got_items": 7,
+    "expected_items": 7,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=5e5ccfadac6141d29528c277d282d989&page=10&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9fbfe21fde4e4620af51382cd893be6f&column_id=5e5ccfadac6141d29528c277d282d989&page=11&size=20",
+    "last_plus_1_total": 187,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "tw",
+   "site_id": "e1acf637f93242bbbc1426c04f14145c",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "团委",
+   "nav_count": 8,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "f923d5cbb7bf48e2b6f403ab0ac9f834",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=f923d5cbb7bf48e2b6f403ab0ac9f834&page=1&size=20",
+     "raw_file": "raw/list_tw_f923d5cbb7bf48e2b6f403ab0ac9f834.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "48f73004e7e146459b6ee9f8921113d7",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=48f73004e7e146459b6ee9f8921113d7&page=1&size=20",
+     "raw_file": "raw/list_tw_48f73004e7e146459b6ee9f8921113d7.json",
+     "total": 76,
+     "pages": 4,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "cb93e76a47c047f0adac25049ba3dab2",
+      "title": "青春返家乡，志愿显担当｜我校学子桑鹏璐获左权县多部门联合表扬",
+      "description": "近日，中共左权县委社会工作部、共青团左权县委、左权县志愿服务联合会、左权县青年志愿者协会联合向我校发来表扬信",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/09/22/blob_20260922141143A306.webp",
+      "create_time": "2026-09-22 14:09:40",
+      "update_time": "2026-09-17T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "团学动态",
+     "names": [
+      "团学动态"
+     ],
+     "column_id": "24b1083a1a1045cf8d2d98ae8ea251d6",
+     "component_type": "news",
+     "sources": [
+      "home-block:news"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=24b1083a1a1045cf8d2d98ae8ea251d6&page=1&size=20",
+     "raw_file": "raw/list_tw_24b1083a1a1045cf8d2d98ae8ea251d6.json",
+     "total": 121,
+     "pages": 7,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "6781d00cc526413fb6d7a47a828bc5da",
+      "title": "山西晋中理工学院2026年秋季学期 推荐优秀团员列为入党积极分子人选的公示名单",
+      "description": "经过各团支部推荐，各分团委、校团委审核，现将2026年秋季学期推荐优秀团员列为入党积极分子人选的名单公示如下(见附件)，公示时间为五个工作日，若有异议，请与校团委联系。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/09/22/blob_20260922141054A305.webp",
+      "create_time": "2026-09-22 14:12:08",
+      "update_time": "2026-09-22T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "校园活动",
+     "names": [
+      "校园活动"
+     ],
+     "column_id": "97fd831b59694b62bba10bb688dd8094",
+     "component_type": "thematic-center",
+     "sources": [
+      "home-block:activities"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=97fd831b59694b62bba10bb688dd8094&page=1&size=20",
+     "raw_file": "raw/list_tw_97fd831b59694b62bba10bb688dd8094.json",
+     "total": 205,
+     "pages": 11,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "4c9ebefeec2349d8902eb21479da0dab",
+      "title": "“铭记九一八，共筑和平梦”活动圆满结束",
+      "description": "历史的伤痛与不屈抗争的记忆，是铸就民族脊梁的重要底色。先辈浴血抗争的精神历久弥新，激励新时代青年铭记国殇、珍爱和平。为追思九一八事变的苦难历史，山西晋中理工学院于9月18日开展“铭记九一八，共筑和平梦”主题系列活动。校团委书记于乐、智能制造与车辆学院分团委书记张宇、校团委教师史国玉，校团委、校学生会各部门工作人员及各学院学生代表参加，以庄重仪式回望历史、致敬革命先辈。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/09/22/blob_20260922105058A249.webp",
+      "create_time": "2026-09-22 10:51:07",
+      "update_time": "2026-09-20T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "9f8db6310f0944ae924c9311c7b4aedd",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=9f8db6310f0944ae924c9311c7b4aedd&page=1&size=20",
+     "raw_file": "raw/list_tw_9f8db6310f0944ae924c9311c7b4aedd.json",
+     "total": 1,
+     "pages": 1,
+     "got_items": 1,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "1688bf88a4c74f87bbeeeae9d17ee0b7",
+      "title": "团委",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/04/02/图层 733_20250402174335A012.webp",
+      "create_time": "2025-04-02 17:43:39",
+      "update_time": "2025-04-07T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学生组织",
+     "names": [
+      "学生组织"
+     ],
+     "column_id": "232c84eb2cea4c92880da467b5881dce",
+     "component_type": "news",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=232c84eb2cea4c92880da467b5881dce&page=1&size=20",
+     "raw_file": "raw/list_tw_232c84eb2cea4c92880da467b5881dce.json",
+     "total": 33,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "933294dd7d7340ebbe6e2ef6783bb595",
+      "title": "校团委召开2026年团委学生干部培训会",
+      "description": "会上，于乐认真听取了学生主席团成员工作汇报，全面了解学生组织在日常运行、活动开展、服务同学等方面的实际情况，细致梳理工作中存在的问题与不足，并结合实际提出针对性指导意见。于乐指出，学生组织要始终立足同学需求，规范工作流程，强化责任担当，在服务广大同学、引领校园文化建设中切实发挥桥梁纽带作用。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/07/17/blob_20260717153953A935.webp",
+      "create_time": "2026-07-17 15:40:06",
+      "update_time": "2026-04-20T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "志愿服务",
+     "names": [
+      "志愿服务"
+     ],
+     "column_id": "9c15af2f31df416f8b60b4abe07bd1e2",
+     "component_type": "news",
+     "sources": [
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=9c15af2f31df416f8b60b4abe07bd1e2&page=1&size=20",
+     "raw_file": "raw/list_tw_9c15af2f31df416f8b60b4abe07bd1e2.json",
+     "total": 60,
+     "pages": 3,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "259b00383dcc45c1a7fd67c0c9c29ce2",
+      "title": "维护书香秩序，彰显志愿担当",
+      "description": "为有序推进新学期教材发放工作，保障图书馆教材领取现场安全、高效、文明运行，2026年9月15日，我校爱心社组织多名志愿者前往图书馆，开展教材发放秩序维持志愿服务活动，以青春之力护航校园日常，用志愿行动温暖新学期。\r\n为确保活动顺利开展，爱心社提前进行周密部署，明确岗位职责、细化工作流程，对志愿者开展岗前简单培训，强调服务礼仪、纪律要求与疏导要点，确保每位志愿者都能以严谨认真的状态投入工作。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/09/22/blob_20260922110728A283.webp",
+      "create_time": "2026-09-22 11:07:37",
+      "update_time": "2026-09-18T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "多彩社团",
+     "names": [
+      "多彩社团"
+     ],
+     "column_id": "1a318b23eb3d46de9c23da2c7cc56e09",
+     "component_type": "news",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=1a318b23eb3d46de9c23da2c7cc56e09&page=1&size=20",
+     "raw_file": "raw/list_tw_1a318b23eb3d46de9c23da2c7cc56e09.json",
+     "total": 82,
+     "pages": 5,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "7311eed5309141afb6e268f7e52f185b",
+      "title": "社团管理条例修订专题交流会",
+      "description": "2026年8月26日，为进一步健全学生社团常态化运行机制，夯实社团制度化、规范化建设基础，我校于A5大会议室组织开展社团管理条例修订完善专题交流会。本次会议由校团委老师牵头，学生骨干共同参与，针对社团日常管理存在的短板问题开展集中研讨，推进管理制度优化升级。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/09/17/blob_20260917201120A103.webp",
+      "create_time": "2026-09-17 20:11:26",
+      "update_time": "2026-08-26T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "第二课堂",
+     "names": [
+      "第二课堂"
+     ],
+     "column_id": "1eea07ac3f7d4b3389bf7d68353a76c6",
+     "component_type": "news",
+     "sources": [
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=1eea07ac3f7d4b3389bf7d68353a76c6&page=1&size=20",
+     "raw_file": "raw/list_tw_1eea07ac3f7d4b3389bf7d68353a76c6.json",
+     "total": 12,
+     "pages": 1,
+     "got_items": 12,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "a4a28289147a4a20b9ad7c3cbc947d63",
+      "title": "我校到梦空间月活动情况汇总",
+      "description": "当春风轻拂校园枝头，唤醒满园盎然生机，第二课堂活动正如火如荼地进行。校园中，一场场主题鲜明、形式多样的实践活动正有条不紊地开展。志愿公益的暖意、文化艺术的创新、思想成长的深度，在春光里交织碰撞。这些鲜活的第二课堂体验，不仅为同学们搭建了多元成长的平台，更让青春在实践与探索中绽放光彩，成为校园里最动人的风景。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/07/16/blob_20260716214559A900.webp",
+      "create_time": "2026-07-16 21:43:56",
+      "update_time": "2026-04-11T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "资料下载",
+     "names": [
+      "资料下载"
+     ],
+     "column_id": "b93624fb9bba4309b58df6f7e224ad3c",
+     "component_type": "download",
+     "sources": [
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=b93624fb9bba4309b58df6f7e224ad3c&page=1&size=20",
+     "raw_file": "raw/list_tw_b93624fb9bba4309b58df6f7e224ad3c.json",
+     "total": 6,
+     "pages": 1,
+     "got_items": 6,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "77463e9a1ff041cabfad1c85adc81c9a",
+      "title": "山西晋中理工学院关于开展2025年大学生创新训练计划项目立项工作的通知",
+      "description": "山西晋中理工学院关于开展2025年大学生创新训练计划项目立项工作的通知",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/12/0 _2__20250512181701A907.jpg",
+      "create_time": "2025-05-12 18:17:08",
+      "update_time": "2025-04-28T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "97f9f2567eeb4594ba25c87cd45edeaf",
+     "component_type": "opinion",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=97f9f2567eeb4594ba25c87cd45edeaf&page=1&size=20",
+     "raw_file": "raw/list_tw_97f9f2567eeb4594ba25c87cd45edeaf.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "97fd831b59694b62bba10bb688dd8094",
+    "column_name": "校园活动",
+    "total": 205,
+    "last_page": 11,
+    "got_items": 5,
+    "expected_items": 5,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=97fd831b59694b62bba10bb688dd8094&page=11&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e1acf637f93242bbbc1426c04f14145c&column_id=97fd831b59694b62bba10bb688dd8094&page=12&size=20",
+    "last_plus_1_total": 205,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "rlzyc",
+   "site_id": "571d4b7547804e2397a12a4f0503a571",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "人力资源处",
+   "nav_count": 9,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "afc5b542ca2f4d919f216ed614036522",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=afc5b542ca2f4d919f216ed614036522&page=1&size=20",
+     "raw_file": "raw/list_rlzyc_afc5b542ca2f4d919f216ed614036522.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "b646b227cbe84406b675188b45afadc8",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=b646b227cbe84406b675188b45afadc8&page=1&size=20",
+     "raw_file": "raw/list_rlzyc_b646b227cbe84406b675188b45afadc8.json",
+     "total": 25,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "bb9baa18ff8f43f7aad352cf860d94f8",
+      "title": "关于2026届毕业生参加职业技能等级认定考试的通知",
+      "description": "关于2026届毕业生参加职业技能等级认定考试的要求",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/renfac/images/%E6%96%B0%E9%97%BB%E8%83%8C%E6%99%AF%E9%BB%98%E8%AE%A4%E5%9B%BE%EF%BC%88%E6%A8%AA%E7%89%88%EF%BC%89-1_%E7%9C%8B%E5%9B%BE%E7%8E%8B_web.webp",
+      "create_time": "2026-05-29 15:29:34",
+      "update_time": "2026-05-29T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "新闻动态",
+     "names": [
+      "新闻动态"
+     ],
+     "column_id": "89fbe7b24be740aca916256fa9520e83",
+     "component_type": "news",
+     "sources": [
+      "home-block:news",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=89fbe7b24be740aca916256fa9520e83&page=1&size=20",
+     "raw_file": "raw/list_rlzyc_89fbe7b24be740aca916256fa9520e83.json",
+     "total": 22,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "69fb7fbfa4fe44f0ad4c826943668f8b",
+      "title": "汇聚英才，共启新程——山西晋中理工学院2025年春季学期招聘成果丰硕",
+      "description": "2025年山西晋中理工学院春季学期招聘成果",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/renfac/images/%E6%96%B0%E9%97%BB%E8%83%8C%E6%99%AF%E9%BB%98%E8%AE%A4%E5%9B%BE%EF%BC%88%E6%A8%AA%E7%89%88%EF%BC%89-1_%E7%9C%8B%E5%9B%BE%E7%8E%8B_web.webp",
+      "create_time": "2025-07-14 17:08:59",
+      "update_time": "2025-07-14T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "人才招聘",
+     "names": [
+      "人才招聘"
+     ],
+     "column_id": "903c9ab0163943a3948c0790deac9a1e",
+     "component_type": "notice-small",
+     "sources": [
+      "home-block:talent-recruitment",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=903c9ab0163943a3948c0790deac9a1e&page=1&size=20",
+     "raw_file": "raw/list_rlzyc_903c9ab0163943a3948c0790deac9a1e.json",
+     "total": 8,
+     "pages": 1,
+     "got_items": 8,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "b32b8af90d37405f97be2ba60cac1233",
+      "title": "山西晋中理工学院2026年秋季招聘简章",
+      "description": "山西晋中理工学院现面向社会引进各类人才。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/renfac/images/%E6%96%B0%E9%97%BB%E8%83%8C%E6%99%AF%E9%BB%98%E8%AE%A4%E5%9B%BE%EF%BC%88%E6%A8%AA%E7%89%88%EF%BC%89-1_%E7%9C%8B%E5%9B%BE%E7%8E%8B_web.webp",
+      "create_time": "2026-08-24 15:07:40",
+      "update_time": "2026-08-24T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "教师发展",
+     "names": [
+      "教师发展"
+     ],
+     "column_id": "9d2c8e793a3f4f4b9cf669b0fc16b87c",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:teacher-development",
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=9d2c8e793a3f4f4b9cf669b0fc16b87c&page=1&size=20",
+     "raw_file": "raw/list_rlzyc_9d2c8e793a3f4f4b9cf669b0fc16b87c.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "a78ee97e57564182b7abe50e207aacc2",
+     "component_type": "tabs-sub",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=a78ee97e57564182b7abe50e207aacc2&page=1&size=20",
+     "raw_file": "raw/list_rlzyc_a78ee97e57564182b7abe50e207aacc2.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "规章制度",
+     "names": [
+      "规章制度"
+     ],
+     "column_id": "72940768ecdc4b7b9bd5f7f87b5b115f",
+     "component_type": "notice-small",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=72940768ecdc4b7b9bd5f7f87b5b115f&page=1&size=20",
+     "raw_file": "raw/list_rlzyc_72940768ecdc4b7b9bd5f7f87b5b115f.json",
+     "total": 4,
+     "pages": 1,
+     "got_items": 4,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "ec2bd4d732d648a299337046509b769b",
+      "title": "山西晋中理工学院教职工试用期考核办法",
+      "description": "教职工试用期考核准则，要求，考核办法，考核程序以及成绩认定",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/20/1718fd26a6bea9277d98cdcb99845b1_20250520155843A368.jpg",
+      "create_time": "2025-05-20 15:59:47",
+      "update_time": "2025-05-20T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "人资系统",
+     "names": [
+      "人资系统"
+     ],
+     "column_id": "dd61f79263ad494880fd152b6dc1d32b",
+     "component_type": "link",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=dd61f79263ad494880fd152b6dc1d32b&page=1&size=20",
+     "raw_file": "raw/list_rlzyc_dd61f79263ad494880fd152b6dc1d32b.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "1fb8ff4c6a77483a99236e2638e019e2",
+     "component_type": "opinion",
+     "sources": [
+      "nav[8]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=1fb8ff4c6a77483a99236e2638e019e2&page=1&size=20",
+     "raw_file": "raw/list_rlzyc_1fb8ff4c6a77483a99236e2638e019e2.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "b646b227cbe84406b675188b45afadc8",
+    "column_name": "通知公告",
+    "total": 25,
+    "last_page": 2,
+    "got_items": 5,
+    "expected_items": 5,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=b646b227cbe84406b675188b45afadc8&page=2&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=571d4b7547804e2397a12a4f0503a571&column_id=b646b227cbe84406b675188b45afadc8&page=3&size=20",
+    "last_plus_1_total": 25,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "cwc",
+   "site_id": "9725697bdad041d38a0246cbbbd89b20",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "财务资产管理处",
+   "nav_count": 7,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "5a72681e559541d290feb043b51bebdf",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9725697bdad041d38a0246cbbbd89b20&column_id=5a72681e559541d290feb043b51bebdf&page=1&size=20",
+     "raw_file": "raw/list_cwc_5a72681e559541d290feb043b51bebdf.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "6b257fbc0dd54177ba6d4bb76029dbe0",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9725697bdad041d38a0246cbbbd89b20&column_id=6b257fbc0dd54177ba6d4bb76029dbe0&page=1&size=20",
+     "raw_file": "raw/list_cwc_6b257fbc0dd54177ba6d4bb76029dbe0.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "规章制度",
+     "names": [
+      "规章制度"
+     ],
+     "column_id": "51442a773f204e06b619f33f3e5c6ad5",
+     "component_type": "notice-small",
+     "sources": [
+      "home-block:regulations",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9725697bdad041d38a0246cbbbd89b20&column_id=51442a773f204e06b619f33f3e5c6ad5&page=1&size=20",
+     "raw_file": "raw/list_cwc_51442a773f204e06b619f33f3e5c6ad5.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "管理流程",
+     "names": [
+      "管理流程"
+     ],
+     "column_id": "89f1f57c3af340e68b962738d98beb46",
+     "component_type": "notice-small",
+     "sources": [
+      "home-block:service-process",
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9725697bdad041d38a0246cbbbd89b20&column_id=89f1f57c3af340e68b962738d98beb46&page=1&size=20",
+     "raw_file": "raw/list_cwc_89f1f57c3af340e68b962738d98beb46.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "9415e1ec55a84824b1065dea7a7a7e16",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9725697bdad041d38a0246cbbbd89b20&column_id=9415e1ec55a84824b1065dea7a7a7e16&page=1&size=20",
+     "raw_file": "raw/list_cwc_9415e1ec55a84824b1065dea7a7a7e16.json",
+     "total": 1,
+     "pages": 1,
+     "got_items": 1,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "cc3b8540920541b4a75627527584b398",
+      "title": "财务与资产管理处",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/04/07/图层 733_20250407184220A003.webp",
+      "create_time": "2025-04-07 18:42:50",
+      "update_time": "2025-04-07T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "资料下载",
+     "names": [
+      "资料下载"
+     ],
+     "column_id": "d5fad86747284ce59f58321c1171867d",
+     "component_type": "download",
+     "sources": [
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9725697bdad041d38a0246cbbbd89b20&column_id=d5fad86747284ce59f58321c1171867d&page=1&size=20",
+     "raw_file": "raw/list_cwc_d5fad86747284ce59f58321c1171867d.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "728fc8fbd2324cd6ba5ff1ecfb07b9d1",
+     "component_type": "opinion",
+     "sources": [
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9725697bdad041d38a0246cbbbd89b20&column_id=728fc8fbd2324cd6ba5ff1ecfb07b9d1&page=1&size=20",
+     "raw_file": "raw/list_cwc_728fc8fbd2324cd6ba5ff1ecfb07b9d1.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "9415e1ec55a84824b1065dea7a7a7e16",
+    "column_name": "部门概况",
+    "total": 1,
+    "last_page": 1,
+    "got_items": 1,
+    "expected_items": 1,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9725697bdad041d38a0246cbbbd89b20&column_id=9415e1ec55a84824b1065dea7a7a7e16&page=1&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=9725697bdad041d38a0246cbbbd89b20&column_id=9415e1ec55a84824b1065dea7a7a7e16&page=2&size=20",
+    "last_plus_1_total": 1,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "jwc",
+   "site_id": "222fa53591a3494e9c860390039b0844",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "教务处",
+   "nav_count": 7,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "e754bb10580140d5bedf530b7db5518e",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=e754bb10580140d5bedf530b7db5518e&page=1&size=20",
+     "raw_file": "raw/list_jwc_e754bb10580140d5bedf530b7db5518e.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "教务动态",
+     "names": [
+      "教务动态"
+     ],
+     "column_id": "1e5c01825020441191c57a1d2ee4a06d",
+     "component_type": "news",
+     "sources": [
+      "home-block:news",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=1e5c01825020441191c57a1d2ee4a06d&page=1&size=20",
+     "raw_file": "raw/list_jwc_1e5c01825020441191c57a1d2ee4a06d.json",
+     "total": 245,
+     "pages": 13,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "01223003117b4163981d3123a110a678",
+      "title": "巡课查课看开局  凝心聚力抓教学 ——我校开展新学期开学首日教学专项督导检查",
+      "description": "8 月24日，2026-2027学年第一学期正式开课。为全面掌握新学期课堂运行实况，维护良好教学秩序，夯实本科教学质量，学校组织开展开学第一天教学专项督导检查。校党委书记杨正民、校党委副书记尹锡昊、刘继国等校领导带队，教务处、学生工作处、后勤管理处等职能部门工作人员，各学院院领导、教务助理组成多个检查小组，奔赴各教学楼、实验实训场所，深入课堂一线开展实地巡查督导。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/08/25/blob_20260825162900A890.webp",
+      "create_time": "2026-08-25 16:27:23",
+      "update_time": "2026-08-25T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "94511e8fcb8c49b4a1ade5d2fda8a03b",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=94511e8fcb8c49b4a1ade5d2fda8a03b&page=1&size=20",
+     "raw_file": "raw/list_jwc_94511e8fcb8c49b4a1ade5d2fda8a03b.json",
+     "total": 378,
+     "pages": 19,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "046e6ed45ce64980a67f471b8efc157b",
+      "title": "关于开展2026-2027学年第一学期新生开课课堂专项督导的通知",
+      "description": "各学院：\r\n为进一步强化本科教学过程管理，规范新生开课教学秩序，保障新生课堂教学质量，帮助新生快速适应大学课堂学习模式，结合学校 2026-2027学年第一学期教学检查整体工作部署，学校决定开展新生开课课堂专项督导工作。本次专项督导突出‘新生第一课’关键环节，将新生第一课作为督导工作的重中之重，实行第一课必查、必听、必评、必改，确保新生第一课高质量开好。现将有关事项通知如下：",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-09-26 14:22:35",
+      "update_time": "2026-09-26T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "规章制度",
+     "names": [
+      "规章制度"
+     ],
+     "column_id": "4f0ffb3878b64411ba559295b411cf1c",
+     "component_type": "notice-small",
+     "sources": [
+      "home-block:regulations",
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=4f0ffb3878b64411ba559295b411cf1c&page=1&size=20",
+     "raw_file": "raw/list_jwc_4f0ffb3878b64411ba559295b411cf1c.json",
+     "total": 12,
+     "pages": 1,
+     "got_items": 12,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "b8821e95ac31434980cc287ef087eb0e",
+      "title": "山西晋中理工学院学生教学信息员工作制度 ",
+      "description": " 院发教字[2025]7号 山西晋中理工学院学生教学信息员工作制度如下：\r\n",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-05-20 16:11:50",
+      "update_time": "2025-04-24T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "校园日历",
+     "names": [
+      "校园日历"
+     ],
+     "column_id": "d0fb6bbd281144eebd8f817bb38c12b0",
+     "component_type": "calendar",
+     "sources": [
+      "home-block:calendar"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=d0fb6bbd281144eebd8f817bb38c12b0&page=1&size=20",
+     "raw_file": "raw/list_jwc_d0fb6bbd281144eebd8f817bb38c12b0.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "56452645823242098c7c1a8f6773c691",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=56452645823242098c7c1a8f6773c691&page=1&size=20",
+     "raw_file": "raw/list_jwc_56452645823242098c7c1a8f6773c691.json",
+     "total": 1,
+     "pages": 1,
+     "got_items": 1,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "97a6d8d724984e28b16924feb1f56e10",
+      "title": "教务处",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/03/30/图层 733_20250330201837A001.webp",
+      "create_time": "2025-03-30 20:18:43",
+      "update_time": "2025-03-30T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "资料下载",
+     "names": [
+      "资料下载"
+     ],
+     "column_id": "8f56d6aedede4101b2aa9e8f81cc6ce6",
+     "component_type": "download",
+     "sources": [
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=8f56d6aedede4101b2aa9e8f81cc6ce6&page=1&size=20",
+     "raw_file": "raw/list_jwc_8f56d6aedede4101b2aa9e8f81cc6ce6.json",
+     "total": 17,
+     "pages": 1,
+     "got_items": 17,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "71e607e58fd147da89f11ec7f5083a64",
+      "title": "缓考申请表",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-04-18 11:42:48",
+      "update_time": "2025-11-25T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "5a7abcce286d4596bd98519e3d22072a",
+     "component_type": "opinion",
+     "sources": [
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=5a7abcce286d4596bd98519e3d22072a&page=1&size=20",
+     "raw_file": "raw/list_jwc_5a7abcce286d4596bd98519e3d22072a.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "94511e8fcb8c49b4a1ade5d2fda8a03b",
+    "column_name": "通知公告",
+    "total": 378,
+    "last_page": 19,
+    "got_items": 18,
+    "expected_items": 18,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=94511e8fcb8c49b4a1ade5d2fda8a03b&page=19&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=222fa53591a3494e9c860390039b0844&column_id=94511e8fcb8c49b4a1ade5d2fda8a03b&page=20&size=20",
+    "last_plus_1_total": 378,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "zsw",
+   "site_id": "cb3b1fe4fcdf40999b0c162015c3326d",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "招生网",
+   "nav_count": 2,
+   "columns": [
+    {
+     "name": "招生网",
+     "names": [
+      "招生网"
+     ],
+     "column_id": "558d002ca3be4640afec80d1ab0fb4e2",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=558d002ca3be4640afec80d1ab0fb4e2&page=1&size=20",
+     "raw_file": "raw/list_zsw_558d002ca3be4640afec80d1ab0fb4e2.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "首页一屏3栏目",
+     "names": [
+      "首页一屏3栏目"
+     ],
+     "column_id": "0f51c32c9a8f43af99cf1fc2522be3d9",
+     "component_type": "recruit",
+     "sources": [
+      "home-block:one"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=0f51c32c9a8f43af99cf1fc2522be3d9&page=1&size=20",
+     "raw_file": "raw/list_zsw_0f51c32c9a8f43af99cf1fc2522be3d9.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "招生计划",
+     "names": [
+      "招生计划"
+     ],
+     "column_id": "3dcb7a8714cb48bc9067531ce7382f7c",
+     "component_type": "news",
+     "sources": [
+      "home-block:enrollment-plan"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=3dcb7a8714cb48bc9067531ce7382f7c&page=1&size=20",
+     "raw_file": "raw/list_zsw_3dcb7a8714cb48bc9067531ce7382f7c.json",
+     "total": 6,
+     "pages": 1,
+     "got_items": 6,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "eb4c530ba524477c86e9555bbb693fa8",
+      "title": "2026年招生计划",
+      "description": "2026年招生计划",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/zhaoshw/images/6cd9a2a61ce44a62df7fe1db1f3868d.jpg",
+      "create_time": "2026-06-30 16:43:06",
+      "update_time": "2026-06-30T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "招生公告",
+     "names": [
+      "招生公告"
+     ],
+     "column_id": "544db2a75af445be89ce777b834fbcac",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=544db2a75af445be89ce777b834fbcac&page=1&size=20",
+     "raw_file": "raw/list_zsw_544db2a75af445be89ce777b834fbcac.json",
+     "total": 21,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "a80c9d03787f47888ad653b7fe8e6ede",
+      "title": "山西晋中理工学院2026年招生章程",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-06-08 09:05:40",
+      "update_time": "2026-06-08T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "报考指南",
+     "names": [
+      "报考指南"
+     ],
+     "column_id": "d11f4653ed8a4b50a43565c288f54074",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:application-guide"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=d11f4653ed8a4b50a43565c288f54074&page=1&size=20",
+     "raw_file": "raw/list_zsw_d11f4653ed8a4b50a43565c288f54074.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "招生动态",
+     "names": [
+      "招生动态"
+     ],
+     "column_id": "35f6a01d451f4cc1b0f5704fab71dfcb",
+     "component_type": "notice",
+     "sources": [
+      "home-block:enrollment-news"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=35f6a01d451f4cc1b0f5704fab71dfcb&page=1&size=20",
+     "raw_file": "raw/list_zsw_35f6a01d451f4cc1b0f5704fab71dfcb.json",
+     "total": 108,
+     "pages": 6,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "f8bbe44ff40b4010a9bddef1bec72ee5",
+      "title": "新疆维吾尔自治区丨2026年山西晋中理工学院录取公告（三十二）",
+      "description": "我校在新疆维吾尔自治区招生录取工作顺利完成，现将录取情况公布如下：",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-08-06 15:25:01",
+      "update_time": "2026-08-06T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "就业信息网",
+     "names": [
+      "就业信息网"
+     ],
+     "column_id": "bad9100e431544e489c5829dfd98270a",
+     "component_type": "link",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=bad9100e431544e489c5829dfd98270a&page=1&size=20",
+     "raw_file": "raw/list_zsw_bad9100e431544e489c5829dfd98270a.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "35f6a01d451f4cc1b0f5704fab71dfcb",
+    "column_name": "招生动态",
+    "total": 108,
+    "last_page": 6,
+    "got_items": 8,
+    "expected_items": 8,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=35f6a01d451f4cc1b0f5704fab71dfcb&page=6&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cb3b1fe4fcdf40999b0c162015c3326d&column_id=35f6a01d451f4cc1b0f5704fab71dfcb&page=7&size=20",
+    "last_plus_1_total": 108,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "hqglc",
+   "site_id": "27c4a698e7fc4abea886eb4610f374e3",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "后勤管理处",
+   "nav_count": 4,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "744f25fe88f24669a26f97cf12809a03",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=27c4a698e7fc4abea886eb4610f374e3&column_id=744f25fe88f24669a26f97cf12809a03&page=1&size=20",
+     "raw_file": "raw/list_hqglc_744f25fe88f24669a26f97cf12809a03.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "工作动态",
+     "names": [
+      "工作动态"
+     ],
+     "column_id": "2761dde1e81a4807b4615892bacd3374",
+     "component_type": "news",
+     "sources": [
+      "home-block:news",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=27c4a698e7fc4abea886eb4610f374e3&column_id=2761dde1e81a4807b4615892bacd3374&page=1&size=20",
+     "raw_file": "raw/list_hqglc_2761dde1e81a4807b4615892bacd3374.json",
+     "total": 28,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "bdcc6b77800e4012ba93602fba94c5be",
+      "title": "抓实暑期维修提质升级  全力护航新学期返校开学 ——校领导带队开展校园暑期维修项目专项检查",
+      "description": " ——校领导带队开展校园暑期维修项目专项检查",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/08/10/blob_20260810160334A284.webp",
+      "create_time": "2026-08-10 16:05:14",
+      "update_time": "2026-08-10T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "ad045d9f41344e8a80bc3ef85faf13e4",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=27c4a698e7fc4abea886eb4610f374e3&column_id=ad045d9f41344e8a80bc3ef85faf13e4&page=1&size=20",
+     "raw_file": "raw/list_hqglc_ad045d9f41344e8a80bc3ef85faf13e4.json",
+     "total": 5,
+     "pages": 1,
+     "got_items": 5,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "264decae4a97468c87e67b2e3bbd42e6",
+      "title": "校园病虫害防治及安全提醒通知",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-05-08 17:30:44",
+      "update_time": "2026-05-08T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "c17ec145e1ce42b0afa77da55bc3d030",
+     "component_type": "tabs-sub",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=27c4a698e7fc4abea886eb4610f374e3&column_id=c17ec145e1ce42b0afa77da55bc3d030&page=1&size=20",
+     "raw_file": "raw/list_hqglc_c17ec145e1ce42b0afa77da55bc3d030.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "2761dde1e81a4807b4615892bacd3374",
+    "column_name": "工作动态",
+    "total": 28,
+    "last_page": 2,
+    "got_items": 8,
+    "expected_items": 8,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=27c4a698e7fc4abea886eb4610f374e3&column_id=2761dde1e81a4807b4615892bacd3374&page=2&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=27c4a698e7fc4abea886eb4610f374e3&column_id=2761dde1e81a4807b4615892bacd3374&page=3&size=20",
+    "last_plus_1_total": 28,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "kyc",
+   "site_id": "6030fbf696d543f3a93bf537ca0af899",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "科研处",
+   "nav_count": 7,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "7b7ecc65868a4962845ab96ad4104b4a",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=7b7ecc65868a4962845ab96ad4104b4a&page=1&size=20",
+     "raw_file": "raw/list_kyc_7b7ecc65868a4962845ab96ad4104b4a.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "6a38de1f30d2418b98caab5a82e55383",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=6a38de1f30d2418b98caab5a82e55383&page=1&size=20",
+     "raw_file": "raw/list_kyc_6a38de1f30d2418b98caab5a82e55383.json",
+     "total": 72,
+     "pages": 4,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "78cb4a42bd00496a88bc44116480d9c7",
+      "title": "关于组织开展山西省教育科学“十五五”规划2026年度教育评价改革专项课题申报工作的通知",
+      "description": "各单位：\r\n为深入贯彻落实《深化新时代教育评价改革总体方案》《教育发展“十五五”规划》部署要求，全面推进我省教育评价改革，充分发挥教育研究在教育评价改革中的支撑、驱动和引领作用。山西省教育科学规划领导小组办公室组织开展山西省教育科学“十五五”规划2026年度教育评价改革专项课题申报工作。现就申报事宜通知如下：",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-09-17 10:26:32",
+      "update_time": "2026-09-17T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "科研动态",
+     "names": [
+      "科研动态"
+     ],
+     "column_id": "4192b11be03d404b9c7eef81bfc675ac",
+     "component_type": "news",
+     "sources": [
+      "home-block:news",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=4192b11be03d404b9c7eef81bfc675ac&page=1&size=20",
+     "raw_file": "raw/list_kyc_4192b11be03d404b9c7eef81bfc675ac.json",
+     "total": 30,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "052878bb319b4aa1bcb2ed38353341a6",
+      "title": "喜报｜我校2025年度青少年发展与工作课题顺利结项",
+      "description": "近日，2025年度青少年发展与工作课题结项评审结果正式公布。我校申报的该课题顺利完成各项研究任务，通过专家组验收圆满结项。其中，我校许芝铖老师主持的课题成果质量优异，获评优秀奖。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/09/03/blob_20260903114116A428.webp",
+      "create_time": "2026-09-03 11:41:18",
+      "update_time": "2026-09-03T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "资料下载",
+     "names": [
+      "资料下载"
+     ],
+     "column_id": "a0e87750c04441b29a58c9dbb392d0de",
+     "component_type": "download",
+     "sources": [
+      "home-block:download",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=a0e87750c04441b29a58c9dbb392d0de&page=1&size=20",
+     "raw_file": "raw/list_kyc_a0e87750c04441b29a58c9dbb392d0de.json",
+     "total": 2,
+     "pages": 1,
+     "got_items": 2,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "41751dc85f2443e4906c188efccd1eef",
+      "title": "山西晋中理工学院专利申请审批备案表",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-04-15 17:05:26",
+      "update_time": "2025-04-15T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "05550caf30594ff186dc71d64987e29e",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=05550caf30594ff186dc71d64987e29e&page=1&size=20",
+     "raw_file": "raw/list_kyc_05550caf30594ff186dc71d64987e29e.json",
+     "total": 1,
+     "pages": 1,
+     "got_items": 1,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "379b36ca43c84f1b921dae5d0e94d124",
+      "title": "科研处",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/15/bg_20250515150804A609.webp",
+      "create_time": "2025-05-15 15:08:13",
+      "update_time": "2025-05-15T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "科研政策",
+     "names": [
+      "科研政策"
+     ],
+     "column_id": "6cfbb5241f434d5e8b2801ba77993ba3",
+     "component_type": "notice-small",
+     "sources": [
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=6cfbb5241f434d5e8b2801ba77993ba3&page=1&size=20",
+     "raw_file": "raw/list_kyc_6cfbb5241f434d5e8b2801ba77993ba3.json",
+     "total": 4,
+     "pages": 1,
+     "got_items": 4,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "5314",
+      "title": "高等学校哲学社会科学研究项目管理办法",
+      "description": "高等学校哲学社会科学研究项目管理办法",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/2025/01/11/849d7214-ac1d-4741-9158-4a7a67e33a2d1736558124187.jpeg",
+      "create_time": "",
+      "update_time": "2024-12-17T00:00:00",
+      "tag": "tag",
+      "sort": 10000
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "科研项目",
+     "names": [
+      "科研项目"
+     ],
+     "column_id": "f4689b4b63b44855a2daae9944ed00d4",
+     "component_type": "notice-small",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=f4689b4b63b44855a2daae9944ed00d4&page=1&size=20",
+     "raw_file": "raw/list_kyc_f4689b4b63b44855a2daae9944ed00d4.json",
+     "total": 5,
+     "pages": 1,
+     "got_items": 5,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "76860b7ee11843d09000a6d0461b4c48",
+      "title": "我校2024年度党建研究专项课题圆满结项",
+      "description": "2024年度山西省党建研究专项课题结项评审工作已结束，经专家组严格评审，我校教师柳杨的课题研究成果《校企合作视域下高校流动党员管理机制构建探析——以山西晋中理工学院为例》顺利结项。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/04/21/微信图片_2025-04-21_160412_318_20250421160822A695.jpg",
+      "create_time": "2025-04-21 16:08:28",
+      "update_time": "2025-04-21T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "科协工作",
+     "names": [
+      "科协工作"
+     ],
+     "column_id": "b550d64b6e0d4cfe9e3b0e27f396cea0",
+     "component_type": "notice-small",
+     "sources": [
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=b550d64b6e0d4cfe9e3b0e27f396cea0&page=1&size=20",
+     "raw_file": "raw/list_kyc_b550d64b6e0d4cfe9e3b0e27f396cea0.json",
+     "total": 3,
+     "pages": 1,
+     "got_items": 3,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "229f061b7dca431589dabeef3efdf5cf",
+      "title": "关于开展晋中市2025年科普短视频竞赛活动的通知",
+      "description": "为弘扬科学精神、普及科学知识，深入贯彻落实习近平总书记关于科学普及与科技创新同等重要的重要指示精神，提升全民科学素质，在全社会营造学科学、爱科学、用科学的良好氛围，根据晋中市科协工作要求，现计划在全校范围内开展2025年科普短视频竞赛活动。现将有关事项通知如下：",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-05-15 10:23:45",
+      "update_time": "2025-05-15T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "6a38de1f30d2418b98caab5a82e55383",
+    "column_name": "通知公告",
+    "total": 72,
+    "last_page": 4,
+    "got_items": 12,
+    "expected_items": 12,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=6a38de1f30d2418b98caab5a82e55383&page=4&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6030fbf696d543f3a93bf537ca0af899&column_id=6a38de1f30d2418b98caab5a82e55383&page=5&size=20",
+    "last_plus_1_total": 72,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "dwbwb",
+   "site_id": "21184757a5c84833be6abf2cf2bede3f",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "保卫处",
+   "nav_count": 4,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "026e017e53274c76aede09d23d5dae9b",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=21184757a5c84833be6abf2cf2bede3f&column_id=026e017e53274c76aede09d23d5dae9b&page=1&size=20",
+     "raw_file": "raw/list_dwbwb_026e017e53274c76aede09d23d5dae9b.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "9bdbe332e48c4384b7dcace91e43c8ac",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=21184757a5c84833be6abf2cf2bede3f&column_id=9bdbe332e48c4384b7dcace91e43c8ac&page=1&size=20",
+     "raw_file": "raw/list_dwbwb_9bdbe332e48c4384b7dcace91e43c8ac.json",
+     "total": 6,
+     "pages": 1,
+     "got_items": 6,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "df2c0d0c87a14281b6e222e5690494db",
+      "title": "关于认真组织收听收看2025年春季全国高校消防安全公开课的通知",
+      "description": "关于认真组织收听收看2025年春季全国高校消防安全公开课的通知",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-05-21 09:11:08",
+      "update_time": "2025-03-17T00:00:00",
+      "tag": "关于认真组织收听收看2025年春季全国高校消防安全公开课的通知",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "工作动态",
+     "names": [
+      "工作动态"
+     ],
+     "column_id": "b0405cff28ad4e069f602b5fc81d3c51",
+     "component_type": "news",
+     "sources": [
+      "home-block:news",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=21184757a5c84833be6abf2cf2bede3f&column_id=b0405cff28ad4e069f602b5fc81d3c51&page=1&size=20",
+     "raw_file": "raw/list_dwbwb_b0405cff28ad4e069f602b5fc81d3c51.json",
+     "total": 10,
+     "pages": 1,
+     "got_items": 10,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "3353",
+      "title": "4•15全民国家安全教育日 | 总体国家安全观，创新引领十周年",
+      "description": "4•15全民国家安全教育日 | 总体国家安全观，创新引领十周年",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/2025/01/15/81f3628f-f27b-4193-9404-a6e5c6b065f71736916599815.jpeg",
+      "create_time": "",
+      "update_time": "2024-04-15T00:00:00",
+      "tag": "tag",
+      "sort": 10000
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "管理流程",
+     "names": [
+      "管理流程"
+     ],
+     "column_id": "75a4b94d309b4e58822be98c6f89bd3d",
+     "component_type": "notice-small",
+     "sources": [
+      "home-block:service-process",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=21184757a5c84833be6abf2cf2bede3f&column_id=75a4b94d309b4e58822be98c6f89bd3d&page=1&size=20",
+     "raw_file": "raw/list_dwbwb_75a4b94d309b4e58822be98c6f89bd3d.json",
+     "total": 2,
+     "pages": 1,
+     "got_items": 2,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "396e2627ad1f4093b5a51e4b3213a08e",
+      "title": "校园临时活动申请表（附表）",
+      "description": "校园临时活动申请表（附表）",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-05-21 11:05:19",
+      "update_time": "2025-05-21T00:00:00",
+      "tag": "校园临时活动申请表（附表）",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "87faa749da6b42a9876c8ce33d46cd6b",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=21184757a5c84833be6abf2cf2bede3f&column_id=87faa749da6b42a9876c8ce33d46cd6b&page=1&size=20",
+     "raw_file": "raw/list_dwbwb_87faa749da6b42a9876c8ce33d46cd6b.json",
+     "total": 1,
+     "pages": 1,
+     "got_items": 1,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "61ba793b8ee140b8bf5b40260d16757c",
+      "title": "保卫处",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/04/02/图层 733_20250402172955A010.webp",
+      "create_time": "2025-04-02 17:29:59",
+      "update_time": "2025-04-07T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "b0405cff28ad4e069f602b5fc81d3c51",
+    "column_name": "工作动态",
+    "total": 10,
+    "last_page": 1,
+    "got_items": 10,
+    "expected_items": 10,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=21184757a5c84833be6abf2cf2bede3f&column_id=b0405cff28ad4e069f602b5fc81d3c51&page=1&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=21184757a5c84833be6abf2cf2bede3f&column_id=b0405cff28ad4e069f602b5fc81d3c51&page=2&size=20",
+    "last_plus_1_total": 10,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": "org树该 site_key 的 site_id 为空，site_id 仅能从 home2 响应取得"
+  },
+  {
+   "site_key": "xcdsj",
+   "site_id": "890cf93e62aa47a0983aa5f551c92e4a",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "信创与大数据学院",
+   "nav_count": 9,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "817df509097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817df509097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_817df509097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "817cc143097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:college-introduction",
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817cc143097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_817cc143097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院映像",
+     "names": [
+      "学院映像"
+     ],
+     "column_id": "f08f4cbb5cbe44cea57899cf39d2b3f1",
+     "component_type": "videos",
+     "sources": [
+      "home-block:college-videos"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=f08f4cbb5cbe44cea57899cf39d2b3f1&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_f08f4cbb5cbe44cea57899cf39d2b3f1.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "最新动态",
+     "names": [
+      "最新动态"
+     ],
+     "column_id": "817d943f097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:latest-news",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817d943f097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_817d943f097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院新闻",
+     "names": [
+      "学院新闻"
+     ],
+     "column_id": "817dfe40097911f08df500163e031f40",
+     "component_type": "news-important",
+     "sources": [
+      "home-block:news",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817dfe40097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_817dfe40097911f08df500163e031f40.json",
+     "total": 389,
+     "pages": 20,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "7582059aec0049ac94790569ce16b553",
+      "title": "叮咚！赴秋之约 开启大学新序章",
+      "description": "浸着浅浅的秋风\r\n\r\n携着盛夏的余温\r\n\r\n载着家人的殷殷期盼\r\n\r\n怀揣奔赴山海的滚烫理想\r\n\r\n在丹桂飘香、硕果盈枝的九月\r\n\r\n我们与崭新的你欣然相遇",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/09/13/blob_20260913210244A171.webp",
+      "create_time": "2026-09-13 21:02:47",
+      "update_time": "2026-09-13T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "专题中心",
+     "names": [
+      "专题中心"
+     ],
+     "column_id": "817d9787097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:thematic-center",
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817d9787097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_817d9787097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "党群工作",
+     "names": [
+      "党群工作"
+     ],
+     "column_id": "817ccbd5097911f08df500163e031f40",
+     "component_type": "news",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817ccbd5097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_817ccbd5097911f08df500163e031f40.json",
+     "total": 6,
+     "pages": 1,
+     "got_items": 6,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "e354ebc2b15148ddbdc57aab51d86047",
+      "title": "网络与通信工程系第二党支部“学条例、 守党纪、 建设清廉校园” 党日活动",
+      "description": "5月23日网络与通信工程系第二党支部于D305开展了学习“学条例、守党纪、建设清廉校园” 主题党日活动。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/16/图片7 拷贝_20250516105909A015.jpg",
+      "create_time": "2025-05-16 11:01:20",
+      "update_time": "2025-05-16T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "817cb9ee097911f08df500163e031f40",
+     "component_type": "notice",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817cb9ee097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_817cb9ee097911f08df500163e031f40.json",
+     "total": 53,
+     "pages": 3,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "62195e31930e4d8db49ddd9effc65efb",
+      "title": "关于评选我校2023-2024学年第二学期优良学风班的通知",
+      "description": "根据《山西晋中理工学院优良学风班创建与评选办法》规定，现开展2023-2024学年第二学期优良学风班评选工作，请各班按照《山西晋中理工学院优良学风班创建与评选办法》进行申报，各班准备《优良学风班自评报告》和《班级事迹材料》，班主任审核无误后签字，上报学院。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-05-19 21:08:21",
+      "update_time": "2025-05-19T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "师生风采",
+     "names": [
+      "师生风采"
+     ],
+     "column_id": "817e0afe097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817e0afe097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_817e0afe097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "817cb724097911f08df500163e031f40",
+     "component_type": "0",
+     "sources": [
+      "nav[8]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817cb724097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_xcdsj_817cb724097911f08df500163e031f40.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "817dfe40097911f08df500163e031f40",
+    "column_name": "学院新闻",
+    "total": 389,
+    "last_page": 20,
+    "got_items": 9,
+    "expected_items": 9,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817dfe40097911f08df500163e031f40&page=20&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=890cf93e62aa47a0983aa5f551c92e4a&column_id=817dfe40097911f08df500163e031f40&page=21&size=20",
+    "last_plus_1_total": 389,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "znzzcl",
+   "site_id": "6fe4387f78ba4b42b9807ff86ca0df1f",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "智能制造与车辆学院",
+   "nav_count": 9,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "878d24aef10f4c4a9e6a11354ae2893c",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=878d24aef10f4c4a9e6a11354ae2893c&page=1&size=20",
+     "raw_file": "raw/list_znzzcl_878d24aef10f4c4a9e6a11354ae2893c.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "1e11ad33de934843a9300c2192d50c95",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:college-introduction",
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=1e11ad33de934843a9300c2192d50c95&page=1&size=20",
+     "raw_file": "raw/list_znzzcl_1e11ad33de934843a9300c2192d50c95.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "最新动态",
+     "names": [
+      "最新动态"
+     ],
+     "column_id": "7e169361226d48b2b0a4eba762efc1ab",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:latest-news",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=7e169361226d48b2b0a4eba762efc1ab&page=1&size=20",
+     "raw_file": "raw/list_znzzcl_7e169361226d48b2b0a4eba762efc1ab.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院新闻",
+     "names": [
+      "学院新闻"
+     ],
+     "column_id": "ae829fc3e34b4224accb377c8137d32e",
+     "component_type": "news-important",
+     "sources": [
+      "home-block:news",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=ae829fc3e34b4224accb377c8137d32e&page=1&size=20",
+     "raw_file": "raw/list_znzzcl_ae829fc3e34b4224accb377c8137d32e.json",
+     "total": 226,
+     "pages": 12,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "8834f8dc40df41c3b12a7ab5d04f42d9",
+      "title": "暖心入寝，关爱面对面｜校领导走访2026级新生宿舍",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/znzzcl/images/87a314e22cd48542742ba85d5b285a97.jpg",
+      "create_time": "2026-09-09 17:20:47",
+      "update_time": "2026-09-05T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "专题中心",
+     "names": [
+      "专题中心"
+     ],
+     "column_id": "8567ad37b89d4e88b69f30d3d63ce01a",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:thematic-center",
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=8567ad37b89d4e88b69f30d3d63ce01a&page=1&size=20",
+     "raw_file": "raw/list_znzzcl_8567ad37b89d4e88b69f30d3d63ce01a.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "党群工作",
+     "names": [
+      "党群工作"
+     ],
+     "column_id": "490043875e184ad49f86f909fdd2c839",
+     "component_type": "news",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=490043875e184ad49f86f909fdd2c839&page=1&size=20",
+     "raw_file": "raw/list_znzzcl_490043875e184ad49f86f909fdd2c839.json",
+     "total": 12,
+     "pages": 1,
+     "got_items": 12,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "5a476bd9e76443e68823c5aaf5fc1899",
+      "title": "智能制造与车辆学院电气工程系第一党支部、机械工程系党支部联合财会系第一、第二党支部开展红色研学活动",
+      "description": "智能制造与车辆学院电气工程系第一党支部、机械工程系党支部联合财会系第一、第二党支部开展红色研学活动",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/12/16/blob_20251216165015A355.webp",
+      "create_time": "2025-12-16 16:50:28",
+      "update_time": "2025-11-22T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "03b20b47f4c14686b4339adcb350d18d",
+     "component_type": "notice",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=03b20b47f4c14686b4339adcb350d18d&page=1&size=20",
+     "raw_file": "raw/list_znzzcl_03b20b47f4c14686b4339adcb350d18d.json",
+     "total": 30,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "38f9c72e168b41b0b602bd1bacf72b13",
+      "title": "关于组织参加2025年山西省防震减灾科普作品大赛的通知",
+      "description": "关于组织参加2025年山西省防震减灾科普作品大赛的通知",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-08-10 17:37:31",
+      "update_time": "2025-08-01T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "师生风采",
+     "names": [
+      "师生风采"
+     ],
+     "column_id": "e7edea826c1c4664896392608104cf17",
+     "component_type": "",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=e7edea826c1c4664896392608104cf17&page=1&size=20",
+     "raw_file": "raw/list_znzzcl_e7edea826c1c4664896392608104cf17.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "03a0427287244c1fabd49c5185ed0be9",
+     "component_type": "",
+     "sources": [
+      "nav[8]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=03a0427287244c1fabd49c5185ed0be9&page=1&size=20",
+     "raw_file": "raw/list_znzzcl_03a0427287244c1fabd49c5185ed0be9.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "ae829fc3e34b4224accb377c8137d32e",
+    "column_name": "学院新闻",
+    "total": 226,
+    "last_page": 12,
+    "got_items": 6,
+    "expected_items": 6,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=ae829fc3e34b4224accb377c8137d32e&page=12&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=6fe4387f78ba4b42b9807ff86ca0df1f&column_id=ae829fc3e34b4224accb377c8137d32e&page=13&size=20",
+    "last_plus_1_total": 226,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "sxy",
+   "site_id": "c85524251e1b4ca19d7f4c7b0de482bb",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "商学院",
+   "nav_count": 9,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "817d98fb097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817d98fb097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_sxy_817d98fb097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "817cc08f097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:college-introduction",
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817cc08f097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_sxy_817cc08f097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "最新动态",
+     "names": [
+      "最新动态"
+     ],
+     "column_id": "817d93c4097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:latest-news",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817d93c4097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_sxy_817d93c4097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院新闻",
+     "names": [
+      "学院新闻"
+     ],
+     "column_id": "817dfdcb097911f08df500163e031f40",
+     "component_type": "news-important",
+     "sources": [
+      "home-block:news",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817dfdcb097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_sxy_817dfdcb097911f08df500163e031f40.json",
+     "total": 97,
+     "pages": 5,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "7d87370e20604d9caa7a445d5795bedc",
+      "title": "深耕数字财经,锻造硬核师资",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/09/09/blob_20260909192252A637.webp",
+      "create_time": "2026-09-09 19:26:55",
+      "update_time": "2026-09-07T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "专题中心",
+     "names": [
+      "专题中心"
+     ],
+     "column_id": "817d96db097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:thematic-center",
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817d96db097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_sxy_817d96db097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "党群工作",
+     "names": [
+      "党群工作"
+     ],
+     "column_id": "817ccb21097911f08df500163e031f40",
+     "component_type": "news",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817ccb21097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_sxy_817ccb21097911f08df500163e031f40.json",
+     "total": 12,
+     "pages": 1,
+     "got_items": 12,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "38f18af9ec7f48f79d38271d9f894881",
+      "title": "深学细悟强思想  薪火传承明方向 ——商学院党总支扎实开展专题理论学习与主题党日活动",
+      "description": "为深入推进全面从严治党向基层延伸，以理论学习筑牢思想根基。10月15日—10月21日，商学院党总支聚焦理论学习核心，组织各党支部开展《整治形式主义为基层减负若干规定》专题学习、石泰峰同志重要讲话精神研讨，并同步开展“阔步奋进强国路、传承薪火赴新程”主题党日活动，切实以理论武装强化党员思想自觉，为学院商科教育高质量发展凝聚思想共识。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/11/06/blob_20251106114242A136.webp",
+      "create_time": "2025-11-06 11:44:06",
+      "update_time": "2025-10-21T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "817cb932097911f08df500163e031f40",
+     "component_type": "notice",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817cb932097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_sxy_817cb932097911f08df500163e031f40.json",
+     "total": 149,
+     "pages": 8,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "d1a64ece51c94721a5b7aefddb3b0980",
+      "title": "商学院2025-2026学年国家奖学金获奖学生推荐名单公示",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-09-22 15:33:52",
+      "update_time": "2026-09-17T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "师生风采",
+     "names": [
+      "师生风采"
+     ],
+     "column_id": "817e0a91097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817e0a91097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_sxy_817e0a91097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "817cb66c097911f08df500163e031f40",
+     "component_type": "0",
+     "sources": [
+      "nav[8]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817cb66c097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_sxy_817cb66c097911f08df500163e031f40.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "817cb932097911f08df500163e031f40",
+    "column_name": "通知公告",
+    "total": 149,
+    "last_page": 8,
+    "got_items": 9,
+    "expected_items": 9,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817cb932097911f08df500163e031f40&page=8&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=c85524251e1b4ca19d7f4c7b0de482bb&column_id=817cb932097911f08df500163e031f40&page=9&size=20",
+    "last_plus_1_total": 149,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "clhj",
+   "site_id": "7575582d988949a0a3d70fcceba26cb5",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "材料与环境学院",
+   "nav_count": 9,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "817d994d097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817d994d097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_clhj_817d994d097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "817cc0ea097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:college-introduction",
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817cc0ea097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_clhj_817cc0ea097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "最新动态",
+     "names": [
+      "最新动态"
+     ],
+     "column_id": "817d9403097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:latest-news",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817d9403097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_clhj_817d9403097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院新闻",
+     "names": [
+      "学院新闻"
+     ],
+     "column_id": "817dfe08097911f08df500163e031f40",
+     "component_type": "news-important",
+     "sources": [
+      "home-block:news",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817dfe08097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_clhj_817dfe08097911f08df500163e031f40.json",
+     "total": 306,
+     "pages": 16,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "92a3d4e317ce4e1399915d47978bf8a9",
+      "title": "以实践为基 以创新为魂——材料与环境学院26级普本新生开展工程训练中心现场参观教学活动",
+      "description": "为夯实新生专业基础、打通理论与实践壁垒，培育学生工程实践能力与创新思维，助力新生快速融入专业学习、树立科研创新理念。2026年9月22日10∶20，材料与环境学院组织26级普本新生前往学校工程训练中心，开展“以实践为基，以创新为魂”主题现场参观教学活动，让新生走出课堂、走进实训一线，沉浸式感受材料工程专业的实践魅力与工科创新力量。﻿",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/09/23/blob_20260923144638A411.webp",
+      "create_time": "2026-09-23 14:45:59",
+      "update_time": "2026-09-22T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "专题中心",
+     "names": [
+      "专题中心"
+     ],
+     "column_id": "817d9733097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:thematic-center",
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817d9733097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_clhj_817d9733097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "党群工作",
+     "names": [
+      "党群工作"
+     ],
+     "column_id": "817ccb79097911f08df500163e031f40",
+     "component_type": "news",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817ccb79097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_clhj_817ccb79097911f08df500163e031f40.json",
+     "total": 6,
+     "pages": 1,
+     "got_items": 6,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "9d5a02349bff4939a17e2fa05d20c32e",
+      "title": "“学雷锋精神，树文明新风” 党日活动",
+      "description": "环境与安全工程系党支部开展“学雷锋精神，树文明新风”党日活动。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/18/5b9ebab033014ed8a6c37278d186353f图片3_20250518181810A639.jpg",
+      "create_time": "2025-05-18 18:18:24",
+      "update_time": "2025-04-30T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "817cb997097911f08df500163e031f40",
+     "component_type": "notice",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817cb997097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_clhj_817cb997097911f08df500163e031f40.json",
+     "total": 103,
+     "pages": 6,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "41d798c8077c4fa389feba6e8b467f05",
+      "title": "材料与环境学院关于举办2026年兵棋推演大赛的通知",
+      "description": "材料与环境学院关于举办2026年兵棋推演大赛的通知",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/clhj/images/640.png",
+      "create_time": "2026-08-22 19:19:21",
+      "update_time": "2026-08-17T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "师生风采",
+     "names": [
+      "师生风采"
+     ],
+     "column_id": "817e0ac8097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817e0ac8097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_clhj_817e0ac8097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "817cb6c7097911f08df500163e031f40",
+     "component_type": "0",
+     "sources": [
+      "nav[8]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817cb6c7097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_clhj_817cb6c7097911f08df500163e031f40.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "817dfe08097911f08df500163e031f40",
+    "column_name": "学院新闻",
+    "total": 306,
+    "last_page": 16,
+    "got_items": 6,
+    "expected_items": 6,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817dfe08097911f08df500163e031f40&page=16&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=7575582d988949a0a3d70fcceba26cb5&column_id=817dfe08097911f08df500163e031f40&page=17&size=20",
+    "last_plus_1_total": 306,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "wfxy",
+   "site_id": "e684aa6d75c340559aa4f7a2668cf3e4",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "文法学院",
+   "nav_count": 9,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "817d98ac097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817d98ac097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_wfxy_817d98ac097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "817cc037097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:college-introduction",
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817cc037097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_wfxy_817cc037097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "最新动态",
+     "names": [
+      "最新动态"
+     ],
+     "column_id": "817d9342097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:latest-news",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817d9342097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_wfxy_817d9342097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院新闻",
+     "names": [
+      "学院新闻"
+     ],
+     "column_id": "817dfd93097911f08df500163e031f40",
+     "component_type": "news-important",
+     "sources": [
+      "home-block:news",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817dfd93097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_wfxy_817dfd93097911f08df500163e031f40.json",
+     "total": 215,
+     "pages": 11,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "f597426ec346416f9c769fe7f989da1b",
+      "title": "我院教师受邀参会全国老年社会工作年会 分享山西社区养老研究成果",
+      "description": "我院教师受邀参会全国老年社会工作年会 分享山西社区养老研究成果",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/08/25/blob_20260825171531A894.webp",
+      "create_time": "2026-08-25 17:15:52",
+      "update_time": "2026-08-20T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "专题中心",
+     "names": [
+      "专题中心"
+     ],
+     "column_id": "817d9692097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:thematic-center",
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817d9692097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_wfxy_817d9692097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "党群工作",
+     "names": [
+      "党群工作"
+     ],
+     "column_id": "817ccacc097911f08df500163e031f40",
+     "component_type": "news",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817ccacc097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_wfxy_817ccacc097911f08df500163e031f40.json",
+     "total": 9,
+     "pages": 1,
+     "got_items": 9,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "c52c8024507e4220b2e2622246429526",
+      "title": "党总支2024年度基层党组织民主生活会",
+      "description": "党总支于2025年3月13日在F102教室召开2024年度基层党组织民生活会.",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/19/封面_20250519131042A057.jpg",
+      "create_time": "2025-05-19 13:13:52",
+      "update_time": "2025-03-13T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "817cb8d7097911f08df500163e031f40",
+     "component_type": "notice",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817cb8d7097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_wfxy_817cb8d7097911f08df500163e031f40.json",
+     "total": 75,
+     "pages": 4,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "6e84bb0459a042f4951c2eb27d8af794",
+      "title": "文法学院2026年秋季学期推荐优秀团员列为入党积极分子人选的名单公示",
+      "description": "文法学院2026年秋季学期推荐优秀团员列为入党积极分子人选的名单公示",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-09-22 19:06:41",
+      "update_time": "2026-09-22T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "师生风采",
+     "names": [
+      "师生风采"
+     ],
+     "column_id": "817e0a59097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817e0a59097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_wfxy_817e0a59097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "817cb611097911f08df500163e031f40",
+     "component_type": "0",
+     "sources": [
+      "nav[8]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817cb611097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_wfxy_817cb611097911f08df500163e031f40.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "817dfd93097911f08df500163e031f40",
+    "column_name": "学院新闻",
+    "total": 215,
+    "last_page": 11,
+    "got_items": 15,
+    "expected_items": 15,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817dfd93097911f08df500163e031f40&page=11&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e684aa6d75c340559aa4f7a2668cf3e4&column_id=817dfd93097911f08df500163e031f40&page=12&size=20",
+    "last_plus_1_total": 215,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "ysxy",
+   "site_id": "cdd28a001afc418bb2b77ad704ed12a6",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "艺术学院",
+   "nav_count": 9,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "817d9857097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817d9857097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_ysxy_817d9857097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "817cbfdb097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:college-introduction",
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817cbfdb097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_ysxy_817cbfdb097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "最新动态",
+     "names": [
+      "最新动态"
+     ],
+     "column_id": "817d9305097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:latest-news",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817d9305097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_ysxy_817d9305097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院新闻",
+     "names": [
+      "学院新闻"
+     ],
+     "column_id": "817dfd56097911f08df500163e031f40",
+     "component_type": "news-important",
+     "sources": [
+      "home-block:news",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817dfd56097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_ysxy_817dfd56097911f08df500163e031f40.json",
+     "total": 127,
+     "pages": 7,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "e1a1145177ea4350a545a7797430be46",
+      "title": "凝心聚力启新程 笃行实干谋新篇——艺术学院召开2026年新学期工作部署会",
+      "description": "凝心聚力启新程 笃行实干谋新篇——艺术学院召开2026年新学期工作部署会",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/08/23/blob_20260823205946A863.webp",
+      "create_time": "2026-08-23 21:00:50",
+      "update_time": "2026-08-23T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "专题中心",
+     "names": [
+      "专题中心"
+     ],
+     "column_id": "817d9655097911f08df500163e031f40",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:thematic-center",
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817d9655097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_ysxy_817d9655097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "党群工作",
+     "names": [
+      "党群工作"
+     ],
+     "column_id": "817cca70097911f08df500163e031f40",
+     "component_type": "news",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817cca70097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_ysxy_817cca70097911f08df500163e031f40.json",
+     "total": 4,
+     "pages": 1,
+     "got_items": 4,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "982f0c7f5be9453c883d04523069d9e7",
+      "title": "“中共山西晋中理工学院第一次代表大会上党委、纪委工作报告”专题学习会",
+      "description": "“中共山西晋中理工学院第一次代表大会上党委、纪委工作报告”专题学习会",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/13/26d9cb61-d42f-4529-92cd-83e14f82ea82_20250513185648A020.png",
+      "create_time": "2025-05-13 18:38:42",
+      "update_time": "2025-05-13T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "817cb876097911f08df500163e031f40",
+     "component_type": "notice",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817cb876097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_ysxy_817cb876097911f08df500163e031f40.json",
+     "total": 22,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "440d6d4a28f5476896fc881e2aef6661",
+      "title": "艺术学院关于 2025-2026-2 学期优良学风班评选结果的公示",
+      "description": "艺术学院关于 2025-2026-2 学期优良学风班评选结果的公示",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/yishuxy/images/%E5%85%AC%E7%A4%BA.jpg",
+      "create_time": "2026-09-17 11:49:30",
+      "update_time": "2026-09-17T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "师生风采",
+     "names": [
+      "师生风采"
+     ],
+     "column_id": "817e0a20097911f08df500163e031f40",
+     "component_type": "",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817e0a20097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_ysxy_817e0a20097911f08df500163e031f40.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "817cb53e097911f08df500163e031f40",
+     "component_type": "0",
+     "sources": [
+      "nav[8]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817cb53e097911f08df500163e031f40&page=1&size=20",
+     "raw_file": "raw/list_ysxy_817cb53e097911f08df500163e031f40.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "817dfd56097911f08df500163e031f40",
+    "column_name": "学院新闻",
+    "total": 127,
+    "last_page": 7,
+    "got_items": 7,
+    "expected_items": 7,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817dfd56097911f08df500163e031f40&page=7&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=cdd28a001afc418bb2b77ad704ed12a6&column_id=817dfd56097911f08df500163e031f40&page=8&size=20",
+    "last_plus_1_total": 127,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "mkszy",
+   "site_id": "93ef50506d1f4e2a92477a21ecc8b52f",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "马克思主义学院(思想政治教育工作部)",
+   "nav_count": 6,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "54923a7f067044da8f2bcefcacadc5db",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=54923a7f067044da8f2bcefcacadc5db&page=1&size=20",
+     "raw_file": "raw/list_mkszy_54923a7f067044da8f2bcefcacadc5db.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "新闻动态",
+     "names": [
+      "新闻动态"
+     ],
+     "column_id": "43d355952eb94dfc8a67a0b8ee40c34c",
+     "component_type": "news",
+     "sources": [
+      "home-block:news"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=43d355952eb94dfc8a67a0b8ee40c34c&page=1&size=20",
+     "raw_file": "raw/list_mkszy_43d355952eb94dfc8a67a0b8ee40c34c.json",
+     "total": 59,
+     "pages": 3,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "e73b3c837c2041d28cd5d58b37d8ba2a",
+      "title": "深耕三晋文脉 活化思政课堂",
+      "description": "为深入推进“大思政课”建设，充分挖掘山西本土文化蕴含的思政育人元素，推动地域文化资源与思政课程深度融合，提升思政课堂亲和力与实效性，2026年9月17日下午，马克思主义学院在A410会议室组织开展“立足山西本土文化，挖掘思政教育教学资源”专题教研活动。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/mkszy/images/1(3).jpg",
+      "create_time": "2026-09-17 15:48:08",
+      "update_time": "2026-09-17T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "经典著作",
+     "names": [
+      "经典著作"
+     ],
+     "column_id": "5785fab012ae4a5089c38d9b12833b24",
+     "component_type": "electronic-book",
+     "sources": [
+      "home-block:classic"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=5785fab012ae4a5089c38d9b12833b24&page=1&size=20",
+     "raw_file": "raw/list_mkszy_5785fab012ae4a5089c38d9b12833b24.json",
+     "total": 11,
+     "pages": 1,
+     "got_items": 11,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "c9f9cca521b340cc84c92138e718c1de",
+      "title": "《自然辩证法》节选",
+      "description": "《自然辩证法》节选",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/04/16/自然辩证法_20250416222537A365.jpeg",
+      "create_time": "2025-04-16 22:26:13",
+      "update_time": "2024-09-13T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "e2739752a3054783acd80336b1ea9c11",
+     "component_type": "tabs-sub",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=e2739752a3054783acd80336b1ea9c11&page=1&size=20",
+     "raw_file": "raw/list_mkszy_e2739752a3054783acd80336b1ea9c11.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "师资队伍",
+     "names": [
+      "师资队伍"
+     ],
+     "column_id": "9ff7638840154505bb071c5bcd42642c",
+     "component_type": "teacher",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=9ff7638840154505bb071c5bcd42642c&page=1&size=20",
+     "raw_file": "raw/list_mkszy_9ff7638840154505bb071c5bcd42642c.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "党建工作",
+     "names": [
+      "党建工作"
+     ],
+     "column_id": "0fa97cdc3ca8487bbfc9a17107e81bd1",
+     "component_type": "notice",
+     "sources": [
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=0fa97cdc3ca8487bbfc9a17107e81bd1&page=1&size=20",
+     "raw_file": "raw/list_mkszy_0fa97cdc3ca8487bbfc9a17107e81bd1.json",
+     "total": 10,
+     "pages": 1,
+     "got_items": 10,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "5618a04150474e709a721167d179cb85",
+      "title": "我校思想政治教育工作部党支部召开2025年度组织生活会",
+      "description": "3月12日，我校思政部党支部召开2025年度组织生活会暨民主评议党员大会。党委书记霍世平，党委委员、副校长、组织部部长贾健鹏以普通党员身份参会并交流发言，会议由马克思主义学院党总支书记许芝铖主持。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/mkszy/images/%E5%9B%BE%E7%89%871.png",
+      "create_time": "2026-03-14 22:57:11",
+      "update_time": "2026-03-12T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "课程建设",
+     "names": [
+      "课程建设"
+     ],
+     "column_id": "9124486758c24e38b1404cce45814c5b",
+     "component_type": "tabs",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=9124486758c24e38b1404cce45814c5b&page=1&size=20",
+     "raw_file": "raw/list_mkszy_9124486758c24e38b1404cce45814c5b.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "制度文件",
+     "names": [
+      "制度文件"
+     ],
+     "column_id": "dbb405efccc3474e84cf11ab77550fd3",
+     "component_type": "notice-small",
+     "sources": [
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=dbb405efccc3474e84cf11ab77550fd3&page=1&size=20",
+     "raw_file": "raw/list_mkszy_dbb405efccc3474e84cf11ab77550fd3.json",
+     "total": 3,
+     "pages": 1,
+     "got_items": 3,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "b8f6a5e518fb4017a8e840084b1aaad3",
+      "title": "马克思主义学院关于教师集体备课的有关规定",
+      "description": "马克思主义学院关于教师集体备课的有关规定",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-04-16 21:29:20",
+      "update_time": "2025-03-10T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "43d355952eb94dfc8a67a0b8ee40c34c",
+    "column_name": "新闻动态",
+    "total": 59,
+    "last_page": 3,
+    "got_items": 19,
+    "expected_items": 19,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=43d355952eb94dfc8a67a0b8ee40c34c&page=3&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=93ef50506d1f4e2a92477a21ecc8b52f&column_id=43d355952eb94dfc8a67a0b8ee40c34c&page=4&size=20",
+    "last_plus_1_total": 59,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "tsxuey",
+   "site_id": "e62a313fe40746438fdaea3cfc33123f",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "通识教育学院",
+   "nav_count": 6,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "841e96272eab4e6b9bee701a97afd88e",
+     "component_type": "0",
+     "sources": [
+      "nav[0]",
+      "home-block:home"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=841e96272eab4e6b9bee701a97afd88e&page=1&size=20",
+     "raw_file": "raw/list_tsxuey_841e96272eab4e6b9bee701a97afd88e.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "学院新闻",
+     "names": [
+      "学院新闻"
+     ],
+     "column_id": "e5db7a5e4a6f458a99e24f62a08f32e5",
+     "component_type": "news",
+     "sources": [
+      "home-block:news"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=e5db7a5e4a6f458a99e24f62a08f32e5&page=1&size=20",
+     "raw_file": "raw/list_tsxuey_e5db7a5e4a6f458a99e24f62a08f32e5.json",
+     "total": 40,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "587dbb66c5d74e9289b227e85d792771",
+      "title": "通识教育学院领导深入课堂开展教学检查工作",
+      "description": "通识教育学院领导班子成员深入教学一线，开展课堂教学检查工作。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2026/03/31/blob_20260331201323A003.webp",
+      "create_time": "2026-03-31 20:15:37",
+      "update_time": "2026-03-06T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "9cd27c1fc1894163abf2d14d9ef5eaf2",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=9cd27c1fc1894163abf2d14d9ef5eaf2&page=1&size=20",
+     "raw_file": "raw/list_tsxuey_9cd27c1fc1894163abf2d14d9ef5eaf2.json",
+     "total": 4,
+     "pages": 1,
+     "got_items": 4,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "4290",
+      "title": "关于组织学生参加“2024高教社杯全国大学生数学建模竞赛”的通知",
+      "description": "关于组织学生参加“2024高教社杯全国大学生数学建模竞赛”的通知",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/2024/08/23/96ff9e98-19a4-4cc5-9dbb-769f23ff0ed31724386363882.jpeg",
+      "create_time": "",
+      "update_time": "2024-08-22T00:00:00",
+      "tag": "tag",
+      "sort": 10000
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "30d23c1da1794a52b9a23a71ecebed41",
+     "component_type": "tabs-sub",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=30d23c1da1794a52b9a23a71ecebed41&page=1&size=20",
+     "raw_file": "raw/list_tsxuey_30d23c1da1794a52b9a23a71ecebed41.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "师资队伍",
+     "names": [
+      "师资队伍"
+     ],
+     "column_id": "d3eae7704cbb4a1493fa9903b2e7042b",
+     "component_type": "teacher",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=d3eae7704cbb4a1493fa9903b2e7042b&page=1&size=20",
+     "raw_file": "raw/list_tsxuey_d3eae7704cbb4a1493fa9903b2e7042b.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "课程建设",
+     "names": [
+      "课程建设"
+     ],
+     "column_id": "24b75b6a6b9841139d6d4918c4b92ea6",
+     "component_type": "tabs",
+     "sources": [
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=24b75b6a6b9841139d6d4918c4b92ea6&page=1&size=20",
+     "raw_file": "raw/list_tsxuey_24b75b6a6b9841139d6d4918c4b92ea6.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "制度文件",
+     "names": [
+      "制度文件"
+     ],
+     "column_id": "0390899b565042c78926a70ddd69f7e7",
+     "component_type": "notice-small",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=0390899b565042c78926a70ddd69f7e7&page=1&size=20",
+     "raw_file": "raw/list_tsxuey_0390899b565042c78926a70ddd69f7e7.json",
+     "total": 3,
+     "pages": 1,
+     "got_items": 3,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "159952ff902f46cc8aaab5cdd80d1b46",
+      "title": "山西晋理大学物理实验报告模板",
+      "description": "山西晋理大学物理实验报告模板",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-05-28 15:17:14",
+      "update_time": "2025-05-28T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "4e344db05a9f49ab941e8795ca1fb77c",
+     "component_type": "opinion",
+     "sources": [
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=4e344db05a9f49ab941e8795ca1fb77c&page=1&size=20",
+     "raw_file": "raw/list_tsxuey_4e344db05a9f49ab941e8795ca1fb77c.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "e5db7a5e4a6f458a99e24f62a08f32e5",
+    "column_name": "学院新闻",
+    "total": 40,
+    "last_page": 2,
+    "got_items": 20,
+    "expected_items": 20,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=e5db7a5e4a6f458a99e24f62a08f32e5&page=2&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=e62a313fe40746438fdaea3cfc33123f&column_id=e5db7a5e4a6f458a99e24f62a08f32e5&page=3&size=20",
+    "last_plus_1_total": 40,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "gjjljxjy",
+   "site_id": "4b9a6b4591ef4e23aa4dd5fc54aebd84",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "国际交流与继续教育学院",
+   "nav_count": 8,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "1f2b9c8c5c8b4327837bb8adca0c32e8",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=1f2b9c8c5c8b4327837bb8adca0c32e8&page=1&size=20",
+     "raw_file": "raw/list_gjjljxjy_1f2b9c8c5c8b4327837bb8adca0c32e8.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "学院新闻",
+     "names": [
+      "学院新闻"
+     ],
+     "column_id": "8510bec9f574408d96a34a4a01b6623c",
+     "component_type": "news-important",
+     "sources": [
+      "home-block:news",
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=8510bec9f574408d96a34a4a01b6623c&page=1&size=20",
+     "raw_file": "raw/list_gjjljxjy_8510bec9f574408d96a34a4a01b6623c.json",
+     "total": 4,
+     "pages": 1,
+     "got_items": 4,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "d7a562c863b5400bba766c6195a047e3",
+      "title": "山西晋中理工学院召开德国高校合作洽谈会",
+      "description": "山西晋中理工学院国际交流与继续教育学院邀请中北大学86级校友、SKS Technology GmbH公司总经理孔斌、特能集团黄征、山西华澳商贸职业技术学院冀成义院长来我校就与德国高校合作进行洽谈。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/14/微信图片_20250514090049_20250514090647A037.jpg",
+      "create_time": "2025-05-14 09:06:07",
+      "update_time": "2025-04-22T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "国际交流",
+     "names": [
+      "国际交流"
+     ],
+     "column_id": "a9929c515c544f6e8c000f4aabb18c14",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:international-exchange",
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=a9929c515c544f6e8c000f4aabb18c14&page=1&size=20",
+     "raw_file": "raw/list_gjjljxjy_a9929c515c544f6e8c000f4aabb18c14.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "继续教育",
+     "names": [
+      "继续教育"
+     ],
+     "column_id": "eeb3fec84daa4915a652e65a29573ee0",
+     "component_type": "tabs",
+     "sources": [
+      "home-block:continuing-education",
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=eeb3fec84daa4915a652e65a29573ee0&page=1&size=20",
+     "raw_file": "raw/list_gjjljxjy_eeb3fec84daa4915a652e65a29573ee0.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "38b815924f894ec8a147a012a2b4ce88",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=38b815924f894ec8a147a012a2b4ce88&page=1&size=20",
+     "raw_file": "raw/list_gjjljxjy_38b815924f894ec8a147a012a2b4ce88.json",
+     "total": 1,
+     "pages": 1,
+     "got_items": 1,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "97eb715cfa5747049e609c025da0565e",
+      "title": "国际交流与继续教育学院",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/04/11/图层 733_20250411143204A002.webp",
+      "create_time": "2025-04-11 14:32:21",
+      "update_time": "2025-04-11T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "党群工作",
+     "names": [
+      "党群工作"
+     ],
+     "column_id": "911308fbb056441c8d0f789096972653",
+     "component_type": "news",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=911308fbb056441c8d0f789096972653&page=1&size=20",
+     "raw_file": "raw/list_gjjljxjy_911308fbb056441c8d0f789096972653.json",
+     "total": 3,
+     "pages": 1,
+     "got_items": 3,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "400c2ae3c1874058b092180fa83f4724",
+      "title": "习近平对全国留学工作会议作出重要指示",
+      "description": "留学事业历来与国家和民族的命运紧密相连。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/21/屏幕截图 2025-05-21 112816_20250521113106A524.png",
+      "create_time": "2025-05-21 11:31:09",
+      "update_time": "2025-05-21T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "294a3bd5970d4e1896c461abade2c643",
+     "component_type": "notice",
+     "sources": [
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=294a3bd5970d4e1896c461abade2c643&page=1&size=20",
+     "raw_file": "raw/list_gjjljxjy_294a3bd5970d4e1896c461abade2c643.json",
+     "total": 6,
+     "pages": 1,
+     "got_items": 6,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "a46de87529d8475183f5a02d1e80b8e2",
+      "title": "2025年高等学校学历继续教育拟招生专业公示",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-04-18 09:22:58",
+      "update_time": "2025-03-05T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "05939b4157884eed9a718276fa7fc00d",
+     "component_type": "opinion",
+     "sources": [
+      "nav[7]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=05939b4157884eed9a718276fa7fc00d&page=1&size=20",
+     "raw_file": "raw/list_gjjljxjy_05939b4157884eed9a718276fa7fc00d.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "294a3bd5970d4e1896c461abade2c643",
+    "column_name": "通知公告",
+    "total": 6,
+    "last_page": 1,
+    "got_items": 6,
+    "expected_items": 6,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=294a3bd5970d4e1896c461abade2c643&page=1&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=4b9a6b4591ef4e23aa4dd5fc54aebd84&column_id=294a3bd5970d4e1896c461abade2c643&page=2&size=20",
+    "last_plus_1_total": 6,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "scxy",
+   "site_id": "1e4acf8fff9148ce933f47610a87ca48",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "创新创业学院",
+   "nav_count": 7,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "d92ed0da3ca9444db7dd86b22822df4e",
+     "component_type": "0",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=1e4acf8fff9148ce933f47610a87ca48&column_id=d92ed0da3ca9444db7dd86b22822df4e&page=1&size=20",
+     "raw_file": "raw/list_scxy_d92ed0da3ca9444db7dd86b22822df4e.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "学院概况",
+     "names": [
+      "学院概况"
+     ],
+     "column_id": "4f79f3c5b3504e3db88c6fffc7b5f9cf",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=1e4acf8fff9148ce933f47610a87ca48&column_id=4f79f3c5b3504e3db88c6fffc7b5f9cf&page=1&size=20",
+     "raw_file": "raw/list_scxy_4f79f3c5b3504e3db88c6fffc7b5f9cf.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "竞赛天地",
+     "names": [
+      "竞赛天地"
+     ],
+     "column_id": "3ae5f7606d37411a86109d60662e35cf",
+     "component_type": "notice",
+     "sources": [
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=1e4acf8fff9148ce933f47610a87ca48&column_id=3ae5f7606d37411a86109d60662e35cf&page=1&size=20",
+     "raw_file": "raw/list_scxy_3ae5f7606d37411a86109d60662e35cf.json",
+     "total": 7,
+     "pages": 1,
+     "got_items": 7,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "9a2a4130c27c42a29bc98df4827ee898",
+      "title": "关于组织学生参加2026年全国高校商业精英挑战赛国际贸易竞赛（跨境电商赛道）的通知",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-09-03 09:16:31",
+      "update_time": "2026-09-03T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "实践平台",
+     "names": [
+      "实践平台"
+     ],
+     "column_id": "db326e7522d64df4a247fed00cee1af5",
+     "component_type": "notice",
+     "sources": [
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=1e4acf8fff9148ce933f47610a87ca48&column_id=db326e7522d64df4a247fed00cee1af5&page=1&size=20",
+     "raw_file": "raw/list_scxy_db326e7522d64df4a247fed00cee1af5.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "双创教育",
+     "names": [
+      "双创教育"
+     ],
+     "column_id": "23c1ea42e4b94cd39f26cae179916345",
+     "component_type": "notice",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=1e4acf8fff9148ce933f47610a87ca48&column_id=23c1ea42e4b94cd39f26cae179916345&page=1&size=20",
+     "raw_file": "raw/list_scxy_23c1ea42e4b94cd39f26cae179916345.json",
+     "total": 5,
+     "pages": 1,
+     "got_items": 5,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "5e69e78963014a63908c8de6d3ed2c78",
+      "title": "关于教育部公布山西晋中理工学院2026年省级大创训练计划项目立项名单的通知",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-08-01 15:56:15",
+      "update_time": "2026-08-01T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "产教融合",
+     "names": [
+      "产教融合"
+     ],
+     "column_id": "40a53c709a2b4ed88356a6f108d15523",
+     "component_type": "notice",
+     "sources": [
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=1e4acf8fff9148ce933f47610a87ca48&column_id=40a53c709a2b4ed88356a6f108d15523&page=1&size=20",
+     "raw_file": "raw/list_scxy_40a53c709a2b4ed88356a6f108d15523.json",
+     "total": 2,
+     "pages": 1,
+     "got_items": 2,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "cf4f6cb3db41415c8816f8d80691b18e",
+      "title": "校企双向奔赴，产教深度融合——大数据应用与管理产教实践基地项目启动仪式隆重举行",
+      "description": " ",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-09-10 09:03:57",
+      "update_time": "2026-09-10T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "资料下载",
+     "names": [
+      "资料下载"
+     ],
+     "column_id": "648b32aedb0f4bf497a1887f0c67adc6",
+     "component_type": "download",
+     "sources": [
+      "nav[6]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=1e4acf8fff9148ce933f47610a87ca48&column_id=648b32aedb0f4bf497a1887f0c67adc6&page=1&size=20",
+     "raw_file": "raw/list_scxy_648b32aedb0f4bf497a1887f0c67adc6.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "3ae5f7606d37411a86109d60662e35cf",
+    "column_name": "竞赛天地",
+    "total": 7,
+    "last_page": 1,
+    "got_items": 7,
+    "expected_items": 7,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=1e4acf8fff9148ce933f47610a87ca48&column_id=3ae5f7606d37411a86109d60662e35cf&page=1&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=1e4acf8fff9148ce933f47610a87ca48&column_id=3ae5f7606d37411a86109d60662e35cf&page=2&size=20",
+    "last_plus_1_total": 7,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "tsg",
+   "site_id": "69bc8045bfdb4ff5bb442e04bad86986",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "图书馆",
+   "nav_count": 6,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "782e7aab012e4ea8b631f0a43344d516",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=782e7aab012e4ea8b631f0a43344d516&page=1&size=20",
+     "raw_file": "raw/list_tsg_782e7aab012e4ea8b631f0a43344d516.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "9f5b28bb82a1432dad295a382953f0ca",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=9f5b28bb82a1432dad295a382953f0ca&page=1&size=20",
+     "raw_file": "raw/list_tsg_9f5b28bb82a1432dad295a382953f0ca.json",
+     "total": 11,
+     "pages": 1,
+     "got_items": 11,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "31f257878f8849549e1153eac1c560a5",
+      "title": "山西晋中理工学院全民阅读倡议书",
+      "description": "书香润泽校园，阅读启迪人生。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-05-25 11:00:32",
+      "update_time": "2026-05-25T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "最新动态",
+     "names": [
+      "最新动态"
+     ],
+     "column_id": "f32bf05a5c5448fbb37c95fe13d211bc",
+     "component_type": "news",
+     "sources": [
+      "home-block:news"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=f32bf05a5c5448fbb37c95fe13d211bc&page=1&size=20",
+     "raw_file": "raw/list_tsg_f32bf05a5c5448fbb37c95fe13d211bc.json",
+     "total": 11,
+     "pages": 1,
+     "got_items": 11,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "d358da79b6bd4023947a701a8ac27aa9",
+      "title": "“4·23世界读书日”溯源中外哲思 感悟智慧经典——哲学史专题读书分享会圆满举行",
+      "description": "春意正浓，书香沁人。在第31个“世界读书日”来临之际，山西晋中理工学院图书馆于501室举办“溯源中外哲思·感悟智慧经典”哲学史专题读书分享会。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/userfiles/tushug/images/3d6065c71e479d894c09b142df4b93b6.jpg",
+      "create_time": "2026-04-24 15:49:09",
+      "update_time": "2026-04-24T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "规章制度",
+     "names": [
+      "规章制度"
+     ],
+     "column_id": "267438ef0d884f559b2eb24c0a0cb3e2",
+     "component_type": "notice-small",
+     "sources": [
+      "home-block:regulations"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=267438ef0d884f559b2eb24c0a0cb3e2&page=1&size=20",
+     "raw_file": "raw/list_tsg_267438ef0d884f559b2eb24c0a0cb3e2.json",
+     "total": 10,
+     "pages": 1,
+     "got_items": 10,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "1b6397e157ec414294b32cb169f8de41",
+      "title": "图书馆队伍建设、人员及相应岗位职责",
+      "description": "图书馆队伍建设是图书馆管理的重要组成部分，是提升图书馆服务质量和管理水平的重要环节。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-05-20 09:43:36",
+      "update_time": "2025-05-20T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "电子图书",
+     "names": [
+      "电子图书"
+     ],
+     "column_id": "b5d75a637d31451bb2472b519711de34",
+     "component_type": "electronic-book",
+     "sources": [
+      "home-block:ebook"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=b5d75a637d31451bb2472b519711de34&page=1&size=20",
+     "raw_file": "raw/list_tsg_b5d75a637d31451bb2472b519711de34.json",
+     "total": 3,
+     "pages": 1,
+     "got_items": 3,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "02f28c80b50f45938e298a31cd3bfa09",
+      "title": "电子论文、期刊",
+      "description": "电子论文、期刊",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/21/5_20250521100807A498.jpg",
+      "create_time": "2025-05-21 09:55:36",
+      "update_time": "2023-04-01T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "图书馆介绍",
+     "names": [
+      "图书馆介绍"
+     ],
+     "column_id": "b8668183e46f45628df026fabc4670bb",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=b8668183e46f45628df026fabc4670bb&page=1&size=20",
+     "raw_file": "raw/list_tsg_b8668183e46f45628df026fabc4670bb.json",
+     "total": 1,
+     "pages": 1,
+     "got_items": 1,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "bf9b543f493f401cbf451519a90271d7",
+      "title": "图书馆",
+      "description": "图书馆介绍",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/04/30/tsg_20250430153937A042.webp",
+      "create_time": "2025-04-30 15:34:59",
+      "update_time": "2025-04-30T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "知网",
+     "names": [
+      "知网"
+     ],
+     "column_id": "164a84cc8c88424d9f27380b21df13c8",
+     "component_type": "link",
+     "sources": [
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=164a84cc8c88424d9f27380b21df13c8&page=1&size=20",
+     "raw_file": "raw/list_tsg_164a84cc8c88424d9f27380b21df13c8.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "电子图书",
+     "names": [
+      "电子图书"
+     ],
+     "column_id": "54e4fae1805845cb9a32c456ef82dea8",
+     "component_type": "link",
+     "sources": [
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=54e4fae1805845cb9a32c456ef82dea8&page=1&size=20",
+     "raw_file": "raw/list_tsg_54e4fae1805845cb9a32c456ef82dea8.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "756d9a65752f4b3e96cd2b5559bec4a0",
+     "component_type": "opinion",
+     "sources": [
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=756d9a65752f4b3e96cd2b5559bec4a0&page=1&size=20",
+     "raw_file": "raw/list_tsg_756d9a65752f4b3e96cd2b5559bec4a0.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "9f5b28bb82a1432dad295a382953f0ca",
+    "column_name": "通知公告",
+    "total": 11,
+    "last_page": 1,
+    "got_items": 11,
+    "expected_items": 11,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=9f5b28bb82a1432dad295a382953f0ca&page=1&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=69bc8045bfdb4ff5bb442e04bad86986&column_id=9f5b28bb82a1432dad295a382953f0ca&page=2&size=20",
+    "last_plus_1_total": 11,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  },
+  {
+   "site_key": "sjjxglzx",
+   "site_id": "d99e0d78612149ce99b9f00edf45ca4f",
+   "site_id_source": "home2",
+   "home2_ok": true,
+   "site_title_cn": "实践教学管理中心",
+   "nav_count": 6,
+   "columns": [
+    {
+     "name": "首页",
+     "names": [
+      "首页"
+     ],
+     "column_id": "1a58e8798b304d189f5c27e64b54b683",
+     "component_type": "",
+     "sources": [
+      "nav[0]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=d99e0d78612149ce99b9f00edf45ca4f&column_id=1a58e8798b304d189f5c27e64b54b683&page=1&size=20",
+     "raw_file": "raw/list_sjjxglzx_1a58e8798b304d189f5c27e64b54b683.json",
+     "total": null,
+     "pages": null,
+     "got_items": null,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": "data not object: null",
+     "code": 500,
+     "message": "系统内部出现错误"
+    },
+    {
+     "name": "通知公告",
+     "names": [
+      "通知公告"
+     ],
+     "column_id": "e10d0710922243d796f673cc6a449cf3",
+     "component_type": "notice",
+     "sources": [
+      "home-block:notice"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=d99e0d78612149ce99b9f00edf45ca4f&column_id=e10d0710922243d796f673cc6a449cf3&page=1&size=20",
+     "raw_file": "raw/list_sjjxglzx_e10d0710922243d796f673cc6a449cf3.json",
+     "total": 5,
+     "pages": 1,
+     "got_items": 5,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "674fb82360cb4a1fbd1f30d2a408ef14",
+      "title": "教务处关于开展“全民消防、生命至上” 实验室消防安全知识答题活动的通知",
+      "description": "2025年11月是第34个全国“消防宣传月”，今年的主题是“全民消防、生命至上”。为响应全国“消防宣传月”的宣传活动，加强全体师生的消防安全意识，全面推进学校实验室安全建设，营造安全的实验教学环境，我校教务处将组织开展山西晋中理工学院“全民消防、生命至上”实验室消防安全知识线上答题活动。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/11/12/blob_20251112100250A255.webp",
+      "create_time": "2025-11-12 10:03:39",
+      "update_time": "2025-11-10T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "工作动态",
+     "names": [
+      "工作动态"
+     ],
+     "column_id": "954556fb3009474e82a94956267f49f7",
+     "component_type": "news",
+     "sources": [
+      "home-block:news",
+      "nav[2]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=d99e0d78612149ce99b9f00edf45ca4f&column_id=954556fb3009474e82a94956267f49f7&page=1&size=20",
+     "raw_file": "raw/list_sjjxglzx_954556fb3009474e82a94956267f49f7.json",
+     "total": 69,
+     "pages": 4,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "69b84300c08d4c128681998839850980",
+      "title": "实践教学工作部署会议",
+      "description": "9月15日上午，教务处（实践教学管理中心）召开实践教学工作例会，专题部署实验仪器设备相关工作，细化任务要求，压实工作责任。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2026-09-16 09:05:45",
+      "update_time": "2026-09-15T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "实验室建设",
+     "names": [
+      "实验室建设"
+     ],
+     "column_id": "aa2dad41960140f1a060192adf255715",
+     "component_type": "news",
+     "sources": [
+      "home-block:larbratory",
+      "nav[3]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=d99e0d78612149ce99b9f00edf45ca4f&column_id=aa2dad41960140f1a060192adf255715&page=1&size=20",
+     "raw_file": "raw/list_sjjxglzx_aa2dad41960140f1a060192adf255715.json",
+     "total": 8,
+     "pages": 1,
+     "got_items": 8,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "61b1bda42d3b46ed83ee80d50d676633",
+      "title": "关于做好2025年度高校实验室安全工作的通知",
+      "description": "为深入贯彻党中央、国务院和省委、省政府关于安全生产工作的决策部署，确保高校实验室有效运行，保障广大师生人身安全和校园稳定，根据《教育部办公厅关于做好2025年度高等学校实验室安全工作的通知》（教科信厅函﹝2025﹞8号）和《山西省教育厅关于做好2025年度高校实验室安全工作的通知》（晋教科信函﹝2025﹞5号）文件要求，现就做好我校2025年度高校实验室安全工作通知如下。",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/05/20/新闻背景默认图（横版）-1_20250520165810A416.webp",
+      "create_time": "2025-05-20 16:58:49",
+      "update_time": "2025-05-12T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "规章制度",
+     "names": [
+      "规章制度"
+     ],
+     "column_id": "3067b8225d6741829d765cb8f35a29ba",
+     "component_type": "notice-small",
+     "sources": [
+      "home-block:regulations",
+      "nav[4]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=d99e0d78612149ce99b9f00edf45ca4f&column_id=3067b8225d6741829d765cb8f35a29ba&page=1&size=20",
+     "raw_file": "raw/list_sjjxglzx_3067b8225d6741829d765cb8f35a29ba.json",
+     "total": 24,
+     "pages": 2,
+     "got_items": 20,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "e3226e8b14754364b30dfade6772354a",
+      "title": "山西晋中理工学院实验室安全管理规定",
+      "description": "山西晋中理工学院实验室安全管理规定",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/images/no_picture.webp",
+      "create_time": "2025-07-20 19:53:56",
+      "update_time": "2025-06-13T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "部门概况",
+     "names": [
+      "部门概况"
+     ],
+     "column_id": "1dbf6bddc0f44b57a59e45d1ad86456b",
+     "component_type": "content",
+     "sources": [
+      "nav[1]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=d99e0d78612149ce99b9f00edf45ca4f&column_id=1dbf6bddc0f44b57a59e45d1ad86456b&page=1&size=20",
+     "raw_file": "raw/list_sjjxglzx_1dbf6bddc0f44b57a59e45d1ad86456b.json",
+     "total": 1,
+     "pages": 1,
+     "got_items": 1,
+     "first_item_keys": [
+      "id",
+      "title",
+      "description",
+      "image_url",
+      "create_time",
+      "update_time",
+      "tag",
+      "sort"
+     ],
+     "first_item_sample": {
+      "id": "ab58ef2c7ec6433789baf11fae0f5ef4",
+      "title": "实践教学管理中心",
+      "description": "",
+      "image_url": "https://www2.sxjzit.edu.cn:8082/zhglxt/profile/upload/2025/04/02/图层 733_20250402174740A017.webp",
+      "create_time": "2025-04-02 17:47:44",
+      "update_time": "2025-04-07T00:00:00",
+      "tag": "",
+      "sort": 0
+     },
+     "error": null,
+     "code": 200,
+     "message": "success"
+    },
+    {
+     "name": "联系我们",
+     "names": [
+      "联系我们"
+     ],
+     "column_id": "2beb02df103c4dc4b5796a2d1f8d4e86",
+     "component_type": "opinion",
+     "sources": [
+      "nav[5]"
+     ],
+     "http": 200,
+     "url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=d99e0d78612149ce99b9f00edf45ca4f&column_id=2beb02df103c4dc4b5796a2d1f8d4e86&page=1&size=20",
+     "raw_file": "raw/list_sjjxglzx_2beb02df103c4dc4b5796a2d1f8d4e86.json",
+     "total": 0,
+     "pages": 0,
+     "got_items": 0,
+     "first_item_keys": null,
+     "first_item_sample": null,
+     "error": null,
+     "code": 200,
+     "message": "success"
+    }
+   ],
+   "last_page_check": {
+    "column_id": "954556fb3009474e82a94956267f49f7",
+    "column_name": "工作动态",
+    "total": 69,
+    "last_page": 4,
+    "got_items": 9,
+    "expected_items": 9,
+    "total_match": true,
+    "last_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=d99e0d78612149ce99b9f00edf45ca4f&column_id=954556fb3009474e82a94956267f49f7&page=4&size=20",
+    "page_last_plus_1_empty": true,
+    "last_plus_1_url": "https://gwqietap.sxjzit.edu.cn/mapi/common/column/articles?site_id=d99e0d78612149ce99b9f00edf45ca4f&column_id=954556fb3009474e82a94956267f49f7&page=5&size=20",
+    "last_plus_1_total": 69,
+    "last_plus_1_http": 200,
+    "last_http": 200
+   },
+   "notes": ""
+  }
+ ],
+ "endpoint_contract": {
+  "note": "HTTP 状态恒为 200；业务状态在响应体 code 字段（200=成功，500=系统内部出现错误）。",
+  "article_list_url": "GET {base}/common/column/articles?site_id=<site_id>&column_id=<column_id>&page=<>=1>&size=<页大小>",
+  "response_shape": "data = {column_id,title_cn,title_en,href,articles:{total,list:[...]}}",
+  "page_rule": "page 从 1 起；page=0 或负数 → code=500。",
+  "size_rule": "size 无上限，size>=total 时一次返回全部。",
+  "item_keys": [
+   "id",
+   "title",
+   "description",
+   "image_url",
+   "create_time",
+   "update_time",
+   "tag",
+   "sort"
+  ],
+  "component_type_behavior": {
+   "(empty)": {
+    "count": 27,
+    "ok": 13,
+    "body_code_500": 14,
+    "totals_sample": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "notice": {
+    "count": 26,
+    "ok": 26,
+    "body_code_500": 0,
+    "totals_sample": [
+     23,
+     187,
+     76,
+     25,
+     0,
+     378,
+     21,
+     108,
+     5,
+     72
+    ]
+   },
+   "tabs": {
+    "count": 26,
+    "ok": 26,
+    "body_code_500": 0,
+    "totals_sample": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "news": {
+    "count": 25,
+    "ok": 25,
+    "body_code_500": 0,
+    "totals_sample": [
+     131,
+     3,
+     121,
+     33,
+     60,
+     82,
+     12,
+     22,
+     245,
+     6
+    ]
+   },
+   "notice-small": {
+    "count": 16,
+    "ok": 16,
+    "body_code_500": 0,
+    "totals_sample": [
+     21,
+     5,
+     160,
+     8,
+     4,
+     0,
+     0,
+     12,
+     4,
+     5
+    ]
+   },
+   "content": {
+    "count": 11,
+    "ok": 11,
+    "body_code_500": 0,
+    "totals_sample": [
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     1
+    ]
+   },
+   "opinion": {
+    "count": 10,
+    "ok": 1,
+    "body_code_500": 9,
+    "totals_sample": [
+     0
+    ]
+   },
+   "download": {
+    "count": 7,
+    "ok": 7,
+    "body_code_500": 0,
+    "totals_sample": [
+     10,
+     12,
+     6,
+     0,
+     17,
+     2,
+     0
+    ]
+   },
+   "news-important": {
+    "count": 7,
+    "ok": 7,
+    "body_code_500": 0,
+    "totals_sample": [
+     389,
+     226,
+     97,
+     306,
+     215,
+     127,
+     4
+    ]
+   },
+   "0": {
+    "count": 7,
+    "ok": 0,
+    "body_code_500": 7,
+    "totals_sample": []
+   },
+   "tabs-sub": {
+    "count": 4,
+    "ok": 4,
+    "body_code_500": 0,
+    "totals_sample": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "link": {
+    "count": 4,
+    "ok": 0,
+    "body_code_500": 4,
+    "totals_sample": []
+   },
+   "electronic-book": {
+    "count": 2,
+    "ok": 2,
+    "body_code_500": 0,
+    "totals_sample": [
+     11,
+     3
+    ]
+   },
+   "teacher": {
+    "count": 2,
+    "ok": 0,
+    "body_code_500": 2,
+    "totals_sample": []
+   },
+   "thematic-center": {
+    "count": 1,
+    "ok": 1,
+    "body_code_500": 0,
+    "totals_sample": [
+     205
+    ]
+   },
+   "calendar": {
+    "count": 1,
+    "ok": 0,
+    "body_code_500": 1,
+    "totals_sample": []
+   },
+   "recruit": {
+    "count": 1,
+    "ok": 0,
+    "body_code_500": 1,
+    "totals_sample": []
+   },
+   "videos": {
+    "count": 1,
+    "ok": 1,
+    "body_code_500": 0,
+    "totals_sample": [
+     0
+    ]
+   }
+  },
+  "non_content_types": "首页(path=home)/opinion/link/teacher/calendar/recruit/componentType=0 等非文章栏目对该接口返回 code=500，非接口故障。"
+ }
+}

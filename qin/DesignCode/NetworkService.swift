@@ -756,10 +756,13 @@ extension NetworkService {
     }
 
     /// 招生网文章列表（分页）
-    func fetchZSWArticlePage(siteId: String, columnId: String, pageNo: Int = 1, pageSize: Int = 20) async throws -> ZSWArticlePageDTO {
+    /// - 注意：服务端只认 `page`/`size`——旧版传 `pageNo`/`pageSize` 会被**静默忽略**（恒返回第 1 页、默认 10 条，
+    ///   表现为「加载更多」重复返回首批数据）。2026-09-30 机构接口摸查实测修复，
+    ///   证据：`qin/docs/departments-api-evidence/raw/ep_article_page_*.json`（pageNo 被忽略对照）与 audit-report §7 P1。
+    func fetchZSWArticlePage(siteId: String, columnId: String, page: Int = 1, size: Int = 20) async throws -> ZSWArticlePageDTO {
         try await get("/common/article/page", params: [
             "site_id": siteId, "column_id": columnId,
-            "pageNo": "\(pageNo)", "pageSize": "\(pageSize)"
+            "page": "\(page)", "size": "\(size)"
         ], as: APIResponse<ZSWArticlePageDTO>.self).requireData()
     }
 

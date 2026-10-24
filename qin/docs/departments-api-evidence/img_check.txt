@@ -1,0 +1,20 @@
+raw/detail_0bde63d0.json 思想政治教育工作部党支部 content_len 1745 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2026/08/25/思想政治教育工作部党支部_20260825161710A887.webp => 200 image/webp
+raw/detail_0fc43da1.json 工会 content_len 2652 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2025/04/24/gh_20250424113131A967.webp => 200 image/webp
+raw/detail_20768d27.json 党委统战部 content_len 1740 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2025/04/24/tzb_20250424112822A962.webp => 200 image/webp
+raw/detail_27a40b0a.json 党委宣传部 content_len 1691 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2025/04/24/xcb_20250424112618A960.webp => 200 image/webp
+raw/detail_56ad9602.json 关心下一代工作委员会 content_len 1810 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2025/04/24/gxxyd_20250424113357A973.webp => 200 image/webp
+raw/detail_5efa8bd8.json 妇联 content_len 1670 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2025/04/24/fl_20250424113215A969.webp => 200 image/webp
+raw/detail_697c6771.json 党委组织部 content_len 1738 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2025/04/24/zzb_20250424112430A958.webp => 200 image/webp
+raw/detail_743ed5d2.json 科协 content_len 2292 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2025/04/24/kx_20250424113304A971.webp => 200 image/webp
+raw/detail_c94f0d88.json 党委教师工作部 content_len 1245 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2025/04/24/jsgzb_20250424113020A965.webp => 200 image/webp
+raw/detail_e8c51530.json 纪检监察办公室 content_len 1864 imgs 1
+    https://www2.sxjzit.edu.cn:8082/zhglxt/profile/cms/upload/2025/04/24/jjbhs_20250424112906A963.webp => 200 image/webp
