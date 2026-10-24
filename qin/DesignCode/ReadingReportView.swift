@@ -8,7 +8,12 @@
 //  · 等宽大数字（SF Mono）+ 数字滚动 + 轻触觉
 //  · 自定义胶囊模式切换、卡片错峰入场、目标参考线
 //  · 全部 Apple 原生（Swift Charts + Shape），零第三方依赖
-
+//
+//  分享（2026-10-04 对齐全 App 微信能力）：战报横幅「分享到微信（图片消息）/ 系统分享」；
+//  微信发送复用与文章分享同一服务与回执（WeChatService.shareImage + 回执横幅 + 双域埋点），
+//  菜单壳为本模块专用的 ReadingReportShareMenu（共享文件零改动 · 物理隔离，见该组件注释）；
+//  系统分享走 JPEG 文件 URL 的 UIKit 交付链路（分享扩展只能通过文件 URL 读取图片）。
+//
 import SwiftUI
 import Charts
 
@@ -29,12 +34,31 @@ struct ReadingReportView: View {
     @State private var goalCelebrated = false
     /// 分享战报图片（打开/切换模式时生成一次，避免每次 body 重渲染）
     @State private var shareImage: UIImage?
+    /// 分享方式选择（分享到微信图片消息 / 系统分享）
+    @State private var showSharePicker = false
+    /// 微信图片消息分享载荷（item 驱动呈现，消灭 bool+item 双状态竞态）
+    @State private var weChatSharePayload: WeChatLongImagePayload?
 
     enum ReadingReportMode: String, CaseIterable {
         case daily = "日报"
         case weekly = "周报"
         case monthly = "月报"
         case yearly = "年报"
+
+        /// 副标题（日报 · 10月4日 / 周报 · … / 月报 · 2026年10月 / 年报 · 2026年）
+        /// —— 海报与分享标题共用的单一口径，避免两处各写一份
+        func subtitle(now: Date = Date(), calendar: Calendar = .current) -> String {
+            switch self {
+            case .daily, .weekly:
+                let c = calendar.dateComponents([.month, .day], from: now)
+                return "\(rawValue) · \(c.month ?? 0)月\(c.day ?? 0)日"
+            case .monthly:
+                let c = calendar.dateComponents([.year, .month], from: now)
+                return "\(rawValue) · \(c.year ?? 0)年\(c.month ?? 0)月"
+            case .yearly:
+                return "\(rawValue) · \(calendar.component(.year, from: now))年"
+            }
+        }
     }
 
     var body: some View {
@@ -75,9 +99,14 @@ struct ReadingReportView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if let shareImage {
-                        ShareLink(item: Image(uiImage: shareImage),
-                                  preview: SharePreview("阅读时光", image: Image(uiImage: shareImage))) {
+                    if shareImage != nil {
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            LogManager.shared.info("readingReport", "分享入口点击", context: [
+                                "mode": mode.rawValue
+                            ])
+                            showSharePicker = true
+                        } label: {
                             Image(systemName: "square.and.arrow.up")
                                 .displaySymbolFont(15, weight: .semibold)
                         }
@@ -114,6 +143,30 @@ struct ReadingReportView: View {
                 shareImage = renderSharePoster()
             }
         }
+        .confirmationDialog("分享阅读战报", isPresented: $showSharePicker, titleVisibility: .visible) {
+            Button("分享到微信") {
+                guard let shareImage else { return }
+                LogManager.shared.info("readingReport", "分享渠道选择", context: [
+                    "channel": "wechat", "mode": mode.rawValue
+                ])
+                weChatSharePayload = WeChatLongImagePayload(
+                    image: shareImage, title: shareTitle, entry: "reading_report")
+            }
+            Button("系统分享") {
+                LogManager.shared.info("readingReport", "分享渠道选择", context: [
+                    "channel": "system", "mode": mode.rawValue
+                ])
+                presentPosterShare()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("微信：以图片消息发送战报；系统分享：可保存图片或发送到其他 App")
+                .displayFont(13)
+        }
+        .sheet(item: $weChatSharePayload) { payload in
+            ReadingReportShareMenu(payload: payload)
+                .sjzPresentationChrome()
+        }
     }
 
     /// 错峰显示：index 前的卡片渐入
@@ -128,6 +181,115 @@ struct ReadingReportView: View {
             content: SharePosterView(mode: mode, store: store, goalStore: goalStore))
         renderer.scale = 2
         return renderer.uiImage
+    }
+
+    /// 分享标题（微信图片消息标题 / 系统分享文本）：与海报副标题同源
+    private var shareTitle: String {
+        "阅读时光 · " + mode.subtitle()
+    }
+
+    /// 系统分享战报图：与文章「长图」同一 UIKit 交付链路——
+    /// JPEG 文件 URL + 标题（微信 Share Extension 只能通过文件 URL 读取图片，内存中 UIImage 无法识别）、
+    /// 交付校验与 ≤12MP / ≤10MB 编码预算、临时文件延迟清理、readingReport 域全链埋点。
+    @MainActor
+    private func presentPosterShare() {
+        guard let image = shareImage else { return }
+        // 交付前校验：纯色 / 黑图绝不落盘分享（渲染层已校验；此处防编码链路异常）
+        guard !SJZImageIntegrity.isLikelyBlank(image) else {
+            WeChatService.shared.showBanner("战报生成异常，请重试", kind: .failure)
+            LogManager.shared.warning("readingReport", "战报分享校验拦截（画布纯色）", context: [
+                "mode": mode.rawValue,
+                "pixel": SJZImageIntegrity.pixelSizeText(of: image)
+            ])
+            return
+        }
+        // 交付编码：分享扩展（微信等）内存与体积预算有限——按「≤12MP / ≤10MB」编码
+        guard let encoded = WeChatImageEncoder.encode(
+            image,
+            maxBytes: WeChatImageEncoder.systemShareMaxBytes,
+            maxPixels: WeChatImageEncoder.systemShareMaxPixels
+        ) else {
+            WeChatService.shared.showBanner("战报图片编码失败，请重试", kind: .failure)
+            LogManager.shared.warning("readingReport", "战报 JPEG 编码失败", context: [
+                "mode": mode.rawValue
+            ])
+            return
+        }
+        let jpegData = encoded.data
+        // 标题与图片同帧取用：避免呈现窗口内切换模式导致「图是旧模式、标题是新模式」
+        let title = shareTitle
+        LogManager.shared.info("readingReport", "战报系统分享编码完成", context: [
+            "mode": mode.rawValue,
+            "pixel": "\(Int(encoded.pixelSize.width))x\(Int(encoded.pixelSize.height))",
+            "quality": String(format: "%.2f", encoded.quality),
+            "scale": String(format: "%.2f", encoded.scale),
+            "bytes": "\(jpegData.count)"
+        ])
+
+        // 临时文件名保留 sxjzit_ 前缀，纳入 SJZShareFileCenter 的陈旧残留清理
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sxjzit_reading_\(UUID().uuidString.prefix(6)).jpg")
+        do {
+            try jpegData.write(to: fileURL)
+        } catch {
+            WeChatService.shared.showBanner("战报图片保存失败，请重试", kind: .failure)
+            LogManager.shared.warning("readingReport", "战报临时文件写入失败", context: [
+                "mode": mode.rawValue
+            ])
+            return
+        }
+        LogManager.shared.debugLog("readingReport", "战报分享文件已保存", context: [
+            "file": fileURL.lastPathComponent, "sizeKB": "\(jpegData.count / 1024)"
+        ])
+
+        // 确认弹窗（系统 Action Sheet）退场动画约 0.3s：留足余量等其完全退场后再呈现，
+        // 避免「已有呈现进行中」冲突导致分享面板不出现
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [fileURL, title] in
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
+                SJZShareFileCenter.scheduleCleanup(fileURL)
+                WeChatService.shared.showBanner("无法打开系统分享，请重试", kind: .failure)
+                LogManager.shared.warning("readingReport", "战报系统分享无法获取窗口", context: [:])
+                return
+            }
+            var topVC = rootVC
+            while let presented = topVC.presentedViewController {
+                topVC = presented
+            }
+            // 关键：仅传递文件 URL 和标题文本，不传递 UIImage 对象
+            let activityVC = UIActivityViewController(
+                activityItems: [fileURL, title], applicationActivities: nil)
+            activityVC.excludedActivityTypes = [
+                .assignToContact, .addToReadingList,
+                .postToFlickr, .postToVimeo, .postToTencentWeibo
+            ]
+            // iPad 弹层锚点（工程 Device Family 含 iPad）：无锚点会触发系统异常
+            if let popover = activityVC.popoverPresentationController {
+                popover.sourceView = topVC.view
+                popover.sourceRect = CGRect(
+                    x: topVC.view.bounds.midX, y: topVC.view.bounds.midY,
+                    width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+            activityVC.completionWithItemsHandler = { [fileURL] _, completed, _, error in
+                // 分享扩展读取文件较慢，且回调在「用户选择动作」时即触发——
+                // 绝不能立即删除；交由共享中心延迟 5 分钟清理
+                SJZShareFileCenter.scheduleCleanup(fileURL)
+                if let error {
+                    LogManager.shared.warning("readingReport", "战报系统分享失败", context: [
+                        "error": error.localizedDescription
+                    ])
+                } else if completed {
+                    LogManager.shared.info("readingReport", "战报系统分享完成", context: [:])
+                } else {
+                    // 用户取消 / 未选择动作 = 正常行为（取消语义红线：不计失败、不告警）
+                    LogManager.shared.info("readingReport", "战报系统分享未完成（用户取消或未选择动作）", context: [:])
+                }
+            }
+            topVC.present(activityVC, animated: true) {
+                LogManager.shared.debugLog("readingReport", "战报分享面板已呈现", context: [:])
+            }
+        }
     }
 
     // MARK: - 时段氛围背景（跟随系统深浅色，杜绝深色模式发白）
@@ -166,10 +328,8 @@ struct ReadingReportView: View {
 
     private var heroCard: some View {
         let palette = ReadingReportPalette.forNow()
-        let today = store.todaySeconds
-        let thisWeek = store.thisWeekSeconds
         let goalMinutes = heroPeriod == .daily ? goalStore.dailyMinutes : goalStore.weeklyMinutes
-        let base = heroPeriod == .daily ? today : thisWeek
+        let base = heroSeconds
         let progress = min(1.0, Double(base) / Double(max(1, goalMinutes) * 60))
         return VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
@@ -254,19 +414,19 @@ struct ReadingReportView: View {
                     showGoalEditor = true
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("今日目标完成 \(Int(progress * 100))%，点击设定阅读目标")
+                .accessibilityLabel("\(heroPeriodName)目标完成 \(Int(progress * 100))%，点击设定阅读目标")
             }
 
             HStack(alignment: .lastTextBaseline, spacing: 10) {
-                Text(todayDurationText)
+                Text(heroDurationText)
                     .displayFont(54, weight: .bold)
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .foregroundStyle(.white)
-                    .contentTransition(.numericText(value: Double(store.todaySeconds)))
-                    .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8), value: store.todaySeconds)
-                Text("· \(store.todayArticleCount) 篇")
+                    .contentTransition(.numericText(value: Double(heroSeconds)))
+                    .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8), value: heroSeconds)
+                Text("· \(heroArticleCount) 篇")
                     .displayFont(14, weight: .medium)
                     .foregroundStyle(.white.opacity(0.85))
                 Spacer()
@@ -287,7 +447,7 @@ struct ReadingReportView: View {
                 }
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("今日专注 \(todayDurationText)，阅读 \(store.todayArticleCount) 篇")
+            .accessibilityLabel("\(heroPeriodName)专注 \(heroDurationText)，阅读 \(heroArticleCount) 篇")
 
             // 进度条细线 + 设定目标入口（独立于环，避免环内重叠）
             HStack(spacing: 12) {
@@ -354,11 +514,30 @@ struct ReadingReportView: View {
         }
     }
 
-    /// 今日专注精确文案
-    private var todayDurationText: String {
-        let s = store.todaySeconds
+    /// Hero 大数字口径：随日/周目标切换（与目标环、进度线、无障碍标签同源）
+    private var heroSeconds: Int {
+        heroPeriod == .daily ? store.todaySeconds : store.thisWeekSeconds
+    }
+
+    /// Hero 篇数口径：随日/周目标切换（与周报海报同源的 thisWeekArticleCount）
+    private var heroArticleCount: Int {
+        heroPeriod == .daily ? store.todayArticleCount : store.thisWeekArticleCount
+    }
+
+    /// Hero 周期名（无障碍标签用）
+    private var heroPeriodName: String {
+        heroPeriod == .daily ? "今日" : "本周"
+    }
+
+    /// Hero 专注时长精确文案（0 秒显式展示，避免空态歧义；≥1 小时与海报同为小时↔分口径）
+    private var heroDurationText: String {
+        let s = heroSeconds
         if s <= 0 { return "0 秒" }
         if s < 60 { return "\(s) 秒" }
+        if s >= 3600 {
+            let h = s / 3600, m = (s % 3600) / 60
+            return m > 0 ? "\(h) 小时 \(m) 分" : "\(h) 小时"
+        }
         let m = s / 60, r = s % 60
         return r > 0 ? "\(m) 分 \(r) 秒" : "\(m) 分钟"
     }
@@ -1055,9 +1234,7 @@ private struct SharePosterView: View {
     private var articleCount: Int {
         switch mode {
         case .daily: return store.todayArticleCount
-        case .weekly:
-            guard let iv = store.weekInterval() else { return 0 }
-            return store.events.filter { iv.contains($0.endedAt) }.count
+        case .weekly: return store.thisWeekArticleCount
         case .monthly: return store.thisMonthArticleCount
         case .yearly: return store.thisYearArticleCount
         }
@@ -1075,20 +1252,7 @@ private struct SharePosterView: View {
     }
 
     private var subtitle: String {
-        let now = Date()
-        switch mode {
-        case .daily:
-            let c = calendar.dateComponents([.month, .day], from: now)
-            return "日报 · \(c.month ?? 0)月\(c.day ?? 0)日"
-        case .weekly:
-            let c = calendar.dateComponents([.month, .day], from: now)
-            return "周报 · \(c.month ?? 0)月\(c.day ?? 0)日"
-        case .monthly:
-            let c = calendar.dateComponents([.year, .month], from: now)
-            return "月报 · \(c.year ?? 0)年\(c.month ?? 0)月"
-        case .yearly:
-            return "年报 · \(calendar.component(.year, from: now))年"
-        }
+        mode.subtitle(calendar: calendar)
     }
 
     private var durationText: String {
@@ -1097,8 +1261,9 @@ private struct SharePosterView: View {
         return "\(max(0, s / 60)) 分钟"
     }
 
-    /// 目标完成%（仅日/周有目标；月/年无目标不展示）
+    /// 目标完成%（仅日/周有目标；月/年无目标口径，恒不展示——避免套用周目标给出错误百分比）
     private var goalText: String {
+        guard mode == .daily || mode == .weekly else { return "" }
         let goalMin = mode == .daily ? goalStore.dailyMinutes : goalStore.weeklyMinutes
         guard goalMin > 0 else { return "" }
         let base = mode == .daily ? store.todaySeconds : store.thisWeekSeconds
@@ -1160,6 +1325,147 @@ private struct SharePosterView: View {
             Text(unit)
                 .displayFont(18, weight: .medium)
                 .foregroundStyle(.white.opacity(0.75))
+        }
+    }
+}
+
+// MARK: - 阅读战报微信分享菜单（本模块专用 · 与文章长图菜单物理隔离）
+
+/// 把阅读战报作为图片消息发送到微信（官方 WXImageObject）。
+///
+/// 与文章长图菜单 `WeChatLongImageShareMenu` **刻意分离、不是重复代码**（2026-10-04 决策）：
+/// 两者文案口径不同（战报 vs 正文长图），独立成壳后共享文件零改动、互不影响；
+/// 发送服务（`WeChatService.shareImage`）、场景磁贴（`WeChatSceneTiles`）、
+/// 不可用提示（`WeChatUnavailableNotice`）与载荷（`WeChatLongImagePayload`）全部复用既有共享组件。
+/// 请勿将其"去重"合并回共享菜单——那会重新引入跨模块耦合。
+private struct ReadingReportShareMenu: View {
+    let payload: WeChatLongImagePayload
+
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var service = WeChatService.shared
+    @State private var sendingScene: WeChatScene?
+    @State private var appeared = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider().opacity(0.4)
+            if service.availability.canOperate {
+                WeChatSceneTiles(sendingScene: sendingScene, appeared: appeared) { scene in
+                    send(scene)
+                }
+            } else {
+                WeChatUnavailableNotice(appeared: appeared)
+            }
+            footer
+        }
+        .padding(.bottom, 10)
+        .presentationDetents([.height(service.availability.canOperate ? 344 : 306)])
+        .presentationDragIndicator(.visible)
+        .onAppear {
+            service.refreshAvailability()
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                appeared = true
+            }
+            LogManager.shared.debugLog("wechat", "战报分享菜单展示", context: [
+                "kind": WeChatShareKind.longImage.logName,
+                "entry": payload.entry,
+                "title": payload.title,
+                "pixelSize": SJZImageIntegrity.pixelSizeText(of: payload.image),
+                "preview": "\(Int(payload.previewImage.size.width))x\(Int(payload.previewImage.size.height))",
+                "availability": service.availability.rawValue
+            ])
+        }
+    }
+
+    // MARK: 头部（战报预览 + 尺寸）
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            preview
+            VStack(alignment: .leading, spacing: 5) {
+                Text(payload.title)
+                    .displayText(size: 14, weight: .semibold)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                HStack(spacing: 5) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .displaySymbolFont(9, weight: .semibold)
+                        .foregroundStyle(.tertiary)
+                    Text("战报 · \(Int(payload.image.size.width)) × \(Int(payload.image.size.height))")
+                        .displayFont(11)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 14)
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : -6)
+    }
+
+    /// 战报预览：载荷构造期生成的顶部裁方小图，弹出即显、零绘制卡顿
+    private var preview: some View {
+        Image(uiImage: payload.previewImage)
+            .resizable()
+            .scaledToFill()
+            .frame(width: 52, height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(alignment: .bottomTrailing) {
+                Text("战报")
+                    .displayFont(8, weight: .semibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1.5)
+                    .background(Color.black.opacity(0.55), in: Capsule())
+                    .padding(3)
+            }
+    }
+
+    // MARK: 底注
+
+    private var footer: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "info.circle")
+                .displaySymbolFont(10)
+                .foregroundStyle(.tertiary)
+            Text("发送战报：作为图片消息发出，超 10MB 自动压缩")
+                .displayFont(11)
+                .foregroundStyle(.tertiary)
+            Spacer(minLength: 0)
+            if service.sdkVersion != "—" {
+                Text("SDK \(service.sdkVersion)")
+                    .displayFont(10)
+                    .foregroundStyle(.quaternary)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+    }
+
+    // MARK: 发送
+
+    private func send(_ scene: WeChatScene) {
+        guard sendingScene == nil else { return }
+        sendingScene = scene
+        LogManager.shared.info("wechat", "战报分享菜单选择场景", context: [
+            "kind": WeChatShareKind.longImage.logName,
+            "scene": scene.logName,
+            "entry": payload.entry,
+            "title": payload.title,
+            "pixelSize": SJZImageIntegrity.pixelSizeText(of: payload.image)
+        ])
+        Task {
+            let sent = await service.shareImage(payload.image, title: payload.title, to: scene, entry: payload.entry)
+            if sent {
+                // 系统随即切换到微信（本页被覆盖）：先收起菜单，返回时直接回到阅读时光
+                dismiss()
+            } else {
+                sendingScene = nil
+            }
         }
     }
 }
