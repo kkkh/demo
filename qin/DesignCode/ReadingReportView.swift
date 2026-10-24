@@ -42,18 +42,16 @@ struct ReadingReportView: View {
                 ambientBackground
 
                 ScrollView {
-                    GlassEffectContainer(spacing: 16) {
-                        VStack(spacing: 18) {
-                            heroCard
-                                .opacity(reveal(0))
-                            modeCapsule
-                                .opacity(reveal(1))
-                            if mode == .daily { dailySection } else { weeklySection }
-                            privacyCard
-                                .opacity(reveal(6))
-                            footnote
-                                .opacity(reveal(6))
-                        }
+                    VStack(spacing: 18) {
+                        heroCard
+                            .opacity(reveal(0))
+                        modeCapsule
+                            .opacity(reveal(1))
+                        if mode == .daily { dailySection } else { weeklySection }
+                        privacyCard
+                            .opacity(reveal(6))
+                        footnote
+                            .opacity(reveal(6))
                     }
                     .padding(.horizontal, 16)
                     .padding(.bottom, 32)
@@ -277,9 +275,9 @@ struct ReadingReportView: View {
                         .background {
                             if mode == m {
                                 Capsule()
-                                    .fill(Color.sjzCard.opacity(0.6))
-                                    .glassEffect()
+                                    .fill(Color.sjzCard)
                                     .shadow(color: .black.opacity(0.10), radius: 6, y: 3)
+                                    .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 0.6))
                             }
                         }
                 }
@@ -288,7 +286,8 @@ struct ReadingReportView: View {
             }
         }
         .padding(4)
-        .background(Capsule().fill(.ultraThinMaterial).glassEffect())
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 0.6))
     }
 
     // MARK: - 内容分区
@@ -606,11 +605,7 @@ struct ReadingReportView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
-        .background {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.sjzCard.opacity(0.4))
-                .glassEffect()
-        }
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var footnote: some View {
@@ -668,12 +663,21 @@ private struct ReportCard<Content: View>: View {
         .padding(16)
         .background {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.sjzCard.opacity(0.35))
-                .glassEffect()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.sjzCard.opacity(0.96), Color.sjzLight.opacity(0.72)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(.white.opacity(0.06)))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [.white.opacity(0.5), .white.opacity(0.08)],
+                                startPoint: .top, endPoint: .bottom),
+                            lineWidth: 0.8))
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.white.opacity(0.18), lineWidth: 0.6))
         .shadow(color: .black.opacity(0.06), radius: 16, y: 8)
     }
 }
