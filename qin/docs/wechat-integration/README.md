@@ -81,57 +81,46 @@ Xcode → Target `DesignCode` → Build Settings → 搜索 `WECHAT_`，按 §0 
 
 ### 3.3 服务器 AASA 部署（域名 `jl.43322.cn` · 腾讯 EdgeOne Pages）
 
-**现状（2026-09-27 实测）**：`https://jl.43322.cn/` → 200（EdgeOne Pages 站点），`/.well-known/apple-app-site-association` → **404（尚未部署）**，`/app/` → 404。需完成以下两步：
+**现状（2026-09-27 复核）**：✅ **AASA 已部署且 Apple CDN 已收录**——直连 200 且内容与本工程完全一致；`https://app-site-association.cdn-apple.com/a/v1/jl.43322.cn` 已返回同一 JSON（这是 iOS 设备实际读取的副本，UL 解析链路已具备）。⏳ `/app/` 落地页仍 404（可选，建议补上）。
 
-**① 上传 AASA**：将本仓库 [`deploy/.well-known/apple-app-site-association`](./deploy/.well-known/apple-app-site-association)（或等价的 [`well-known/apple-app-site-association`](./well-known/apple-app-site-association)，两份内容一致）原样放入站点根目录（保持 `.well-known` 目录结构，**文件名无扩展名**）：
-
-```
-https://jl.43322.cn/.well-known/apple-app-site-association
-```
-
-- EdgeOne Pages：把 `deploy/` 目录内容并入站点发布目录（`deploy/.well-known/…` 与 `deploy/app/…` 保持层级），重新部署即可；
-- 若平台忽略点开头的目录，改用重定向/重写规则把 `/.well-known/apple-app-site-association` 指向一个真实文件（如 `/aasa.json`），**不得 301/302 跳转**。
-
-**② 落地页（推荐）**：将 [`deploy/app/index.html`](./deploy/app/index.html) 部署到 `/app/`，让 Universal Link 命中时展示友好页面而不是 404（微信拉起 App 前会先加载该 URL）。
-
-**③ 校验**：
-
-```bash
-# 直连校验（必须 200 + Content-Type: application/json）
-curl -sI https://jl.43322.cn/.well-known/apple-app-site-association | head -5
-curl -s  https://jl.43322.cn/.well-known/apple-app-site-association | python3 -m json.tool
-
-# Apple CDN 校验（部署后可能需数分钟~数小时收敛）
-curl -s https://app-site-association.cdn-apple.com/a/v1/jl.43322.cn | python3 -m json.tool
-
-# 落地页校验
-curl -sI https://jl.43322.cn/app/ | head -3
-```
-
-**AASA 内容（本仓库已生成，appID 与本工程完全一致）**：
+**已验证的 AASA 内容**（本仓库 [`deploy/.well-known/apple-app-site-association`](./deploy/.well-known/apple-app-site-association) / [`well-known/apple-app-site-association`](./well-known/apple-app-site-association)）：
 
 ```json
 { "applinks": { "apps": [], "details": [ { "appID": "F2JL9GNLCC.com.qinchao", "paths": ["/app/*"] } ] } }
 ```
 
-- `appID` = `TeamID.BundleID` = `F2JL9GNLCC.com.qinchao`；
-- `paths` 必须覆盖 `/app/*`（微信 Universal Link 回跳路径，与 `WECHAT_UNIVERSAL_LINK` 的路径一致）。
+- `appID` = `TeamID.BundleID` = `F2JL9GNLCC.com.qinchao`（与真机签名 Team / Bundle ID 一致）；
+- `paths` 覆盖 `/app/*`（与 `WECHAT_UNIVERSAL_LINK` 的路径一致）。
 
-### 3.4 启用 Associated Domains（官方要求④ · 当前为唯一阻塞项）
+**可选收尾两项**：
 
-**实测结论（2026-09-27）**：把 `CODE_SIGN_ENTITLEMENTS = DesignCode/DesignCode.entitlements` 打开后，命令行构建报
-`No Accounts` + `Provisioning profile "iOS Team Provisioning Profile: com.qinchao" doesn't include the Associated Domains capability`
-→ **CLI 自动签名无法开通该能力**，故工程默认**不启用**该设置（保证日常命令行构建/测试不被破坏）。
+1. `/app/` 落地页：把 [`deploy/app/index.html`](./deploy/app/index.html) 部署到 `/app/`（UL 命中时展示友好页面而非 404）；
+2. `Content-Type` 建议设为 `application/json`（当前 EdgeOne 返回 `application/octet-stream`；iOS 实际读 Apple CDN 副本，故不影响 UL 解析，但按 Apple 规范建议在 EdgeOne 规则里补一个响应头）。
 
-**请在 Xcode GUI 中完成一次（之后命令行构建也会带上该能力）**：
+**校验命令**：
 
-1. Xcode 打开 `qin/DesignCode.xcodeproj` → Target `DesignCode` → **Signing & Capabilities**；
-2. 确认 Team 已登录（Xcode → Settings → Accounts，看不到 `No Accounts` 报错即可）；
-3. **+ Capability** → **Associated Domains** → 添加 `applinks:jl.43322.cn`；
-   （或手动：Build Settings 里把 `CODE_SIGN_ENTITLEMENTS` 设为 `DesignCode/DesignCode.entitlements`，该文件已就绪，值由 `$(WECHAT_UL_HOST)` 注入）
-4. 让 Xcode 更新描述文件（必要时勾选 Automatically manage signing）；
-5. 在 [Apple Developer](https://developer.apple.com/account/resources/identifiers) 确认 App ID `com.qinchao` 的 **Associated Domains** 能力已勾选（自动签名通常会代劳）；
-6. 重新真机构建安装，进入「微信集成」运行七步自检。
+```bash
+# 直连 + 内容
+curl -sI https://jl.43322.cn/.well-known/apple-app-site-association | head -5
+curl -s  https://jl.43322.cn/.well-known/apple-app-site-association | python3 -m json.tool
+# Apple CDN（设备实际读取的副本）
+curl -s  https://app-site-association.cdn-apple.com/a/v1/jl.43322.cn | python3 -m json.tool
+# 落地页（可选）
+curl -sI https://jl.43322.cn/app/ | head -3
+```
+
+### 3.4 启用 Associated Domains（官方要求④ · 当前唯一阻塞项）
+
+**实测结论（2026-09-27，两轮验证）**：把 `CODE_SIGN_ENTITLEMENTS = DesignCode/DesignCode.entitlements` 打开后，命令行构建（含关闭沙箱重试）均报
+`No Accounts: Add a new account in Accounts settings` + `Provisioning profile "iOS Team Provisioning Profile: com.qinchao" doesn't include the Associated Domains capability`
+→ 本机 **Xcode 未登录 Apple ID**，命令行无法向开发者门户开通/更新该能力，故工程默认**不启用**此设置（保证日常命令行构建/测试不被破坏）。
+
+**请完成一次（二选一，之后命令行构建也会带上该能力）**：
+
+- **方式 A（推荐）**：Xcode → Settings → **Accounts** 登录 Apple ID（Team `F2JL9GNLCC`）→ 打开 `qin/DesignCode.xcodeproj` → Target `DesignCode` → **Signing & Capabilities** → **+ Capability** → **Associated Domains** → 添加 `applinks:jl.43322.cn` → ⌘R 跑一次（Xcode 自动更新描述文件）；Build Settings 的 `CODE_SIGN_ENTITLEMENTS` 会由 Xcode 自动写入（文件已就绪，值由 `$(WECHAT_UL_HOST)` 注入）；
+- **方式 B（纯 GUI 最快）**：登录账号后直接 ⌘R；若报缺能力，再按方式 A 加一次 Capability。
+
+完成后进入「微信集成」运行**七步自检**，七步全绿即全链打通。
 
 > 未启用前：微信**分享/登录的返回回调**无法送达本 App（微信自 SDK 1.8.6 起统一经 Universal Link 回跳），表现为微信侧返回失败或本 App 收不到 onResp。
 
@@ -154,7 +143,8 @@ curl -sI https://jl.43322.cn/app/ | head -3
 | 真机单元测试 | **104/104 通过（0 失败）**，两轮均全绿 | `build/verify/wechat_test_real.log`（真实配置轮，含 WeChatSDKTests 17 例） |
 | 日志埋点联通（真机运行断言） | 通过：注册路径写入 `wechat` 域 LogEntry（真实 AppID 下同样成立） | `WeChatSDKTests.testRegistrationPathWritesWeChatLog` |
 | Info.plist 变量注入实测 | 真实值注入正确：`CFBundleURLSchemes = wx8e60d3a37d3cff47`、`WeChatUniversalLink = https://jl.43322.cn/app/`、`WeChatMiniProgramID`（占位）、`LSApplicationQueriesSchemes` | 构建产物 `DesignCode.app/Info.plist` |
-| Associated Domains（entitlements） | 尚未启用：CLI 自动签名无法开通该能力（`No Accounts` + 描述文件缺能力）→ 需 Xcode GUI 一次性操作，见 §3.4 | `build/verify/wechat_device_build_real.log`（开启后构建失败记录） |
+| **真机 SDK 注册实测**（2026-09-27 最终轮） | `WXApi.registerApp` 返回 **true**；可用性状态机 = **ready**（已注册 + 微信已安装 + 版本支持 OpenApi）；SDK 2.0.8；`placeholder=false` | `build/verify/wechat_final_test.log` L1082 `[WeChatContract] registered=true availability=ready installed=true sdk=2.0.8 …` |
+| Associated Domains（entitlements） | 尚未启用：CLI 自动签名无法开通该能力（`No Accounts` + 描述文件缺能力）→ 需 Xcode GUI 一次性操作，见 §3.4 | `build/verify/wechat_device_build_ad2.log`（开启后两轮失败记录） |
 
 > 提示：App 日志以 **1000 条/文件** 滚动（高频图片/缓存 DEBUG 日志约 3 分钟即填满窗口），启动时刻的注册日志可能已被窗口挤出文件——排查微信问题时请看 App 内「我的 → 应用日志」（内存保留最多 3000 条，可筛 `wechat` 域）。
 
