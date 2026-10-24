@@ -4092,7 +4092,7 @@ struct OrganizationArticleDetailView: View {
                 "elapsed": "\(elapsed)ms"
             ])
         } catch let error as NetworkError {
-            // 所有 siteId 都失败，尝试使用文章摘要兜底（兜底成功属正常降级路径，warning 级别）
+            // 所有 siteId 都失败，尝试使用文章摘要兜底（含网络级失败：warning）
             let elapsed = Int(Date().timeIntervalSince(loadStartTime) * 1000)
             LogManager.shared.warning("organization", "文章详情数据源失败，使用摘要兜底", context: [
                 "articleId": article.articleId,
@@ -4100,22 +4100,16 @@ struct OrganizationArticleDetailView: View {
                 "error": error.localizedDescription,
                 "elapsed": "\(elapsed)ms"
             ])
-            if !article.description.isEmpty {
-                detailContent = "<p>\(article.description)</p>"
-                detailTitle = article.title
-                detailAuthor = ""
-                detailSource = ""
-                detailPublishTime = ""
-                detailImages = []
-                isLoadingDetail = false
-                LogManager.shared.info("organization", "所有数据源失败，使用文章摘要兜底", context: [
-                    "articleId": article.articleId,
-                    "descriptionLength": "\(article.description.count)"
-                ])
-                return
-            }
-            detailError = "文章内容暂时无法加载，请稍后重试"
-            isLoadingDetail = false
+            applySummaryFallback()
+        } catch is OrgBriefArticleError {
+            // 简报型文章（各级数据源均成功返回但正文为空）：官网真实数据形态，非故障 → INFO（警告栏只留真异常）
+            let elapsed = Int(Date().timeIntervalSince(loadStartTime) * 1000)
+            LogManager.shared.info("organization", "简报型文章（正文为空）使用摘要兜底", context: [
+                "articleId": article.articleId,
+                "siteId": siteId,
+                "elapsed": "\(elapsed)ms"
+            ])
+            applySummaryFallback()
         } catch {
             detailError = "文章加载失败，请稍后重试"
             isLoadingDetail = false
@@ -4127,6 +4121,26 @@ struct OrganizationArticleDetailView: View {
                 "elapsed": "\(elapsed)ms"
             ])
         }
+    }
+
+    /// 摘要兜底（网络级失败与简报型文章共用）：有摘要则以摘要为正文，否则进错误态
+    private func applySummaryFallback() {
+        if !article.description.isEmpty {
+            detailContent = "<p>\(article.description)</p>"
+            detailTitle = article.title
+            detailAuthor = ""
+            detailSource = ""
+            detailPublishTime = ""
+            detailImages = []
+            isLoadingDetail = false
+            LogManager.shared.info("organization", "使用文章摘要兜底", context: [
+                "articleId": article.articleId,
+                "descriptionLength": "\(article.description.count)"
+            ])
+            return
+        }
+        detailError = "文章内容暂时无法加载，请稍后重试"
+        isLoadingDetail = false
     }
 
     private func formatDate(_ raw: String) -> String {
@@ -4588,6 +4602,8 @@ struct OrganizationArticleDetailView: View {
                 "triedSiteIds": siteIdsToTry.joined(separator: ", "),
                 "emptyCount": "\(emptyContentCount)"
             ])
+            // 抛专用错误类型：调用方据此把兜底记 INFO（不污染警告栏）
+            throw OrgBriefArticleError(triedSiteIds: siteIdsToTry)
         } else {
             LogManager.shared.error("organization", "文章详情所有siteId均失败", context: [
                 "articleId": article.articleId,
@@ -4704,6 +4720,15 @@ struct OrganizationArticleDetailView: View {
 struct TimeoutError: Error, LocalizedError {
     let seconds: TimeInterval
     var errorDescription: String? { "操作超时（\(Int(seconds))秒）" }
+}
+
+/// 简报型文章（各级数据源均成功返回但正文为空）——官网真实数据形态，**不是**网络故障。
+/// 用途：让调用方把「摘要兜底」按正常降级路径记 INFO，而不是污染警告栏（警告只留真异常）。
+struct OrgBriefArticleError: Error, LocalizedError {
+    let triedSiteIds: [String]
+    var errorDescription: String? {
+        "简报型文章：各级站点均返回空正文（已尝试 siteId: \(triedSiteIds.joined(separator: ", "))）"
+    }
 }
 
 /// 带超时的异步操作包装
