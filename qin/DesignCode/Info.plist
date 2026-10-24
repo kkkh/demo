@@ -53,9 +53,6 @@
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
-		<!-- 外链网页（如图书馆电子图书 http://www.sslibrary.com）为明文 HTTP：
-		     仅对 WKWebView 网页内容豁免 ATS（Apple 推荐 iOS10+ 键），
-		     App 主网络层（URLSession）仍严格 ATS，仅 sxjzit.edu.cn 例外（2026-10-01 真机实证 ATS 拦截关联 + curl 200） -->
 		<key>NSAllowsArbitraryLoadsInWebContent</key>
 		<true/>
 		<key>NSExceptionDomains</key>
