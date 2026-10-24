@@ -130,6 +130,11 @@ struct DesignCodeApp: App {
                 switch newPhase {
                 case .background:
                     biometricSecurity.handleDidEnterBackground()
+                    // 退后台立即落盘待写日志（防进程被系统回收丢失最近 0.5s 内的记录）
+                    let pending = LogManager.shared.flushPendingNow()
+                    if pending == 0 {
+                        LogManager.shared.debugLog("log", "退后台日志落盘完成", context: [:])
+                    }
                 case .active:
                     biometricSecurity.handleReturnToForeground()
                     // 回到前台时校准微信可用性（用户可能刚安装/升级微信）

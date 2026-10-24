@@ -9230,6 +9230,9 @@ struct ProfileView: View {
     @ObservedObject private var messageCenterStore = MessageCenterStore.shared
     @ObservedObject private var bookmarkManager = BookmarkManager.shared
     @ObservedObject private var bookmarkReadManager = ReadStatusManager.shared
+    // 日志入口采用快照式（onAppear 读取 + 关闭日志页后刷新）：
+    // LogManager 为全 App 高频写入对象，直接观察会导致日志洪峰期「我的」页整页重渲染
+    @State private var logEntrySubtitle = "查看日志、排查问题"
     @AppStorage("colorSchemePreference") private var colorSchemePreference: String = "system"
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.openURL) private var openURL
@@ -9253,6 +9256,19 @@ struct ProfileView: View {
         guard total > 0 else { return "收藏文章，支持离线阅读与更新提醒" }
         let unread = bookmarkUnreadCount
         return unread > 0 ? "已收藏 \(total) 篇 · \(unread) 篇未读" : "已收藏 \(total) 篇文章"
+    }
+
+    /// 日志入口副标题快照：总量 + 今日新增 + 今日异常（状态直观可见，且不观察高频对象）
+    private func refreshLogEntrySubtitle() {
+        let stats = LogManager.shared.stats()
+        guard stats.total > 0 else {
+            logEntrySubtitle = "运行记录与崩溃日志，仅存本机"
+            return
+        }
+        var parts = ["共 \(stats.total) 条"]
+        if stats.today > 0 { parts.append("今日 \(stats.today)") }
+        if stats.issueToday > 0 { parts.append("异常 \(stats.issueToday)") }
+        logEntrySubtitle = parts.joined(separator: " · ")
     }
 
     var body: some View {
@@ -9291,6 +9307,13 @@ struct ProfileView: View {
             messageCenterStore.dismissRequest = nil
             showMessageCenter = false
             LogManager.shared.debugLog("messageCenter", "消息中心深链投递：已请求关闭消息中心", context: [:])
+        }
+        .onAppear {
+            refreshLogEntrySubtitle()
+        }
+        .onChange(of: showLogs) { _, isPresented in
+            // 日志页关闭后刷新入口状态快照
+            if !isPresented { refreshLogEntrySubtitle() }
         }
     }
 
@@ -9363,9 +9386,16 @@ struct ProfileView: View {
             MenuCard(
                 icon: "terminal.fill",
                 title: "应用日志",
-                subtitle: "查看日志、排查问题",
+                subtitle: logEntrySubtitle,
                 color: Color.sjzTeal
-            ) { showLogs = true }
+            ) {
+                let stats = LogManager.shared.stats()
+                LogManager.shared.info("log", "日志入口点击（我的页）", context: [
+                    "total": "\(stats.total)", "today": "\(stats.today)",
+                    "issueToday": "\(stats.issueToday)"
+                ])
+                showLogs = true
+            }
         }
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22))
         .shadow(color: .black.opacity(0.05), radius: 16, y: 8)
@@ -10337,7 +10367,7 @@ struct SettingsView: View {
                 } header: {
                     Text("应用日志")
                 } footer: {
-                    Text("日志仅存储在本地，不会自动上传。超过 7 天的旧日志将自动清理。")
+                    Text("日志仅存储在本地，不会自动上传。超过 \(logManager.retentionDays) 天的旧日志将自动清理，保留天数与容量上限可在日志设置中调整。")
                 }
 
                 // MARK: 数据管理
