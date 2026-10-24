@@ -272,7 +272,7 @@ checkForUpdates(pushToSystem:)：
 - **ATS**：`NSAllowsArbitraryLoads = false`，仅 `sxjzit.edu.cn`（含子域）HTTP 明文放行；其余强制 HTTPS。
 - **120Hz**：Info.plist `CADisableMinimumFrameDurationOnPhone = true` 解锁 ProMotion。
 - **构建/运行**：真机「秦超的iPhone」（UDID `00008110-000411A40EC1401E`，iOS 27.0）；`xcodebuild -project DesignCode.xcodeproj -scheme DesignCode -destination 'platform=iOS,id=…' build|test`。详见 [docs/code-wiki/05-项目运行方式](docs/code-wiki/05-项目运行方式.md)。
-- **git**：2026-09-27 已重建（`main` 分支，初始提交 `b88e430`，含 `.gitignore`）；远端备份为 GitHub 私有仓 `kkkh/Garden-iOS`（origin）；历史备份快照保留在磁盘。
+- **git**：2026-09-27 已重建（`main` 分支，初始提交 `b88e430`，含 `.gitignore`）；远端双备份：GitHub `kkkh/Garden-iOS`（origin）+ Gitee `oai/garden-ios`（remote `gitee`，SSH 专用密钥）；历史备份快照保留在磁盘。
 
 ---
 
