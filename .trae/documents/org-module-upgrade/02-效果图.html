@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-scheme="a">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>校园 · 机构模块升级 · 效果图 v1</title>
+<style>
+/* ============ 令牌：方案 A「青金书院」（选定） ============ */
+:root{
+  --bg:#F7F5F0; --bg-2:#FCFBF9; --surface:#FFFFFF; --surface-muted:#F1EFE9;
+  --text:#1B2430; --text-2:#5C6672; --text-3:#667080; --sep:#E6E2D9;
+  --primary:#1E3A66; --tint:#2C5CA8; --brass:#8F7038; --brass-strong:#7A5F2E;
+  --success:#2F7D5C; --warning:#96652A; --error:#B0463F;
+  --cat1:#9E4A55; --cat2:#96653F; --cat3:#4A6E9E; --cat4:#6E5A96; --cat5:#3E7873;
+  --cat-tint:12%; --glass:rgba(255,255,255,.62); --glass-stroke:rgba(255,255,255,.55);
+  --sh1:0 1px 3px rgba(20,24,32,.06); --sh2:0 6px 20px rgba(20,24,32,.08); --sh3:0 12px 32px rgba(20,24,32,.12);
+  --track:rgba(20,24,32,.05);
+}
+html[data-theme="dark"]{
+  --bg:#0F141B; --bg-2:#121924; --surface:#171E28; --surface-muted:#1E2733;
+  --text:#EEF1F6; --text-2:#A3AEBD; --text-3:#818D9C; --sep:#2A3542;
+  --primary:#9FB9E6; --tint:#86AEE8; --brass:#D8BC8A; --brass-strong:#D8BC8A;
+  --success:#6FC79E; --warning:#E2A85E; --error:#E58C84;
+  --cat1:#E3919B; --cat2:#E0AE7E; --cat3:#93B4DC; --cat4:#B3A0DA; --cat5:#93C4BE;
+  --cat-tint:18%; --glass:rgba(24,31,42,.60); --glass-stroke:rgba(255,255,255,.14);
+  --sh1:0 1px 3px rgba(0,0,0,.30); --sh2:0 6px 20px rgba(0,0,0,.35); --sh3:0 12px 32px rgba(0,0,0,.40);
+  --track:rgba(255,255,255,.06);
+}
+/* ============ 方案 B「石青」 ============ */
+html[data-scheme="b"]{
+  --bg:#F5F7F6; --bg-2:#FAFCFB; --surface:#FFFFFF; --surface-muted:#EDF1F0;
+  --text:#1C2624; --text-2:#586460; --text-3:#647371; --sep:#E0E6E4;
+  --primary:#2F6D63; --tint:#2F6D63; --brass:#6E8FA3; --brass-strong:#3E6572;
+}
+html[data-scheme="b"][data-theme="dark"]{
+  --bg:#0E1413; --bg-2:#121A19; --surface:#161D1C; --surface-muted:#1D2524;
+  --text:#EDF2F0; --text-2:#A0ABA7; --text-3:#7E8A86; --sep:#29302F;
+  --primary:#7FC7B8; --tint:#7FC7B8; --brass:#9DB8C8; --brass-strong:#9DB8C8;
+}
+/* ============ 方案 C「苍穹」 ============ */
+html[data-scheme="c"]{
+  --bg:#F6F8FB; --bg-2:#FBFCFE; --surface:#FFFFFF; --surface-muted:#EEF2F7;
+  --text:#16202E; --text-2:#57687E; --text-3:#63758B; --sep:#E1E7EF;
+  --primary:#2E5FA3; --tint:#2E5FA3; --brass:#79A7D8; --brass-strong:#2E5B8E;
+}
+html[data-scheme="c"][data-theme="dark"]{
+  --bg:#0B1220; --bg-2:#0F1727; --surface:#131C2B; --surface-muted:#1A2436;
+  --text:#EDF2F9; --text-2:#9FB0C4; --text-3:#7B8CA1; --sep:#243149;
+  --primary:#7FB0F0; --tint:#7FB0F0; --brass:#9CC0E8; --brass-strong:#9CC0E8;
+}
+
+/* ============ 文档骨架 ============ */
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased; font-size:14px; line-height:1.6;
+  transition:background .35s ease,color .35s ease;
+}
+.doc{max-width:1340px;margin:0 auto;padding:0 32px 96px}
+.topbar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:14px 0;margin:0 -32px;padding-left:32px;padding-right:32px;
+  background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-bottom:1px solid var(--sep);
+}
+.topbar h1{font-size:16px;font-weight:600;letter-spacing:.2px}
+.topbar .sub{font-size:12px;color:var(--text-3)}
+.spacer{flex:1}
+.seg{display:flex;background:var(--surface-muted);border-radius:999px;padding:3px;gap:2px}
+.seg button{
+  border:0;background:transparent;color:var(--text-2);font-size:12px;font-weight:600;
+  padding:6px 14px;border-radius:999px;cursor:pointer;font-family:inherit;transition:all .18s ease;
+}
+.seg button.on{background:var(--surface);color:var(--primary);box-shadow:var(--sh1)}
+h2.sect{font-size:22px;font-weight:700;margin:56px 0 6px;letter-spacing:.2px}
+p.lead{font-size:13px;color:var(--text-2);margin-bottom:22px;max-width:880px}
+.note{font-size:12px;color:var(--text-3)}
+
+/* ============ 色彩方案卡 ============ */
+.schemes{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.scard{background:var(--surface);border:1px solid var(--sep);border-radius:18px;padding:18px 18px 14px;box-shadow:var(--sh1)}
+.scard.pick{border:1.5px solid var(--primary)}
+.scard h3{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.pill{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;background:var(--surface-muted);color:var(--text-2)}
+.pill.gold{background:color-mix(in srgb,var(--brass) 16%,transparent);color:var(--brass-strong)}
+.sw{display:flex;align-items:center;gap:10px;margin-top:10px}
+.sw i{width:34px;height:34px;border-radius:10px;display:block;border:1px solid var(--sep)}
+.sw b{font-size:12px;font-weight:600;display:block}
+.sw span{font-size:10px;color:var(--text-3);font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.mood{margin-top:12px;font-size:12px;color:var(--text-2);border-top:1px dashed var(--sep);padding-top:10px}
+
+/* ============ 手机画板 ============ */
+.stage{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start}
+.phone{
+  width:390px;border-radius:56px;padding:12px;background:linear-gradient(160deg,#eceff2,#c9ced6);
+  box-shadow:0 40px 80px rgba(10,14,20,.22),0 4px 14px rgba(10,14,20,.12);flex:0 0 auto;
+}
+html[data-theme="dark"] .phone{background:linear-gradient(160deg,#2b313a,#111419);box-shadow:0 40px 80px rgba(0,0,0,.55)}
+.screen{
+  background:linear-gradient(180deg,var(--bg-2),var(--bg));border-radius:44px;overflow:hidden;position:relative;color:var(--text);
+}
+.sbar{display:flex;align-items:center;justify-content:space-between;padding:14px 26px 4px;font-size:13px;font-weight:600}
+.sbar .ico{display:flex;gap:5px;align-items:center;opacity:.92}
+.bat{width:22px;height:11px;border:1px solid currentColor;border-radius:3px;position:relative;opacity:.85}
+.bat::after{content:"";position:absolute;inset:1.5px;right:6px;background:currentColor;border-radius:1px}
+.nav{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:15px;font-weight:600}
+.nav .back{color:var(--tint);display:flex;align-items:center;font-size:15px;font-weight:600;gap:2px}
+.nav .acts{margin-left:auto;display:flex;gap:14px;color:var(--tint)}
+.hr{border:0;border-top:1px solid var(--sep)}
+.pad{padding:0 16px}
+.hero{padding:10px 16px 14px}
+.hero .big{font-size:28px;font-weight:700;letter-spacing:.3px}
+.hero .meta{font-size:12px;color:var(--text-2);margin-top:6px}
+.rule{height:2px;width:44px;background:var(--brass);border-radius:2px;margin-top:12px;opacity:.85}
+
+/* 玻璃吸顶搜索栏 */
+.glassbar{
+  margin:0 12px;padding:10px;border-radius:22px;background:var(--glass);
+  backdrop-filter:blur(18px) saturate(170%);-webkit-backdrop-filter:blur(18px) saturate(170%);
+  border:1px solid var(--glass-stroke);box-shadow:var(--sh2);
+}
+.search{display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:14px;padding:8px 12px;color:var(--text-3);font-size:13px;border:1px solid var(--sep)}
+.chips{display:flex;gap:7px;margin-top:9px;overflow:hidden}
+.chip{font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--sep);color:var(--text-2);white-space:nowrap}
+.chip.on{background:var(--primary);color:#fff;border-color:transparent}
+html[data-theme="dark"] .chip.on{color:#0F141B}
+.chip.on.blue{background:var(--tint)}
+.chips.scrollable{padding-right:4px;-webkit-mask-image:linear-gradient(90deg,#000 84%,transparent 100%);mask-image:linear-gradient(90deg,#000 84%,transparent 100%)}
+.chips.scrollable .chip{padding:4px 10px;font-size:11.5px}
+
+/* Bento 焦点区 */
+.bento{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 16px 6px}
+.bcard{border-radius:22px;background:var(--surface);border:1px solid var(--sep);box-shadow:var(--sh1);padding:16px;position:relative;overflow:hidden}
+.bcard.hero-card{grid-column:1 / -1;padding:18px;background:
+  linear-gradient(140deg,color-mix(in srgb,var(--primary) 12%,var(--surface)),var(--surface) 62%)}
+.bcard .tile{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.bcard h4{font-size:16px;font-weight:700;margin-top:10px}
+.bcard .stat{font-size:12px;color:var(--text-2);margin-top:4px}
+.bcard .latest{font-size:12px;color:var(--text-2);margin-top:8px;padding-top:8px;padding-right:20px;border-top:1px dashed var(--sep);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;color:var(--brass-strong);background:color-mix(in srgb,var(--brass) 16%,transparent);padding:3px 8px;border-radius:999px}
+.dots{position:absolute;right:16px;bottom:14px;color:var(--text-3);font-size:12px}
+
+/* 分组与机构卡 */
+.ghead{display:flex;align-items:center;gap:9px;padding:22px 16px 10px}
+.ghead .gico{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.ghead b{font-size:17px;font-weight:700}
+.ghead .cnt{margin-left:auto;font-size:11px;color:var(--text-2);background:var(--surface-muted);padding:3px 9px;border-radius:999px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px}
+.ocard{border-radius:18px;background:var(--surface);border:1px solid var(--sep);box-shadow:var(--sh1);padding:14px;min-height:96px}
+.ocard .row1{display:flex;align-items:center;gap:10px}
+.ocard .nm{font-size:15px;font-weight:600;line-height:1.3}
+.ocard .st{font-size:12px;color:var(--text-2);margin-top:8px}
+.wcard{grid-column:1 / -1;display:flex;gap:12px;align-items:center;padding:14px}
+.wthumb{width:96px;height:72px;border-radius:14px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:22px}
+.wcard .nm{font-size:15px;font-weight:700}
+.wcard .st{font-size:12px;color:var(--text-2);margin-top:5px}
+.chev{color:var(--text-3);font-size:12px;margin-left:auto}
+
+/* 详情页：文章行 */
+.rows{padding:12px 16px 4px}
+.row{display:flex;gap:12px;background:var(--surface);border:1px solid var(--sep);border-radius:14px;padding:12px;margin-bottom:12px;box-shadow:var(--sh1);position:relative}
+.thumb{width:72px;height:72px;border-radius:14px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:20px}
+.row .tt{font-size:15px;font-weight:600;line-height:1.42;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-right:52px}
+.row .mt{font-size:12px;color:var(--text-2);margin-top:6px;display:flex;align-items:center;gap:6px}
+.badge-rt{position:absolute;top:12px;right:12px;font-size:10px;font-weight:600;color:var(--text-2);background:var(--surface-muted);padding:2px 7px;border-radius:999px}
+.unread{width:7px;height:7px;border-radius:99px;background:var(--tint);display:inline-block}
+.prog{padding:4px 16px 14px}
+.pbar{height:3px;border-radius:3px;background:var(--surface-muted);overflow:hidden}
+.pbar i{display:block;height:100%;width:12%;background:var(--primary);border-radius:3px}
+.prog .lbl{font-size:11px;color:var(--text-3);margin-top:6px;display:flex;justify-content:space-between}
+.more{margin:0 16px 10px;padding:12px;border-radius:14px;border:1px dashed var(--sep);text-align:center;font-size:13px;font-weight:600;color:var(--primary);background:var(--surface)}
+
+/* 文章详情 */
+.article{padding:6px 20px 120px}
+.article h1{font-size:22px;font-weight:700;line-height:1.38;letter-spacing:.2px}
+.ameta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--text-2);margin-top:12px}
+.astat{display:inline-flex;gap:5px;align-items:center;color:var(--text-2)}
+.cover{height:170px;border-radius:18px;margin-top:16px;display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--text-3);
+  animation:fadeIn .28s ease-out both}
+@keyframes fadeIn{from{opacity:0;transform:scale(1.02)}to{opacity:1;transform:scale(1)}}
+.article p{font-size:16px;line-height:1.95;margin-top:16px;color:var(--text);letter-spacing:.2px;text-align:justify}
+.article .lead-p{font-weight:600}
+.cap{font-size:13px;color:var(--text-2);text-align:center;margin-top:8px}
+.quote{border-left:3px solid var(--brass);background:var(--surface-muted);border-radius:0 12px 12px 0;padding:12px 14px;margin-top:16px;font-size:15px;line-height:1.8;color:var(--text-2)}
+.fig{margin-top:16px}
+.attach{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--sep);border-radius:14px;padding:12px;margin-top:16px;box-shadow:var(--sh1)}
+.attach .an{font-size:13px;font-weight:600}
+.attach .asz{font-size:11px;color:var(--text-3)}
+.toolbar{
+  position:absolute;left:16px;right:16px;bottom:26px;display:flex;justify-content:space-around;align-items:center;
+  padding:11px 6px;border-radius:22px;background:var(--glass);
+  backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid var(--glass-stroke);box-shadow:var(--sh3);
+}
+.toolbar .tb{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--text-2);font-weight:600}
+.toolbar .tb b{font-size:17px;font-weight:400}
+.toolbar .tb.on{color:var(--tint)}
+.hi{color:var(--brass-strong)!important}
+
+/* 四态 */
+.states{display:flex;gap:20px;flex-wrap:wrap}
+.mini{width:228px;border-radius:30px;padding:9px;background:linear-gradient(160deg,#eceff2,#c9ced6);box-shadow:0 22px 44px rgba(10,14,20,.16)}
+html[data-theme="dark"] .mini{background:linear-gradient(160deg,#2b313a,#111419)}
+.mini .screen{border-radius:24px;height:330px;padding:16px;display:flex;flex-direction:column}
+.mini .cap{margin-top:10px;text-align:center;font-size:11px;color:var(--text-2)}
+.skel{border-radius:12px;background:var(--surface-muted);position:relative;overflow:hidden;margin-bottom:10px}
+.skel::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.45) 50%,transparent 80%);animation:shim 1.8s linear infinite}
+html[data-theme="dark"] .skel::after{background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.10) 50%,transparent 80%)}
+@keyframes shim{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center}
+.empty .eico{font-size:30px;color:var(--text-3)}
+.empty b{font-size:14px}
+.empty span{font-size:12px;color:var(--text-3)}
+.btnline{display:flex;gap:8px;margin-top:6px}
+.btn{font-size:12px;font-weight:600;padding:7px 16px;border-radius:999px;border:1px solid var(--sep);color:var(--text-2);background:var(--surface)}
+.btn.primary{background:var(--primary);color:#fff;border-color:transparent}
+html[data-theme="dark"] .btn.primary{color:#0F141B}
+
+/* 动效演示 */
+.demo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.dcard{background:var(--surface);border:1px solid var(--sep);border-radius:18px;padding:18px;box-shadow:var(--sh1)}
+.dcard h4{font-size:14px;font-weight:700;margin-bottom:4px}
+.dcard .dsub{font-size:12px;color:var(--text-3);margin-bottom:14px}
+.zoomstage{height:180px;border-radius:14px;background:var(--surface-muted);position:relative;overflow:hidden}
+.zcard{position:absolute;left:16px;top:56px;width:150px;height:64px;border-radius:14px;background:var(--surface);border:1px solid var(--sep);box-shadow:var(--sh2);padding:10px;font-size:12px;font-weight:600}
+.zdetail{position:absolute;left:16px;top:16px;right:16px;bottom:16px;border-radius:16px;background:var(--bg);border:1px solid var(--sep);box-shadow:var(--sh3);padding:12px;font-size:12px;color:var(--text-2);opacity:0}
+.zcard{animation:zmorph 3.6s ease-in-out infinite}
+.zdetail{animation:zshow 3.6s ease-in-out infinite}
+@keyframes zmorph{0%,28%{transform:scale(1);opacity:1}55%,88%{transform:scale(1.9);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes zshow{0%,30%{opacity:0;transform:scale(.96)}55%,88%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.96)}}
+.press-demo{display:flex;gap:12px}
+.pbtn{flex:1;text-align:center;padding:18px;border-radius:18px;background:var(--surface);border:1px solid var(--sep);box-shadow:var(--sh1);font-size:13px;font-weight:600;cursor:pointer;transition:transform .22s cubic-bezier(.2,.8,.3,1),filter .22s ease}
+.pbtn:active{transform:scale(.965);filter:brightness(.96)}
+.sticky-demo{height:230px;overflow-y:auto;border-radius:14px;border:1px solid var(--sep);background:var(--bg-2);position:relative}
+.sticky-bar{position:sticky;top:0;z-index:2;padding:10px 12px;font-size:12px;font-weight:700;color:var(--text-2);background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--sep)}
+.sticky-demo .blk{height:44px;margin:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--sep);display:flex;align-items:center;padding:0 12px;font-size:12px;color:var(--text-3)}
+.fadebox{height:120px;border-radius:14px;background:linear-gradient(140deg,color-mix(in srgb,var(--cat3) 18%,var(--surface)),var(--surface));display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:24px;animation:fadeLoop 3s ease-in-out infinite}
+@keyframes fadeLoop{0%{opacity:0;transform:scale(1.02)}18%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}
+.spec{margin-top:12px;font-size:12px;color:var(--text-2)}
+.spec code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;background:var(--surface-muted);padding:2px 6px;border-radius:6px;color:var(--primary)}
+
+/* 表格 */
+table.tb{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--sep);border-radius:16px;overflow:hidden;box-shadow:var(--sh1);font-size:13px}
+table.tb th{font-size:12px;text-align:left;color:var(--text-2);font-weight:600;padding:12px 14px;background:var(--surface-muted)}
+table.tb td{padding:11px 14px;border-top:1px solid var(--sep);vertical-align:middle}
+table.tb td.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;color:var(--text-2)}
+.hb{display:inline-flex;gap:3px;align-items:center}
+.hb i{display:block;width:6px;height:11px;border-radius:2px;background:var(--sep)}
+.hb i.f{background:var(--primary)}
+.hb i.f2{background:var(--brass)}
+.hb i.f3{background:var(--error)}
+
+/* 字阶 specimen */
+.type-row{display:flex;align-items:baseline;gap:16px;padding:12px 0;border-bottom:1px dashed var(--sep)}
+.type-row .tg{width:120px;flex:0 0 auto;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;color:var(--text-3)}
+.ruler{display:flex;align-items:center;gap:0;margin-top:14px}
+.ruler i{height:14px;background:color-mix(in srgb,var(--primary) 30%,transparent);display:block}
+.ruler i:nth-child(odd){background:color-mix(in srgb,var(--brass) 40%,transparent)}
+.ruler span{font-size:10px;color:var(--text-3);margin-left:6px}
+.grid-note{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.callout{background:var(--surface);border:1px solid var(--sep);border-radius:16px;padding:16px;box-shadow:var(--sh1);font-size:13px;color:var(--text-2)}
+.callout b{color:var(--text)}
+.foot{margin-top:60px;font-size:12px;color:var(--text-3);border-top:1px solid var(--sep);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="topbar">
+    <div>
+      <h1>校园 · 机构模块升级 — 效果图 v1</h1>
+      <div class="sub">iOS 26 液态玻璃 · 浅/深双模式 · 三套配色可实时切换 · 数字取自 2026-09-30 官网实测</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="seg" id="schemeSeg">
+      <button data-scheme="a" class="on">A 青金书院</button>
+      <button data-scheme="b">B 石青</button>
+      <button data-scheme="c">C 苍穹</button>
+    </div>
+    <div class="seg" id="themeSeg">
+      <button data-theme="light" class="on">浅色</button>
+      <button data-theme="dark">深色</button>
+    </div>
+  </div>
+
+  <!-- ============ 配色方案 ============ -->
+  <h2 class="sect">一 · 配色方案（三备选 → 选定 A）</h2>
+  <p class="lead">三套方案均为浅/深完整实现。裁决维度：与全 App 色板血缘、内容语义、（浅/深）双模式耐看度、与内容页抢色风险、无障碍实算。结论：<b>选定 A「青金书院」</b>——暖纸白 + 墨蓝 + 铜金点睛，档案气质、低饱和、有出处；B 与全局蓝系不同源（切换 Tab 像另一个 App），C 与既有 sjzAccent 无区分度且副色对比度不足 AA。</p>
+  <div class="schemes">
+    <div class="scard pick">
+      <h3>A 青金书院 <span class="pill gold">选定</span></h3>
+      <div class="sw"><i style="background:#F7F5F0"></i><div><b>暖纸白 bg</b><span>#F7F5F0 / #0F141B</span></div></div>
+      <div class="sw"><i style="background:#1E3A66"></i><div><b>墨蓝 主色</b><span>#1E3A66 / #9FB9E6</span></div></div>
+      <div class="sw"><i style="background:#8F7038"></i><div><b>铜金 点睛</b><span>#8F7038 / #D8BC8A</span></div></div>
+      <div class="sw"><i style="background:linear-gradient(90deg,#9E4A55,#96653F,#4A6E9E,#6E5A96,#3E7873)"></i><div><b>分类五色（降饱和）</b><span>恒定语义色</span></div></div>
+      <div class="mood">档案纸 × 钢印 × 铭牌。铜金占比 ≤5%（精选徽标 / 内容规模数字 / 饰线）。全部关键对比度 ≥4.5:1（实算）。</div>
+    </div>
+    <div class="scard">
+      <h3>B 石青</h3>
+      <div class="sw"><i style="background:#F5F7F6"></i><div><b>冷灰米白 bg</b><span>#F5F7F6 / #0E1413</span></div></div>
+      <div class="sw"><i style="background:#2F6D63"></i><div><b>石青绿 主色</b><span>#2F6D63 / #7FC7B8</span></div></div>
+      <div class="sw"><i style="background:#6E8FA3"></i><div><b>雾青 副色</b><span>#6E8FA3（3.43:1 仅大字）</span></div></div>
+      <div class="mood">知性常青藤气质；但与全局海军蓝主题不同源，跨 Tab 观感割裂，且青绿与党建绿存在混淆风险。</div>
+    </div>
+    <div class="scard">
+      <h3>C 苍穹</h3>
+      <div class="sw"><i style="background:#F6F8FB"></i><div><b>冷白 bg</b><span>#F6F8FB / #0B1220</span></div></div>
+      <div class="sw"><i style="background:#2E5FA3"></i><div><b>苍穹蓝 主色</b><span>#2E5FA3 / #7FB0F0</span></div></div>
+      <div class="sw"><i style="background:#79A7D8"></i><div><b>浅青 副色</b><span>#79A7D8（2.52:1 仅装饰）</span></div></div>
+      <div class="mood">科技感强、与玻璃材质合拍；但与既有 sjzAccent #1A56B8 几乎同色，模块无辨识度，副色不达 AA。</div>
+    </div>
+  </div>
+
+  <!-- ============ 机构列表页 ============ -->
+  <h2 class="sect">二 · 机构列表页（机构目录 · Bento 节奏）</h2>
+  <p class="lead">顶部玻璃吸顶（搜索 + 分类 chips）→ Hero 概述 → Bento 焦点区（1 大 2 小，按内容规模数据驱动）→ 5 分类分组，每组首卡为宽卡（华容道节奏）。页面处于「校园」Tab 内，底部为 App 主导航，本稿不重复绘制。</p>
+  <div class="stage">
+    <div class="phone"><div class="screen" style="height:1060px">
+      <div class="sbar"><span>9:41</span><span class="ico"><svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1" opacity=".35"/></svg><svg width="16" height="11" viewBox="0 0 16 11"><path d="M8 9.6 5.9 7.4a3.1 3.1 0 0 1 4.2 0L8 9.6Zm-4.1-4A7.6 7.6 0 0 1 12.1 5.6l-1.3 1.3a5.8 5.8 0 0 0-5.6 0L3.9 5.6ZM.6 2.2a11.4 11.4 0 0 1 14.8 0l-1.3 1.3a9.6 9.6 0 0 0-12.2 0L.6 2.2Z"/></svg><span class="bat"></span></span></div>
+      <div class="nav"><span style="font-weight:700">机构设置</span><span class="acts">⟳</span></div>
+      <div class="hero">
+        <div class="big">机构设置</div>
+        <div class="meta">34 个机构 · 5 大类 · 22 个官网子站</div>
+        <div class="rule"></div>
+      </div>
+      <div class="glassbar">
+        <div class="search"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M11.3 10.2a6 6 0 1 0-1.1 1.1l3 3 1.1-1.1-3-3ZM7 11.5A4.5 4.5 0 1 1 7 2.5a4.5 4.5 0 0 1 0 9Z"/></svg>搜索机构名称、分类…</div>
+        <div class="chips">
+          <span class="chip on blue">全部</span><span class="chip">党委</span><span class="chip">群团</span><span class="chip">行政</span><span class="chip">教学</span>
+        </div>
+      </div>
+      <div class="bento">
+        <div class="bcard hero-card">
+          <span class="badge">精选 · 内容最丰</span>
+          <div class="tile" style="background:color-mix(in srgb,var(--cat3) var(--cat-tint),transparent);color:var(--cat3)">⌘</div>
+          <h4>教务处</h4>
+          <div class="stat">行政机构 · 5 个栏目 · <b class="hi">653</b> 篇</div>
+          <div class="latest">最新 · 关于 2026-2027 学年第一学期选课工作的通知</div>
+          <span class="dots">›</span>
+        </div>
+        <div class="bcard">
+          <div class="tile" style="background:color-mix(in srgb,var(--cat2) var(--cat-tint),transparent);color:var(--cat2)">☰</div>
+          <h4>团委</h4>
+          <div class="stat">9 栏目 · 596 篇</div>
+        </div>
+        <div class="bcard">
+          <div class="tile" style="background:color-mix(in srgb,var(--cat1) var(--cat-tint),transparent);color:var(--cat1)">⚑</div>
+          <h4>党委办公室</h4>
+          <div class="stat">4 栏目 · 212 篇</div>
+        </div>
+      </div>
+      <div class="ghead"><span class="gico" style="background:color-mix(in srgb,var(--cat3) var(--cat-tint),transparent);color:var(--cat3)">▣</span><b>行政机构</b><span class="cnt">12 个</span></div>
+      <div class="grid2">
+        <div class="wcard" style="border-radius:18px;background:var(--surface);border:1px solid var(--sep);box-shadow:var(--sh1)">
+          <div class="wthumb" style="background:color-mix(in srgb,var(--cat3) 10%,var(--surface));color:var(--cat3)">▤</div>
+          <div><div class="nm">教务处</div><div class="st">5 栏目 · 653 篇 · 昨日更新</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="ocard"><div class="row1"><div class="tile" style="width:34px;height:34px;border-radius:10px;background:color-mix(in srgb,var(--cat3) var(--cat-tint),transparent);color:var(--cat3);display:flex;align-items:center;justify-content:center">▥</div><div class="nm">学生工作部</div></div><div class="st">6 栏目 · 288 篇</div></div>
+        <div class="ocard"><div class="row1"><div class="tile" style="width:34px;height:34px;border-radius:10px;background:color-mix(in srgb,var(--cat3) var(--cat-tint),transparent);color:var(--cat3);display:flex;align-items:center;justify-content:center">▧</div><div class="nm">招生就业处</div></div><div class="st">8 栏目 · 176 篇</div></div>
+        <div class="ocard"><div class="row1"><div class="tile" style="width:34px;height:34px;border-radius:10px;background:color-mix(in srgb,var(--cat3) var(--cat-tint),transparent);color:var(--cat3);display:flex;align-items:center;justify-content:center">▦</div><div class="nm">财务处</div></div><div class="st">3 栏目 · 64 篇</div></div>
+        <div class="ocard"><div class="row1"><div class="tile" style="width:34px;height:34px;border-radius:10px;background:color-mix(in srgb,var(--cat3) var(--cat-tint),transparent);color:var(--cat3);display:flex;align-items:center;justify-content:center">▩</div><div class="nm">保卫处</div></div><div class="st">4 栏目 · 58 篇</div></div>
+      </div>
+      <div style="height:34px"></div>
+      <div style="width:134px;height:5px;border-radius:99px;background:var(--text-3);opacity:.35;margin:0 auto 10px"></div>
+    </div></div>
+
+    <div style="flex:1;min-width:300px">
+      <div class="callout" style="margin-bottom:12px"><b>节奏手法（华容道式）</b><br>① 焦点区 1 大 2 小（大卡带最新文章预览 + 铜金「精选」徽标）；② 每组首卡按内容规模动态放行宽卡，形成「大-小-小-大」的呼吸节奏；③ 分组之间只用 28pt 留白，不画分隔线；④ 索引未就绪时降级为等宽卡，布局不空窗。</div>
+      <div class="callout" style="margin-bottom:12px"><b>玻璃纪律</b><br>仅吸顶栏 / chips 容器 / 悬浮元素使用玻璃；机构卡是哑光实体面（surface + 1px 描边 + 2 级阴影），保证长列表滚动性能与专注灰度兼容。</div>
+      <div class="callout"><b>信息层级</b><br>机构 → 栏目 → 文章 → 详情逐层递进：列表页只给「机构名 + 规模 + 新鲜度」三件事，栏目细节全部下沉到详情页。</div>
+    </div>
+  </div>
+
+  <!-- ============ 机构详情页 ============ -->
+  <h2 class="sect">三 · 机构详情页（身份头 + 栏目玻璃标签 + 全量分页）</h2>
+  <p class="lead">修复核心：栏目 chips 的篇数为 <b>articles.total 真实值</b>（378/245/12/17/1），点击切换即走 <code style="font-size:12px;background:var(--surface-muted);padding:2px 6px;border-radius:6px">/common/column/articles</code> 全量分页——653 篇可逐页翻到底。</p>
+  <div class="stage">
+    <div class="phone"><div class="screen" style="height:924px">
+      <div class="sbar"><span>9:41</span><span class="ico"><svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1" opacity=".35"/></svg><svg width="16" height="11" viewBox="0 0 16 11"><path d="M8 9.6 5.9 7.4a3.1 3.1 0 0 1 4.2 0L8 9.6Zm-4.1-4A7.6 7.6 0 0 1 12.1 5.6l-1.3 1.3a5.8 5.8 0 0 0-5.6 0L3.9 5.6ZM.6 2.2a11.4 11.4 0 0 1 14.8 0l-1.3 1.3a9.6 9.6 0 0 0-12.2 0L.6 2.2Z"/></svg><span class="bat"></span></span></div>
+      <div class="nav"><span class="back">‹ 教务处</span><span class="acts">☆</span></div>
+      <div class="hero">
+        <div class="big">教务处</div>
+        <div style="margin-top:10px"><span class="chip" style="background:color-mix(in srgb,var(--cat3) var(--cat-tint),transparent);border-color:transparent;color:var(--cat3)">行政机构</span></div>
+        <div class="meta" style="margin-top:10px">5 个栏目 · 共 <b class="hi">653</b> 篇 · 昨日更新</div>
+      </div>
+      <div style="margin:2px 16px 12px;border-radius:18px;height:132px;background:linear-gradient(150deg,color-mix(in srgb,var(--cat3) 22%,var(--surface)),var(--surface));display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:26px">▣</div>
+      <div class="glassbar" style="border-radius:20px">
+        <div class="chips scrollable" style="margin-top:0">
+          <span class="chip on">通知公告 378</span><span class="chip">教务动态 245</span><span class="chip">规章制度 12</span><span class="chip">资料下载 17</span><span class="chip">部门概况 1</span>
+        </div>
+      </div>
+      <div class="rows" style="padding-top:14px">
+        <div class="row">
+          <span class="badge-rt">3 分钟</span>
+          <div class="thumb" style="background:color-mix(in srgb,var(--cat3) 10%,var(--surface));color:var(--cat3)">▤</div>
+          <div><div class="tt">关于 2026-2027 学年第一学期选课工作的通知</div><div class="mt"><span class="unread"></span>2026-09-28 · 通知公告</div></div>
+        </div>
+        <div class="row">
+          <span class="badge-rt">2 分钟</span>
+          <div class="thumb" style="background:var(--surface-muted);color:var(--text-3)">▥</div>
+          <div><div class="tt">教务处关于开展期中教学检查的安排</div><div class="mt">2026-09-26 · 通知公告</div></div>
+        </div>
+        <div class="row">
+          <span class="badge-rt">1 分钟</span>
+          <div class="thumb" style="background:var(--surface-muted);color:var(--text-3)">▧</div>
+          <div><div class="tt">2026 年秋季学期重修报名工作通知</div><div class="mt">2026-09-24 · 通知公告</div></div>
+        </div>
+      </div>
+      <div class="prog">
+        <div class="pbar"><i></i></div>
+        <div class="lbl"><span>已显示 40 / 653</span><span>滚动到底自动加载</span></div>
+      </div>
+      <div class="more">加载更多（每页 40 条）</div>
+      <div style="width:134px;height:5px;border-radius:99px;background:var(--text-3);opacity:.35;margin:6px auto 10px"></div>
+    </div></div>
+
+    <div style="flex:1;min-width:300px">
+      <div class="callout" style="margin-bottom:12px"><b>栏目玻璃标签（吸顶）</b><br>chips 显示真实篇数（total），选中 = 主色 28% 玻璃 + 主色文字；容器为 <code style="font-size:12px;background:var(--surface-muted);padding:2px 6px;border-radius:6px">GlassEffectContainer</code> 合并渲染（≤3 玻璃层/屏）。</div>
+      <div class="callout" style="margin-bottom:12px"><b>分页与进度</b><br>每页 40 条：滚动到底自动加载 +「加载更多」兜底按钮；进度行给出「已显示 n / total」真实进度；翻到底触发 <i>锐</i> 级触觉（§七）。</div>
+      <div class="callout"><b>身份头与视差</b><br>机构名 28pt + 分类胶囊 + 「N 栏目 · 共 M 篇 · 更新于」；头图存在时 0.35 视差、底部遮罩渐隐。</div>
+    </div>
+  </div>
+
+  <!-- ============ 文章详情页 ============ -->
+  <h2 class="sect">四 · 文章详情页（图文混排 + 图片查看 + 玻璃工具条）</h2>
+  <p class="lead">标题 22pt → 元数据（来源 · 日期 · 阅读统计「2,486 字 · 阅读约 9 分钟」，随显示设置四个开关实时联动）→ 头图淡入（0.28s，禁止硬闪）→ 正文 16pt / 行高 1.95（受行距/字距设置管辖）→ 底部玻璃工具条。</p>
+  <div class="stage">
+    <div class="phone"><div class="screen" style="height:924px">
+      <div class="sbar"><span>9:41</span><span class="ico"><svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1" opacity=".35"/></svg><svg width="16" height="11" viewBox="0 0 16 11"><path d="M8 9.6 5.9 7.4a3.1 3.1 0 0 1 4.2 0L8 9.6Zm-4.1-4A7.6 7.6 0 0 1 12.1 5.6l-1.3 1.3a5.8 5.8 0 0 0-5.6 0L3.9 5.6ZM.6 2.2a11.4 11.4 0 0 1 14.8 0l-1.3 1.3a9.6 9.6 0 0 0-12.2 0L.6 2.2Z"/></svg><span class="bat"></span></span></div>
+      <div class="nav"><span class="back">‹ 教务处</span><span class="acts">☆ ⇪</span></div>
+      <div class="article" style="padding-bottom:120px;position:relative">
+        <h1>关于 2026-2027 学年第一学期选课工作的通知</h1>
+        <div class="ameta">
+          <span>教务处</span><span>·</span><span>2026-09-28</span><span>·</span>
+          <span class="astat">✎ 2,486 字 · 阅读约 9 分钟</span>
+        </div>
+        <div class="cover" style="background:linear-gradient(150deg,color-mix(in srgb,var(--cat3) 26%,var(--surface)),color-mix(in srgb,var(--primary) 10%,var(--surface)))">▣</div>
+        <div class="cap">图：选课系统操作入口（点击可放大 · 手势缩放 · 左右翻页）</div>
+        <p class="lead-p">各学院、各有关部门：</p>
+        <p>为做好 2026-2027 学年第一学期选课工作，保障教学秩序平稳有序，现将本学期选课安排及有关事项通知如下，请各学院及时传达至全体学生。</p>
+        <div class="quote">选课时间：2026 年 10 月 8 日 9:00 至 10 月 12 日 17:00；补退选时间另行通知。请同学们在选课前仔细阅读培养方案。</div>
+        <p>选课期间如遇系统访问缓慢，请错峰操作。课程容量以教务系统实时数据为准，选课结果以系统记录为唯一依据。</p>
+        <div class="attach"><span style="font-size:18px;color:var(--brass-strong)">▤</span><div><div class="an">附件：选课操作手册（2026 版）</div><div class="asz">PDF · 1.2 MB</div></div><span style="margin-left:auto;font-size:12px;color:var(--tint);font-weight:600">打开</span></div>
+      </div>
+      <div class="toolbar">
+        <div class="tb"><b>☆</b>收藏</div>
+        <div class="tb"><b>⇪</b>分享</div>
+        <div class="tb"><b>◍</b>微信</div>
+        <div class="tb on"><b>A⁺</b>字号</div>
+      </div>
+    </div></div>
+    <div style="flex:1;min-width:300px">
+      <div class="callout" style="margin-bottom:12px"><b>图片查看（新增接入）</b><br>详情 WKWebView 注入 12 行 JS：图片点击 → 原生汇总 → <code style="font-size:12px;background:var(--surface-muted);padding:2px 6px;border-radius:6px">FullScreenImageView</code>（缩放/翻页/预取全量复用，与新闻模块同一套体验）。</div>
+      <div class="callout" style="margin-bottom:12px"><b>转场提案（待确认）</b><br>文章详情由 sheet 改为 push + zoom 连续转场：点行卡，卡片本体放大为详情页；返回为系统返回键（原生手势、长按菜单）。</div>
+      <div class="callout"><b>排版契约</b><br>正文经 WebView CSS 注入链：家族（7 款）/字号档位/行距/字距全部实时生效；衬线家族自动 +2% 行高补偿。</div>
+    </div>
+  </div>
+
+  <!-- ============ 四态 ============ -->
+  <h2 class="sect">五 · 四态设计（骨架 / 空 / 失败 / 无网）</h2>
+  <p class="lead">四态为模块统一组件 <b>OrgStateView</b>，任何列表/详情都用同一套视觉与文案口径，不允许系统默认转圈打天下。</p>
+  <div class="states">
+    <div><div class="mini"><div class="screen">
+      <div class="skel" style="height:16px;width:52%"></div>
+      <div class="skel" style="height:12px;width:36%"></div>
+      <div class="skel" style="height:84px;border-radius:16px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="skel" style="height:74px;border-radius:14px"></div><div class="skel" style="height:74px;border-radius:14px"></div>
+        <div class="skel" style="height:74px;border-radius:14px"></div><div class="skel" style="height:74px;border-radius:14px"></div>
+      </div>
+      <div class="skel" style="height:12px;width:44%;margin-top:6px"></div>
+    </div></div><div class="cap">加载中 · 骨架屏（1.8s 微光循环）</div></div>
+
+    <div><div class="mini"><div class="screen">
+      <div class="empty">
+        <div class="eico">▢</div>
+        <b>这个栏目还没有内容</b>
+        <span>切换其他栏目看看</span>
+        <div class="btnline"><span class="btn">刷新</span></div>
+      </div>
+    </div></div><div class="cap">空态 · 栏目无文章</div></div>
+
+    <div><div class="mini"><div class="screen">
+      <div class="empty">
+        <div class="eico" style="color:var(--warning)">△</div>
+        <b>内容加载失败</b>
+        <span>网络似乎有点慢</span>
+        <div class="btnline"><span class="btn primary">重试</span><span class="btn">在官网打开</span></div>
+      </div>
+    </div></div><div class="cap">失败态 · 超时 / 服务错误分文案</div></div>
+
+    <div><div class="mini"><div class="screen">
+      <div class="empty">
+        <div class="eico" style="color:var(--error)">⌁</div>
+        <b>当前无网络连接</b>
+        <span>恢复后会自动重试</span>
+        <div class="btnline"><span class="btn">重试</span></div>
+      </div>
+    </div></div><div class="cap">无网态 · 网络恢复自动重载</div></div>
+  </div>
+
+  <!-- ============ 动效 ============ -->
+  <h2 class="sect">六 · 动效规范（核心）</h2>
+  <p class="lead">原则：细腻、有逻辑、不炫技；一切动效服务于"内容从哪来、到哪去"的空间连续性。全量参数见设计稿 §6。</p>
+  <div class="demo-grid">
+    <div class="dcard">
+      <h4>① 卡片 → 详情 连续转场</h4>
+      <div class="dsub">zoom 转场 · 源卡片本体放大为详情 · ≈0.35s 系统曲线 · 背景 scrim 20% 渐入</div>
+      <div class="zoomstage"><div class="zcard">▤ 关于选课工作的通知</div><div class="zdetail">详情页 · 标题/正文/工具条就位（返回：系统返回键）</div></div>
+    </div>
+    <div class="dcard">
+      <h4>② 按压反馈（可交互 · 按住试试）</h4>
+      <div class="dsub">scale 0.965 + 亮度 -4% · spring(0.3, 0.85) · 释放回弹 · 配 <i>轻</i> 级触觉</div>
+      <div class="press-demo"><div class="pbtn">机构卡片</div><div class="pbtn">文章行</div><div class="pbtn">栏目 chip</div></div>
+    </div>
+    <div class="dcard">
+      <h4>③ 玻璃吸顶（可滚动试试）</h4>
+      <div class="dsub">滚动 &gt;8pt 启用玻璃材质 · 0.25s 淡入 · 静止用实体面（省离屏渲染）</div>
+      <div class="sticky-demo">
+        <div class="sticky-bar">⌕ 搜索… ｜ 全部 · 党委 · 群团 · 行政 ›</div>
+        <div class="blk">机构卡 · 教务处</div><div class="blk">机构卡 · 学生工作部</div><div class="blk">机构卡 · 招生就业处</div>
+        <div class="blk">机构卡 · 财务处</div><div class="blk">机构卡 · 保卫处</div>
+      </div>
+    </div>
+    <div class="dcard">
+      <h4>④ 图片淡入（循环演示）</h4>
+      <div class="dsub">缓存命中同步渲染（零占位帧）· 新图 0.28s ease-out · scale 1.02→1.0</div>
+      <div class="fadebox">▣</div>
+      <div class="spec">禁止：硬闪、先灰后白、占位抖动</div>
+    </div>
+    <div class="dcard">
+      <h4>⑤ 骨架屏微光</h4>
+      <div class="dsub">1.8s linear 循环 · 骨架→内容 0.25s 交叉淡入 · 单次会话入场用 SJZRevealOnce（spring 0.6/0.85，stagger 0.06）</div>
+      <div class="skel" style="height:16px;width:60%"></div>
+      <div class="skel" style="height:12px;width:40%"></div>
+      <div class="skel" style="height:64px;border-radius:14px"></div>
+    </div>
+    <div class="dcard">
+      <h4>⑥ 性能预算</h4>
+      <div class="dsub">同屏玻璃层 ≤3 · 列表行禁材质 · 滚动中图片加载挂起 · ProMotion 120Hz（已解锁）全机型 ≥60fps</div>
+      <div class="spec">头图视差 <code>0.35</code> · 减少动态降级 <code>0.2s crossfade</code> · 球面弹簧 <code>spring(response,damping)</code> 见文档</div>
+    </div>
+  </div>
+
+  <!-- ============ 振动 ============ -->
+  <h2 class="sect">七 · 振动分级规范（OrgHaptics 六级）</h2>
+  <p class="lead">每一处强提示、重要操作都有独立强度：同一操作在"触发-完成-失败"的不同阶段也分级（如下拉刷新：触发=柔 → 完成=success）。</p>
+  <table class="tb">
+    <thead><tr><th style="width:120px">级别</th><th style="width:150px">生成器</th><th style="width:110px">强度</th><th>语义与全操作映射</th></tr></thead>
+    <tbody>
+      <tr><td>选择 <span class="pill">selection</span></td><td class="mono">UISelectionFeedback</td><td><span class="hb"><i class="f"></i><i></i><i></i><i></i></span></td><td>平级切换：分类 chips · 栏目 chips · 排序切换</td></tr>
+      <tr><td>轻 <span class="pill">light</span></td><td class="mono">impact(.light)</td><td><span class="hb"><i class="f"></i><i class="f"></i><i></i><i></i></span></td><td>完成/进入：进入详情 · 加载更多到达 · 打开图片</td></tr>
+      <tr><td>柔 <span class="pill">soft</span></td><td class="mono">impact(.soft)</td><td><span class="hb"><i class="f"></i><i class="f"></i><i></i><i></i></span></td><td>开始/触发：下拉刷新触发 · 玻璃吸顶首次出现 · toast 出现</td></tr>
+      <tr><td>中 <span class="pill">medium</span></td><td class="mono">impact(.medium)</td><td><span class="hb"><i class="f"></i><i class="f"></i><i class="f"></i><i></i></span></td><td>状态改变：收藏 · 关注 · 长按菜单弹出 · 字号 A-/A+</td></tr>
+      <tr><td>锐 <span class="pill">rigid</span></td><td class="mono">impact(.rigid)</td><td><span class="hb"><i class="f3"></i><i class="f3"></i><i class="f3"></i><i class="f3"></i></span></td><td>边界/干脆：翻到底（无更多）· 回弹到顶/底 · 空态刷新无变化</td></tr>
+      <tr><td>系统通知 <span class="pill">notification</span></td><td class="mono">.success/.warning/.error</td><td><span class="hb"><i class="f2"></i><i class="f2"></i><i></i><i></i></span></td><td>结果：关注成功=success · 弱网降级=warning · 加载失败=error</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 字阶与间距 ============ -->
+  <h2 class="sect">八 · 字阶 / 间距 / 圆角（全部受显示设置管辖）</h2>
+  <p class="lead">基准字号经 <code style="font-size:12px;background:var(--surface-muted);padding:2px 6px;border-radius:6px">displayFont</code> 消费：随 6 档（0.85→1.40）缩放、随家族/粗体/行距/字距实时重算，构建护栏强制（0 处原始 .font(）。</p>
+  <div class="dcard">
+    <div class="type-row"><span class="tg">28 / bold</span><span style="font-size:28px;font-weight:700">机构名大字 Hero</span><span class="note" style="margin-left:auto">详情身份头</span></div>
+    <div class="type-row"><span class="tg">22 / bold</span><span style="font-size:22px;font-weight:700">页面大标题 · 文章标题</span><span class="note" style="margin-left:auto">列表 Hero / 详情标题</span></div>
+    <div class="type-row"><span class="tg">17 / semibold</span><span style="font-size:17px;font-weight:600">区块标题（分类组 / 栏目组）</span><span class="note" style="margin-left:auto">分组头</span></div>
+    <div class="type-row"><span class="tg">15 / semibold</span><span style="font-size:15px;font-weight:600">卡片主标题 · 文章行标题</span><span class="note" style="margin-left:auto">机构卡 / 文章行</span></div>
+    <div class="type-row"><span class="tg">16 / regular</span><span style="font-size:16px">正文长文本（16pt / 行高 1.95 / 字距 0.2）</span><span class="note" style="margin-left:auto">WebView 正文</span></div>
+    <div class="type-row"><span class="tg">13 / regular</span><span style="font-size:13px">列表摘要、辅助说明</span><span class="note" style="margin-left:auto">摘要</span></div>
+    <div class="type-row"><span class="tg">12 / regular</span><span style="font-size:12px">日期、计数、来源（元数据）</span><span class="note" style="margin-left:auto">元数据</span></div>
+    <div class="type-row" style="border-bottom:0"><span class="tg">11 / medium</span><span style="font-size:11px;font-weight:500">徽标文字 · 10pt 微型角标</span><span class="note" style="margin-left:auto">徽标</span></div>
+  </div>
+  <div class="grid-note" style="margin-top:16px">
+    <div class="callout"><b>间距（4pt 网格）</b><div class="ruler"><i style="width:4px"></i><i style="width:8px"></i><i style="width:12px"></i><i style="width:16px"></i><i style="width:20px"></i><i style="width:24px"></i><i style="width:32px"></i><span>4 / 8 / 12 / 16 / 20 / 24 / 32</span></div><div style="margin-top:10px">页面水平 16 · 卡间距 12 · 组间距 28 · 卡内边距 14/16/18</div></div>
+    <div class="callout"><b>圆角（5 阶）</b><div style="margin-top:8px;display:flex;gap:10px;align-items:flex-end"><span style="width:34px;height:34px;border-radius:10px;background:var(--surface-muted);border:1px solid var(--sep);display:inline-block"></span><span style="width:44px;height:34px;border-radius:14px;background:var(--surface-muted);border:1px solid var(--sep);display:inline-block"></span><span style="width:52px;height:34px;border-radius:18px;background:var(--surface-muted);border:1px solid var(--sep);display:inline-block"></span><span style="width:60px;height:34px;border-radius:22px;background:var(--surface-muted);border:1px solid var(--sep);display:inline-block"></span><span style="width:70px;height:34px;border-radius:99px;background:var(--surface-muted);border:1px solid var(--sep);display:inline-block"></span></div><div style="margin-top:10px">10 瓦片 / 14 行卡 / 18 中卡 / 22 大卡与玻璃容器 / 999 胶囊</div></div>
+    <div class="callout"><b>阴影（仅 3 级）</b><div style="margin-top:10px;display:flex;gap:14px"><span style="width:64px;height:40px;border-radius:12px;background:var(--surface);box-shadow:var(--sh1);display:inline-block"></span><span style="width:64px;height:40px;border-radius:12px;background:var(--surface);box-shadow:var(--sh2);display:inline-block"></span><span style="width:64px;height:40px;border-radius:12px;background:var(--surface);box-shadow:var(--sh3);display:inline-block"></span></div><div style="margin-top:10px">L1 行卡 · L2 浮层卡 · L3 玻璃栏/悬浮元素；深色模式统一降为单级黑 30-40%</div></div>
+  </div>
+
+  <div class="foot">示意说明：数量与栏目名取自 2026-09-30 官网实测（教务处 653 / 通知公告 378 等为真实值）；文章标题为示例数据，实现时以接口真实返回为准。本页为设计评审用途，非最终实现像素规格书（规格以《02-设计稿.md》为准）。</div>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  function bind(segId,attr,key){
+    var seg=document.getElementById(segId);
+    seg.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b||!b.dataset[key]) return;
+      root.setAttribute(attr,b.dataset[key]);
+      seg.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});
+    });
+  }
+  bind('schemeSeg','data-scheme','scheme');
+  bind('themeSeg','data-theme','theme');
+})();
+</script>
+</body>
+</html>
