@@ -4050,13 +4050,83 @@ private struct PhaseProgressDots: View {
 
 // MARK: - 全屏图片查看
 
+/// 全屏看图几何（纯函数，手势与单元测试共用；2026-09-29 「放大后滑动变黑」修复）
+enum SJZImageViewerGeometry {
+    /// 适配显示尺寸（与 `.scaledToFit()` 同口径：等比缩放至完整放入容器）
+    nonisolated static func fittedSize(imageSize: CGSize, containerSize: CGSize) -> CGSize {
+        guard imageSize.width > 0, imageSize.height > 0,
+              containerSize.width > 0, containerSize.height > 0 else { return .zero }
+        let ratio = Swift.min(containerSize.width / imageSize.width,
+                              containerSize.height / imageSize.height)
+        return CGSize(width: imageSize.width * ratio, height: imageSize.height * ratio)
+    }
+
+    /// 可平移范围（内容溢出容器部分的一半；该轴未溢出则为 0——与照片 App 一致，不可平移）
+    nonisolated static func maxOffset(displaySize: CGSize, scale: CGFloat, containerSize: CGSize) -> CGSize {
+        CGSize(width: Swift.max(0, (displaySize.width * scale - containerSize.width) / 2),
+               height: Swift.max(0, (displaySize.height * scale - containerSize.height) / 2))
+    }
+
+    /// 边界夹紧（无橡皮筋；松手回弹的落点）
+    nonisolated static func clamped(_ offset: CGSize, maxOffset: CGSize) -> CGSize {
+        CGSize(width: Swift.min(Swift.max(offset.width, -maxOffset.width), maxOffset.width),
+               height: Swift.min(Swift.max(offset.height, -maxOffset.height), maxOffset.height))
+    }
+
+    /// 橡皮筋阻尼：越界部分按 damping 压缩（松手后回弹；拖动中手感“有阻力但不失控”）
+    nonisolated static func rubberBanded(_ offset: CGSize, maxOffset: CGSize, damping: CGFloat = 0.35) -> CGSize {
+        CGSize(width: rubberBandAxis(offset.width, limit: maxOffset.width, damping: damping),
+               height: rubberBandAxis(offset.height, limit: maxOffset.height, damping: damping))
+    }
+
+    nonisolated static func rubberBandAxis(_ value: CGFloat, limit: CGFloat, damping: CGFloat) -> CGFloat {
+        if value > limit { return limit + (value - limit) * damping }
+        if value < -limit { return -limit + (value + limit) * damping }
+        return value
+    }
+
+    /// 锚点缩放位移换算：保持锚点下内容不动
+    /// （offset' = a − (a − offset)·k；a = 锚点相对容器中心，k = 新/旧倍率）
+    nonisolated static func anchoredOffset(anchor: CGPoint, containerSize: CGSize,
+                                           offset: CGSize, oldScale: CGFloat, newScale: CGFloat) -> CGSize {
+        guard oldScale > 0, containerSize.width > 0, containerSize.height > 0 else { return offset }
+        let a = CGPoint(x: anchor.x - containerSize.width / 2, y: anchor.y - containerSize.height / 2)
+        let k = newScale / oldScale
+        return CGSize(width: a.x - (a.x - offset.width) * k,
+                      height: a.y - (a.y - offset.height) * k)
+    }
+
+    /// 倍率夹紧（1x ~ 5x）
+    nonisolated static func clampedScale(_ raw: CGFloat, lowerBound: CGFloat = 1, upperBound: CGFloat = 5) -> CGFloat {
+        Swift.min(Swift.max(raw, lowerBound), upperBound)
+    }
+}
+
 struct FullScreenImageView: View {
     let url: URL
     let title: String
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    // MARK: 缩放/平移状态（2026-09-29 重写：绝对位移法——offset = 基底 + 累计位移，根除反复累加）
+
     @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
+    /// 拖动基底（手势开始瞬间的 offset）
+    @State private var dragBaseOffset: CGSize = .zero
+    /// 捏合基底倍率（手势开始瞬间的 scale；scale = 基底 × magnification）
+    @State private var magnifyBaseScale: CGFloat = 1.0
+    /// 手势进行中标志（起点捕捉与单击防误触）
+    @State private var isDragging = false
+    @State private var isMagnifying = false
+    /// 容器尺寸（边界夹紧与锚点换算依据；onGeometryChange 测量）
+    @State private var containerSize: CGSize = .zero
+    /// 缩放倍率 HUD（捏合/双击时淡入，停手后自动淡出）
+    @State private var showZoomHUD = false
+    @State private var zoomHUDTask: Task<Void, Never>?
+    /// 打开时刻（关闭日志的停留时长）
+    @State private var openedAt = Date()
+
     @State private var loadedImage: UIImage?
     @State private var isLoading = true
     @State private var loadError: String?
@@ -4064,6 +4134,11 @@ struct FullScreenImageView: View {
     @State private var downloadProgress: Double?
     /// 是否来自缓存（命中则速显淡入）
     @State private var isFromCache = false
+
+    /// 倍率范围与双击目标
+    private let minZoomScale: CGFloat = 1.0
+    private let maxZoomScale: CGFloat = 5.0
+    private let doubleTapZoomScale: CGFloat = 2.5
 
     var body: some View {
         NavigationStack {
@@ -4073,36 +4148,10 @@ struct FullScreenImageView: View {
                     Image(uiImage: image).resizable().scaledToFit()
                         .scaleEffect(scale)
                         .offset(offset)
-                        .gesture(
-                            MagnificationGesture()
-                                .onChanged { v in
-                                    let delta = v / lastScale
-                                    lastScale = v
-                                    scale = min(max(scale * delta, 1), 5)
-                                }
-                                .onEnded { _ in lastScale = 1.0 }
-                        )
-                        .gesture(
-                            DragGesture()
-                                .onChanged { v in
-                                    if scale > 1 {
-                                        offset = CGSize(
-                                            width: offset.width + v.translation.width,
-                                            height: offset.height + v.translation.height)
-                                    }
-                                }
-                        )
-                        .onTapGesture(count: 2) {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                                if scale > 1 {
-                                    scale = 1; offset = .zero
-                                } else {
-                                    scale = 2.5
-                                }
-                            }
-                        }
-                        .onTapGesture(count: 1) {
-                            if scale == 1 { dismiss() }
+                        .accessibilityLabel("图片预览：\(title)")
+                        .accessibilityValue(Self.zoomText(scale))
+                        .accessibilityAdjustableAction { direction in
+                            handleAccessibilityZoom(direction)
                         }
                 } else if let error = loadError {
                     VStack(spacing: 16) {
@@ -4148,6 +4197,31 @@ struct FullScreenImageView: View {
                         }
                     }
                 }
+
+                if showZoomHUD {
+                    VStack {
+                        Spacer()
+                        zoomHUD
+                    }
+                    .allowsHitTesting(false)
+                }
+            }
+            // 容器测量（iOS 18+ onGeometryChange）：边界夹紧与锚点换算依据；尺寸变化后重新夹紧防越界
+            .onGeometryChange(for: CGSize.self) { proxy in
+                proxy.size
+            } action: { newSize in
+                guard newSize.width > 0, newSize != containerSize else { return }
+                let wasMeasured = containerSize.width > 0
+                containerSize = newSize
+                if wasMeasured { reclampOffset(animated: true, reason: "容器尺寸变化") }
+            }
+            .contentShape(Rectangle())
+            .gesture(viewerGesture)
+            .onTapGesture(count: 2, coordinateSpace: .local) { location in
+                handleDoubleTap(at: location)
+            }
+            .onTapGesture(count: 1) {
+                handleSingleTap()
             }
             .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -4161,6 +4235,215 @@ struct FullScreenImageView: View {
         .task {
             await loadImage()
         }
+        .onAppear {
+            openedAt = Date()
+            LogManager.shared.info("imageViewer", "全屏图打开", context: [
+                "url": url.lastPathComponent, "title": title
+            ])
+        }
+        .onDisappear {
+            zoomHUDTask?.cancel()
+            LogManager.shared.info("imageViewer", "全屏图关闭", context: [
+                "url": url.lastPathComponent,
+                "stayMs": String(format: "%.0f", Date().timeIntervalSince(openedAt) * 1000),
+                "finalScale": Self.zoomText(scale),
+                "fromCache": "\(isFromCache)"
+            ])
+        }
+    }
+
+    // MARK: 手势（2026-09-29 重写：锚点缩放 + 绝对位移平移 + 边界橡皮筋/回弹）
+
+    /// 合成手势：捏合（锚点缩放、实时夹紧）+ 拖动（绝对位移、橡皮筋阻尼）
+    private var viewerGesture: some Gesture {
+        let magnify = MagnifyGesture(minimumScaleDelta: 0.01)
+            .onChanged { value in
+                guard containerSize.width > 0 else { return }
+                if !isMagnifying {
+                    isMagnifying = true
+                    magnifyBaseScale = scale
+                    presentZoomHUD()
+                    LogManager.shared.debugLog("imageViewer", "缩放开始", context: [
+                        "baseScale": Self.zoomText(scale),
+                        "anchorX": String(format: "%.0f", value.startLocation.x),
+                        "anchorY": String(format: "%.0f", value.startLocation.y)
+                    ])
+                }
+                let target = SJZImageViewerGeometry.clampedScale(
+                    magnifyBaseScale * value.magnification,
+                    lowerBound: minZoomScale, upperBound: maxZoomScale)
+                let proposed = SJZImageViewerGeometry.anchoredOffset(
+                    anchor: value.startLocation, containerSize: containerSize,
+                    offset: offset, oldScale: scale, newScale: target)
+                scale = target
+                offset = SJZImageViewerGeometry.clamped(proposed, maxOffset: maxOffset(for: target))
+            }
+            .onEnded { _ in
+                isMagnifying = false
+                finishZoomGesture()
+            }
+
+        let drag = DragGesture(minimumDistance: 2)
+            .onChanged { value in
+                // 捏合进行中不响应拖动（避免双指手势争抢位移导致抖动）；1x 不可平移
+                guard scale > minZoomScale + 0.001, !isMagnifying else { return }
+                if !isDragging {
+                    isDragging = true
+                    dragBaseOffset = offset
+                }
+                // 绝对位移法：基底 + 手势累计位移（translation 本身即累计值，严禁逐帧累加）
+                let raw = CGSize(width: dragBaseOffset.width + value.translation.width,
+                                 height: dragBaseOffset.height + value.translation.height)
+                offset = SJZImageViewerGeometry.rubberBanded(raw, maxOffset: maxOffset(for: scale))
+            }
+            .onEnded { _ in
+                guard isDragging else { return }
+                isDragging = false
+                let limit = maxOffset(for: scale)
+                let settled = SJZImageViewerGeometry.clamped(offset, maxOffset: limit)
+                let overshoot = hypot(offset.width - settled.width, offset.height - settled.height)
+                let snappedBack = overshoot > 0.5
+                if snappedBack {
+                    withAnimation(reduceMotion ? nil : Animation.spring(response: 0.4, dampingFraction: 0.78)) {
+                        offset = settled
+                    }
+                }
+                // 状态流转：拖动结束 / 越界回弹（边界夹紧后落点永远可见，杜绝「滑出屏幕只剩黑底」）
+                LogManager.shared.debugLog("imageViewer", snappedBack ? "拖动越界回弹" : "拖动结束", context: [
+                    "scale": Self.zoomText(scale),
+                    "offsetX": String(format: "%.0f", settled.width),
+                    "offsetY": String(format: "%.0f", settled.height),
+                    "limitX": String(format: "%.0f", limit.width),
+                    "limitY": String(format: "%.0f", limit.height),
+                    "overshoot": String(format: "%.0f", overshoot)
+                ])
+            }
+
+        return magnify.simultaneously(with: drag)
+    }
+
+    /// 当前倍率下的可平移范围（内容溢出容器部分的一半；未溢出轴为 0 → 该轴不可平移）
+    private func maxOffset(for targetScale: CGFloat) -> CGSize {
+        guard let image = loadedImage, containerSize.width > 0 else { return .zero }
+        let fitted = SJZImageViewerGeometry.fittedSize(imageSize: image.size, containerSize: containerSize)
+        return SJZImageViewerGeometry.maxOffset(displaySize: fitted, scale: targetScale, containerSize: containerSize)
+    }
+
+    /// 捏合结束：缩回 1x 复位归零；否则夹紧回边界（防内容停在屏幕外）
+    private func finishZoomGesture() {
+        let from = scale
+        let finalScale = SJZImageViewerGeometry.clampedScale(scale, lowerBound: minZoomScale, upperBound: maxZoomScale)
+        let resetToFit = finalScale <= minZoomScale + 0.01
+        let finalOffset = resetToFit
+            ? CGSize.zero
+            : SJZImageViewerGeometry.clamped(offset, maxOffset: maxOffset(for: finalScale))
+        withAnimation(reduceMotion ? nil : Animation.spring(response: 0.35, dampingFraction: 0.8)) {
+            scale = finalScale
+            offset = finalOffset
+        }
+        scheduleZoomHUDHide()
+        LogManager.shared.info("imageViewer", "缩放结束", context: [
+            "from": Self.zoomText(from),
+            "to": Self.zoomText(finalScale),
+            "resetToFit": "\(resetToFit)"
+        ])
+    }
+
+    /// 双击：以双击点为锚在 1x ↔ 2.5x 切换（弹簧动画）
+    private func handleDoubleTap(at location: CGPoint) {
+        let zoomingOut = scale > minZoomScale + 0.01
+        applyZoom(targetScale: zoomingOut ? minZoomScale : doubleTapZoomScale,
+                  anchor: location,
+                  source: zoomingOut ? "双击复位" : "双击放大")
+    }
+
+    /// 单击：仅在 1x 且无拖动/缩放进行中时关闭查看器（沿用既有语义，防误触）
+    private func handleSingleTap() {
+        guard scale <= minZoomScale + 0.01, !isDragging, !isMagnifying else { return }
+        LogManager.shared.debugLog("imageViewer", "单击关闭", context: ["scale": Self.zoomText(scale)])
+        dismiss()
+    }
+
+    /// 无障碍调节（VoiceOver 上下轻扫）：绕中心步进缩放
+    private func handleAccessibilityZoom(_ direction: AccessibilityAdjustmentDirection) {
+        let center = CGPoint(x: containerSize.width / 2, y: containerSize.height / 2)
+        switch direction {
+        case .increment:
+            applyZoom(targetScale: scale * 1.5, anchor: center, source: "无障碍·放大")
+        case .decrement:
+            applyZoom(targetScale: scale / 1.5, anchor: center, source: "无障碍·缩小")
+        default:
+            break
+        }
+    }
+
+    /// 统一缩放应用（双击 / 无障碍共用）：锚点换算 + 夹紧 + 弹簧动画 + HUD + 日志
+    private func applyZoom(targetScale: CGFloat, anchor: CGPoint, source: String) {
+        let from = scale
+        let target = SJZImageViewerGeometry.clampedScale(targetScale, lowerBound: minZoomScale, upperBound: maxZoomScale)
+        guard abs(target - from) > 0.001 else { return }
+        var newOffset = SJZImageViewerGeometry.clamped(
+            SJZImageViewerGeometry.anchoredOffset(anchor: anchor, containerSize: containerSize,
+                                                  offset: offset, oldScale: from, newScale: target),
+            maxOffset: maxOffset(for: target))
+        if target <= minZoomScale + 0.01 { newOffset = .zero }
+        presentZoomHUD()
+        withAnimation(reduceMotion ? nil : Animation.spring(response: 0.38, dampingFraction: 0.78)) {
+            scale = target
+            offset = newOffset
+        }
+        scheduleZoomHUDHide()
+        LogManager.shared.info("imageViewer", "缩放应用", context: [
+            "source": source, "from": Self.zoomText(from), "to": Self.zoomText(target)
+        ])
+    }
+
+    /// 容器尺寸变化后的重新夹紧（旋转/分屏；防越界导致内容不可见）
+    private func reclampOffset(animated: Bool, reason: String) {
+        guard scale > minZoomScale + 0.001 else { return }
+        let settled = SJZImageViewerGeometry.clamped(offset, maxOffset: maxOffset(for: scale))
+        guard settled != offset else { return }
+        if animated {
+            withAnimation(reduceMotion ? nil : Animation.spring(response: 0.35, dampingFraction: 0.85)) {
+                offset = settled
+            }
+        } else {
+            offset = settled
+        }
+        LogManager.shared.debugLog("imageViewer", "容器变化重新夹紧", context: ["reason": reason])
+    }
+
+    /// 缩放倍率 HUD（克制玻璃胶囊；捏合/双击时淡入，停手 1.4s 自动淡出）
+    private var zoomHUD: some View {
+        Text(Self.zoomText(scale))
+            .displayFont(12, weight: .semibold, design: .rounded)
+            .monospacedDigit()
+            .contentTransition(.numericText())
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+            .padding(.bottom, 26)
+            .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            .accessibilityHidden(true)
+    }
+
+    private func presentZoomHUD() {
+        withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.18)) { showZoomHUD = true }
+    }
+
+    private func scheduleZoomHUDHide() {
+        zoomHUDTask?.cancel()
+        zoomHUDTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_400_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.28)) { showZoomHUD = false }
+        }
+    }
+
+    /// 倍率文案（HUD / 无障碍 / 日志共用口径）
+    private static func zoomText(_ value: CGFloat) -> String {
+        String(format: "%.1f×", value)
     }
 
     /// 统一加载通道：缓存优先（Referer 由协议层统一注入），带下载进度与命中统计
