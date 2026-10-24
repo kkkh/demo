@@ -209,3 +209,32 @@
 
 - 全量编译：`qin/build/verify/longimage_fix_build.log`（`BUILD SUCCEEDED` + 护栏 0 缺口 + 0 error / 0 warning）
 - 真机测试：`qin/build/verify/longimage_fix_test.log`（含上述 10 例新增契约）
+
+---
+
+## 附录 B：第二轮加固（2026-09-28 晚 · 现场复报「问题依旧」后的真机取证）
+
+> 复报场景不变（图片多的文章）。本轮放弃猜测，改用**真机打印式探针取证法**（5 个探针用例，
+> 输出 `[LONGIMGPROBE]` 行），一次锁定并修复了 4 个此前未覆盖的真实缺陷。
+
+### B.1 真机实测缺陷表
+
+| # | 缺陷（真机实测证据） | 影响 | 修复 |
+| --- | --- | --- | --- |
+| 1 | **画布位图格式不确定**：默认色域（`.automatic`）在真机对同尺寸画布分别产出 **16bpp / 32bpp / 64bpp**（探针⑤：`canvasFormat automatic bpp=8 rowBytes=608`、`standard bpp=32`、`extended bpp=64`）；内存预算按 4B/px 估算，遇 64bpp **实际内存翻倍** → 超大画布分配失败 → 静默黑图 | 黑图（主因） | 画布 / 降采样 / 缩略图一律 `format.preferredRange = .standard`（确定 32bpp，行距按 32B 对齐填充）；契约 `testRenderedCanvasUsesStandard8BitFormat` |
+| 2 | **降采样按「点」而非「像素」**：`downscaled` 用 `image.size × 系数`，而长图产物是自适应倍率（1.0~3.0）→ 目标像素偏差数倍，极端时**放大**位图 → 分配失败 → 黑图 | 黑图 | 重写为 `downscaledToPixelScale`（`size × scale` 换算、1:1 像素渲染）；契约 `testEncoderDownscaleIsPixelAccurateForAdaptiveScaleSource` |
+| 3 | **编码阶梯与交付零校验**：纯色 / 黑图 JPEG 字节极小，能通过 10MB 上限校验被当作成功交付 | 黑图直达微信 | 三级校验：画布（渲染后）→ 编码候选与编码字节（缩略回读）→ 落盘 / 发送前（6 处系统分享路径 + 微信发送路径）；契约 `testEncoderNeverReturnsBlankForHeavyImage` / `testEncodedDataBlankCheck` |
+| 4 | **校验器采样陷阱**：ImageIO 缩略图为 `premultipliedFirst`（首字节恒为 alpha=255），按「每像素首字节」抽样会把**所有合法图**误判为纯色（真机实测：编码阶梯 5/5 档位全判黑） | 校验器整体失效 | 布局感知采样：32bpp 快路径按 `alphaInfo` 跳过 alpha、按 `rowBytes` 步进；非常规布局回退「自绘 RGBA8 缓冲」；`decodeThumbnail` 多配方回退 + 内容校验；无法取证时 fail-closed |
+
+附带修复：降级阶梯此前 `max(…, 0.3)` 可能**高于预算**（降级反而更易失败）→ 改为「永不超预算」；`WeChatImageEncoder` 像素预算改按真实像素计算；`isLikelyBlank` 对无位图数据改为 fail-closed。
+
+### B.2 探针与证据（`qin/build/verify/`）
+
+| 探针 / 证据 | 关键输出 |
+| --- | --- |
+| `probe_ladder.log`（编码阶梯） | 5 档全部 `candBlank=false / dataBlank=false`（修复生效；修复前全为 true） |
+| `probe_recipes2.log`（ImageIO 配方矩阵） | 6 种配方在真机均返回**有内容**缩略图（采样极值 74–209），排除解码配方问题 |
+| `probe_redraw.log`（重绘抽样） | 自绘探针位图 + ImageIO 缩略图重绘均可正确判读（min/max 分布合理） |
+| `longimage_black3_test.log` 内嵌探针⑤ | 画布格式三态：automatic=不定 / standard=32bpp / extended=64bpp |
+| `longimage_black3_test.log` 重图端到端 | `[LONGIMGPROBE] heavy px=1429x29357 scale=1.90 ms=720 blank=false`（24 图文章真机稳定产出） |
+| `longimage_black3_{build,test}.log` | 全量编译 0 error / 0 warning + 护栏通过 + 真机 **130/130**（含 20 例长图契约与探针） |

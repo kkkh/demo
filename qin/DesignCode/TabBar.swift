@@ -2242,6 +2242,121 @@ enum ArticleLongImageLoader {
     }
 }
 
+// MARK: - 图像完整性校验（长图全链共用：纯色 / 黑图防线）
+
+/// 图像产物完整性校验（长图链路的每一级产物都必须过此校验）。
+/// 背景：`UIGraphicsImageRenderer` 在**画布分配或绘制失败**时会**静默返回纯黑/纯色图**
+/// ——不报错、尺寸合法，且纯色 JPEG 字节极小，还能骗过微信 10MB 上限校验。
+/// 因此「渲染画布 → 编码候选 → 最终 JPEG」三级产物全部要做内容校验。
+enum SJZImageIntegrity {
+    /// 抽样网格（32×32 = 1024 点）：足以判定纯色，超大位图零遍历成本
+    private static let grid = 32
+    /// 极差阈值：< 8 视为纯色（正常长图必含深色文字与白底，绝不可能是纯色画布）
+    private static let rangeThreshold = 8
+
+    /// true = 疑似纯色 / 黑图失效产物；**无法取证时按失效处理**（fail-closed：宁可重试，绝不交付黑图）
+    static func isLikelyBlank(_ image: UIImage) -> Bool {
+        guard let cgImage = image.cgImage else { return true }
+        return isLikelyBlank(cgImage: cgImage)
+    }
+
+    /// CGImage 版本（画布 / 编码数据缩略解码后的校验入口）
+    static func isLikelyBlank(cgImage: CGImage) -> Bool {
+        guard let range = channelRange(of: cgImage) else { return true }   // 无法取证 → fail-closed
+        return Int(range.max) - Int(range.min) < rangeThreshold
+    }
+
+    /// 抽样通道极值（**布局感知**）：先走标准 32bpp 位图快路径（按 `alphaInfo` 跳过 alpha），
+    /// 非常规布局（16 位/压缩 provider）则绘入自建 RGBA8 缓冲再抽样。
+    /// 教训（2026-09-28）：ImageIO 缩略图为 `premultipliedFirst`，首字节恒为 alpha=255——
+    /// 若按「首字节」抽样会把**所有合法图**误判为纯色（真机实测），必须按布局取样。
+    nonisolated private static func channelRange(of cgImage: CGImage) -> (min: UInt8, max: UInt8)? {
+        if let direct = directBitmapChannelRange(of: cgImage) { return direct }
+        return selfDrawnChannelRange(of: cgImage)
+    }
+
+    /// 快路径：标准 32bpp 位图（4B/px；行距允许对齐填充，抽样按 rowBytes 步进）
+    nonisolated private static func directBitmapChannelRange(of cgImage: CGImage) -> (min: UInt8, max: UInt8)? {
+        guard cgImage.bitsPerPixel == 32,
+              cgImage.bytesPerRow >= cgImage.width * 4,
+              let data = cgImage.dataProvider?.data,
+              let bytes = CFDataGetBytePtr(data) else { return nil }
+        let alphaFirst: Bool
+        switch cgImage.alphaInfo {
+        case .premultipliedFirst, .first, .noneSkipFirst: alphaFirst = true
+        default: alphaFirst = false
+        }
+        let channelOffsets = alphaFirst ? [1, 2, 3] : [0, 1, 2]
+        let rowBytes = cgImage.bytesPerRow
+        let length = CFDataGetLength(data)
+        var minValue: UInt8 = 255
+        var maxValue: UInt8 = 0
+        for iy in 0..<grid {
+            let y = cgImage.height * iy / grid
+            for ix in 0..<grid {
+                let x = cgImage.width * ix / grid
+                let base = y * rowBytes + x * 4
+                for offset in channelOffsets {
+                    let index = base + offset
+                    guard index < length else { continue }
+                    minValue = min(minValue, bytes[index])
+                    maxValue = max(maxValue, bytes[index])
+                }
+            }
+        }
+        return (minValue, maxValue)
+    }
+
+    /// 通用路径：把 CGImage 绘入自建 32×32 RGBA8 缓冲（布局完全可控）后抽样 RGB
+    nonisolated private static func selfDrawnChannelRange(of cgImage: CGImage) -> (min: UInt8, max: UInt8)? {
+        let side = 32
+        let bytesPerRow = side * 4
+        var buffer = [UInt8](repeating: 0, count: bytesPerRow * side)
+        let drawn: Bool = buffer.withUnsafeMutableBytes { raw -> Bool in
+            guard let base = raw.baseAddress,
+                  let context = CGContext(data: base,
+                                          width: side,
+                                          height: side,
+                                          bitsPerComponent: 8,
+                                          bytesPerRow: bytesPerRow,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.interpolationQuality = .low
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+            return true
+        }
+        guard drawn else { return nil }
+        var minValue: UInt8 = 255
+        var maxValue: UInt8 = 0
+        for index in stride(from: 0, to: buffer.count, by: 4) {
+            for offset in 0..<3 {   // 跳过 alpha（第 4 字节恒为 255）
+                let value = buffer[index + offset]
+                minValue = min(minValue, value)
+                maxValue = max(maxValue, value)
+            }
+        }
+        return (minValue, maxValue)
+    }
+
+    /// 对**已编码图片数据**（JPEG/PNG）做缩略解码后校验（约 10ms、低内存）：
+    /// 作为「最终交付前」的最后一道防线，可捕获编码阶段引入的纯色 / 黑图
+    static func isLikelyBlank(encodedImage data: Data) -> Bool {
+        guard let thumbnail = ArticleLongImageRenderer.decodeThumbnail(data, maxPixel: 256) else { return true }
+        return isLikelyBlank(cgImage: thumbnail)
+    }
+
+    /// 真实像素尺寸：`UIImage.size` 是**点**（随 scale 变化），预算 / 日志 / 降采样必须用像素
+    static func pixelSize(of image: UIImage) -> CGSize {
+        CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+    }
+
+    /// 日志友好的像素尺寸串
+    static func pixelSizeText(of image: UIImage) -> String {
+        let size = pixelSize(of: image)
+        return "\(Int(size.width))x\(Int(size.height))"
+    }
+}
+
 // MARK: - 文章长图渲染器
 
 /// 文章长图渲染器（白底长图：品牌头 / 标题 / 元数据 / 正文 / 插图 / 页脚）。
@@ -2280,7 +2395,8 @@ struct ArticleLongImageRenderer {
     static let preferredScale: CGFloat = 3
     /// 位图高度硬上限（像素）
     static let maxPixelHeight: CGFloat = 32_000
-    /// 位图字节硬上限（RGBA 4B/px，≈40MP）：与后续 JPEG 编码 / 微信分享的峰值内存匹配
+    /// 位图字节硬上限（RGBA 8 位 = 4B/px，≈40MP）：与后续 JPEG 编码 / 微信分享的峰值内存匹配。
+    /// 注意：渲染器已强制 `preferredRange = .standard`（8 位/通道）——若为 16 位扩展域则实际内存翻倍
     static let maxRenderBytes = 160 * 1024 * 1024
     /// 位图字节下限（可用内存极低时仍保证可渲染）
     static let minRenderBytes = 64 * 1024 * 1024
@@ -2353,7 +2469,8 @@ struct ArticleLongImageRenderer {
             let logicalSize = CGSize(width: Self.imageWidth,
                                      height: calculateTotalHeight(includeImages: step.includeImages))
             let budget = Self.budget(forLogicalSize: logicalSize, availableBytes: available)
-            let scale = max(budget.scale * step.factor, 0.3)
+            // 降级只会更小：永远不得超过预算倍率（否则降级反而可能触发分配失败 → 黑图）
+            let scale = min(max(budget.scale * step.factor, 0.08), budget.scale)
             let pixelSize = CGSize(width: (logicalSize.width * scale).rounded(.down),
                                    height: (logicalSize.height * scale).rounded(.down))
             let bitmapMB = Int(pixelSize.width * pixelSize.height) * 4 / 1024 / 1024
@@ -2387,7 +2504,10 @@ struct ArticleLongImageRenderer {
                     "tag": tag,
                     "step": step.label,
                     "scale": String(format: "%.2f", scale),
+                    "imageScale": String(format: "%.2f", image.scale),
                     "pixel": "\(image.cgImage?.width ?? 0)x\(image.cgImage?.height ?? 0)",
+                    "bpp": "\(image.cgImage?.bitsPerPixel ?? 0)",
+                    "bytesMB": "\(Int(Double((image.cgImage?.width ?? 0) * (image.cgImage?.height ?? 0)) * Double(image.cgImage?.bitsPerPixel ?? 32) / 8) / 1024 / 1024)",
                     "bitmapMB": "\(bitmapMB)",
                     "images": "\(images.count)",
                     "includedImages": step.includeImages ? "\(images.count)" : "0",
@@ -2422,7 +2542,11 @@ struct ArticleLongImageRenderer {
     private func renderOnce(logicalSize: CGSize, includeImages: Bool, scale: CGFloat) -> UIImage? {
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale
-        format.opaque = true   // 白底不透明：避免透明画布并提升绘制 / 编码效率
+        format.opaque = true
+        // 关键（2026-09-28 黑图根因②）：强制 8 位/通道标准色域。
+        // iOS 26/27 在 HDR 机型（如 XDR 屏 iPhone）上默认可能给 **16 位扩展域**位图（实测真机 64bpp），
+        // 画布内存因此**翻倍**——按 4B/px 估算的预算会在超大画布上直接分配失败 → 静默黑图。
+        format.preferredRange = .standard
         let renderer = UIGraphicsImageRenderer(size: logicalSize, format: format)
         let image = renderer.image { ctx in
             draw(in: ctx, logicalSize: logicalSize, includeImages: includeImages, scale: scale)
@@ -2431,30 +2555,9 @@ struct ArticleLongImageRenderer {
         return image
     }
 
-    /// 产物校验（黑图防线③）：直接抽样位图像素（32×32 网格），极差 < 8 判定为纯色失效产物
-    /// （正常长图必含深色文字与白底，绝不可能是纯色画布；无法取证时不误判）
+    /// 产物校验（黑图防线③）：转发共享校验器（fail-closed：无法取证按失效处理）
     static func isLikelyBlank(_ image: UIImage) -> Bool {
-        guard let cgImage = image.cgImage,
-              let data = cgImage.dataProvider?.data,
-              let bytes = CFDataGetBytePtr(data) else { return false }
-        let bytesPerPixel = max(cgImage.bitsPerPixel / 8, 1)
-        let rowBytes = cgImage.bytesPerRow
-        let length = CFDataGetLength(data)
-        let grid = 32
-        var minValue: UInt8 = 255
-        var maxValue: UInt8 = 0
-        for iy in 0..<grid {
-            let y = cgImage.height * iy / grid
-            for ix in 0..<grid {
-                let x = cgImage.width * ix / grid
-                let index = y * rowBytes + x * bytesPerPixel
-                guard index + bytesPerPixel <= length else { continue }
-                let value = bytes[index]
-                minValue = min(minValue, value)
-                maxValue = max(maxValue, value)
-            }
-        }
-        return Int(maxValue) - Int(minValue) < 8
+        SJZImageIntegrity.isLikelyBlank(image)
     }
 
     // MARK: 绘制
@@ -2675,17 +2778,42 @@ struct ArticleLongImageRenderer {
         return totalHeight
     }
 
-    /// 从压缩数据即时缩略解码（不落地全尺寸位图）；maxPixel 为目标最长边
+    /// 从压缩数据解码「可用」的缩略图（多配方回退 + 内容校验）：
+    /// ① 缩略图（带 EXIF 方向归一 + 立即解码）→ ② 去立即解码变体 → ③ 无变换变体
+    /// → ④ 子采样整图兜底；每个候选都做纯色 / 黑图校验（fail-closed），
+    /// 绝不把黑块画进长图，也绝不让黑图通过编码产物校验。
     nonisolated static func decodeThumbnail(_ data: Data, maxPixel: CGFloat) -> CGImage? {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,   // 应用 EXIF 方向
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: max(64, maxPixel)
+        let limit = max(64, maxPixel)
+        let thumbnailRecipes: [[CFString: Any]] = [
+            [kCGImageSourceCreateThumbnailFromImageAlways: true,
+             kCGImageSourceCreateThumbnailWithTransform: true,   // 应用 EXIF 方向
+             kCGImageSourceShouldCacheImmediately: true,
+             kCGImageSourceThumbnailMaxPixelSize: limit],
+            [kCGImageSourceCreateThumbnailFromImageAlways: true,
+             kCGImageSourceCreateThumbnailWithTransform: true,
+             kCGImageSourceThumbnailMaxPixelSize: limit],
+            [kCGImageSourceCreateThumbnailFromImageAlways: true,
+             kCGImageSourceThumbnailMaxPixelSize: limit]
         ]
-        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        for recipe in thumbnailRecipes {
+            if let candidate = CGImageSourceCreateThumbnailAtIndex(source, 0, recipe as CFDictionary),
+               !SJZImageIntegrity.isLikelyBlank(cgImage: candidate) {
+                return candidate
+            }
+        }
+        // 兜底：子采样整图（JPEG 走 DCT 缩放，内存仍远小于全尺寸；倍率按源图换算保证清晰度）
+        if let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let sourceWidth = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+           let sourceHeight = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue {
+            let factor = max(1, Int((max(sourceWidth, sourceHeight) / limit).rounded(.down)))
+            if let candidate = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceSubsampleFactor: factor] as CFDictionary),
+               !SJZImageIntegrity.isLikelyBlank(cgImage: candidate) {
+                return candidate
+            }
+        }
+        return nil
     }
 
     private func drawMultilineText(
@@ -3556,7 +3684,26 @@ struct EnhancedNewsDetailView: View {
     /// 绕过 SwiftUI sheet 的嵌套问题，确保微信 Share Extension 能正确接收图片数据
     private func presentLongImageShare(image: UIImage, title: String) {
         // 使用 JPEG 压缩（质量 0.92），文件大小可控，微信兼容性最好
-        guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
+        // 交付前兜底校验：纯色 / 黑图绝不落盘分享（渲染层已校验；此处防编码链路异常）
+        guard !SJZImageIntegrity.isLikelyBlank(image) else {
+            longImageError = "长图生成异常（画布纯色），请重试"
+            isGeneratingLongImage = true
+            LogManager.shared.error("longimage", "长图交付校验拦截（画布纯色）", context: [
+                "title": title,
+                "pixel": SJZImageIntegrity.pixelSizeText(of: image)
+            ])
+            return
+        }
+        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
+        var jpegData: Data?
+        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
+            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
+               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
+                jpegData = data
+                break
+            }
+        }
+        guard let jpegData else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
@@ -4628,7 +4775,26 @@ struct HonorDetailView: View {
 
     /// 直接以 UIKit 模态方式呈现 UIActivityViewController（绕过 SwiftUI sheet 嵌套，微信分享兼容）
     private func presentLongImageShare(image: UIImage, title: String) {
-        guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
+        // 交付前兜底校验：纯色 / 黑图绝不落盘分享（渲染层已校验；此处防编码链路异常）
+        guard !SJZImageIntegrity.isLikelyBlank(image) else {
+            longImageError = "长图生成异常（画布纯色），请重试"
+            isGeneratingLongImage = true
+            LogManager.shared.error("longimage", "长图交付校验拦截（画布纯色）", context: [
+                "title": title,
+                "pixel": SJZImageIntegrity.pixelSizeText(of: image)
+            ])
+            return
+        }
+        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
+        var jpegData: Data?
+        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
+            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
+               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
+                jpegData = data
+                break
+            }
+        }
+        guard let jpegData else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
@@ -5230,7 +5396,26 @@ struct TeacherDetailView: View {
 
     /// 直接以 UIKit 模态方式呈现 UIActivityViewController（绕过 SwiftUI sheet 嵌套，微信分享兼容）
     private func presentLongImageShare(image: UIImage, title: String) {
-        guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
+        // 交付前兜底校验：纯色 / 黑图绝不落盘分享（渲染层已校验；此处防编码链路异常）
+        guard !SJZImageIntegrity.isLikelyBlank(image) else {
+            longImageError = "长图生成异常（画布纯色），请重试"
+            isGeneratingLongImage = true
+            LogManager.shared.error("longimage", "长图交付校验拦截（画布纯色）", context: [
+                "title": title,
+                "pixel": SJZImageIntegrity.pixelSizeText(of: image)
+            ])
+            return
+        }
+        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
+        var jpegData: Data?
+        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
+            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
+               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
+                jpegData = data
+                break
+            }
+        }
+        guard let jpegData else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
@@ -5762,7 +5947,26 @@ struct StoryDetailView: View {
 
     /// 直接以 UIKit 模态方式呈现 UIActivityViewController（绕过 SwiftUI sheet 嵌套，微信分享兼容）
     private func presentLongImageShare(image: UIImage, title: String) {
-        guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
+        // 交付前兜底校验：纯色 / 黑图绝不落盘分享（渲染层已校验；此处防编码链路异常）
+        guard !SJZImageIntegrity.isLikelyBlank(image) else {
+            longImageError = "长图生成异常（画布纯色），请重试"
+            isGeneratingLongImage = true
+            LogManager.shared.error("longimage", "长图交付校验拦截（画布纯色）", context: [
+                "title": title,
+                "pixel": SJZImageIntegrity.pixelSizeText(of: image)
+            ])
+            return
+        }
+        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
+        var jpegData: Data?
+        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
+            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
+               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
+                jpegData = data
+                break
+            }
+        }
+        guard let jpegData else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
@@ -6298,7 +6502,26 @@ struct ActivityDetailView: View {
 
     /// 直接以 UIKit 模态方式呈现 UIActivityViewController（绕过 SwiftUI sheet 嵌套，微信分享兼容）
     private func presentLongImageShare(image: UIImage, title: String) {
-        guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
+        // 交付前兜底校验：纯色 / 黑图绝不落盘分享（渲染层已校验；此处防编码链路异常）
+        guard !SJZImageIntegrity.isLikelyBlank(image) else {
+            longImageError = "长图生成异常（画布纯色），请重试"
+            isGeneratingLongImage = true
+            LogManager.shared.error("longimage", "长图交付校验拦截（画布纯色）", context: [
+                "title": title,
+                "pixel": SJZImageIntegrity.pixelSizeText(of: image)
+            ])
+            return
+        }
+        // JPEG 编码（质量 0.92；失败逐档降质重试，超大图更稳）——编码产物再校验，绝不交付黑图
+        var jpegData: Data?
+        for quality in [0.92, 0.8, 0.68] as [CGFloat] {
+            if let data = autoreleasepool(invoking: { image.jpegData(compressionQuality: quality) }),
+               !SJZImageIntegrity.isLikelyBlank(encodedImage: data) {
+                jpegData = data
+                break
+            }
+        }
+        guard let jpegData else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
             LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])

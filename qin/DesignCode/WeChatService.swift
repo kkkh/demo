@@ -376,7 +376,9 @@ enum WeChatImageEncoder {
     }
 
     static func encode(_ image: UIImage, maxBytes: Int = WeChatImageEncoder.maxImageBytes) -> Result? {
-        let pixelCount = Double(image.size.width * image.size.height)
+        // 必须用**像素**尺寸：image.size 是点、随自适应倍率变化（用点会低估预算与降采样倍率）
+        let sourcePixels = SJZImageIntegrity.pixelSize(of: image)
+        let pixelCount = Double(sourcePixels.width * sourcePixels.height)
         let startIndex = firstScaleIndex(pixelCount: pixelCount)
         if startIndex > 0 {
             LogManager.shared.info("wechat", "长图编码跳过大尺寸档位（像素预算）", context: [
@@ -391,23 +393,45 @@ enum WeChatImageEncoder {
             if scale >= 1.0 {
                 candidate = image
             } else {
-                candidate = downscaled(image, scale: scale)
+                candidate = downscaledToPixelScale(image, scale: scale)
             }
             guard let candidate else { continue }
+            // 候选图内容校验（黑图防线）：绘制失败会静默产出纯色图，且其 JPEG 极小、会骗过字节上限
+            guard !SJZImageIntegrity.isLikelyBlank(candidate) else {
+                LogManager.shared.warning("wechat", "长图编码候选校验未通过（纯色 / 黑图，已跳过该档位）", context: [
+                    "scale": String(format: "%.2f", scale),
+                    "pixel": SJZImageIntegrity.pixelSizeText(of: candidate)
+                ])
+                continue
+            }
             for quality in qualities {
                 // autoreleasepool：逐档尝试的 JPEG 编码中间缓冲及时释放（超大图峰值可观）
                 guard let data = autoreleasepool(invoking: { candidate.jpegData(compressionQuality: quality) }) else { continue }
                 lastBytes = data.count
                 guard data.count <= maxBytes else { continue }
+                // 最终交付校验：把编码后的字节缩略解码一次，确认真实存储内容不是纯色 / 黑图
+                // （最后一道闸：任何阶段引入的黑图都不可能进入微信）
+                guard !SJZImageIntegrity.isLikelyBlank(encodedImage: data) else {
+                    LogManager.shared.warning("wechat", "长图编码产物校验未通过（纯色 / 黑图，已跳过该档位）", context: [
+                        "scale": String(format: "%.2f", scale),
+                        "quality": String(format: "%.2f", quality),
+                        "bytes": "\(data.count)"
+                    ])
+                    continue
+                }
                 if scale < 1.0 || quality < 0.92 {
                     LogManager.shared.info("wechat", "长图已自动压缩至官方上限内", context: [
                         "scale": String(format: "%.2f", scale),
                         "quality": String(format: "%.2f", quality),
                         "bytes": "\(data.count)",
-                        "limit": "\(maxBytes)"
+                        "limit": "\(maxBytes)",
+                        "pixel": SJZImageIntegrity.pixelSizeText(of: candidate)
                     ])
                 }
-                return Result(data: data, pixelSize: candidate.size, quality: quality, scale: scale)
+                return Result(data: data,
+                              pixelSize: SJZImageIntegrity.pixelSize(of: candidate),
+                              quality: quality,
+                              scale: scale)
             }
         }
         LogManager.shared.warning("wechat", "长图压缩未达官方上限（放弃分享）", context: [
@@ -417,12 +441,18 @@ enum WeChatImageEncoder {
         return nil
     }
 
-    /// 等比降采样（pixel 级）
-    private static func downscaled(_ image: UIImage, scale: CGFloat) -> UIImage? {
-        let target = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = 1
+    /// 等比降采样（**像素级**；契约测试锚点）。
+    /// 教训（2026-09-28 黑图二次复现）：长图渲染产物是**自适应倍率**（`image.scale` ∈ 0.2~3.0），
+    /// 若拿「点尺寸 × 系数」当像素目标，会得到比原图更大的位图 → 分配失败 → 静默黑图；
+    /// 故必须按 `size × scale` 换算真实像素，再以 1:1 像素渲染。
+    static func downscaledToPixelScale(_ image: UIImage, scale: CGFloat) -> UIImage? {
+        let pixel = SJZImageIntegrity.pixelSize(of: image)
+        let target = CGSize(width: max(1, (pixel.width * scale).rounded(.down)),
+                            height: max(1, (pixel.height * scale).rounded(.down)))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1   // 1:1 像素渲染：target 即像素尺寸
         format.opaque = true
+        format.preferredRange = .standard   // 8 位/通道（16 位扩展域会使内存翻倍）
         return UIGraphicsImageRenderer(size: target, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: target))
         }
@@ -516,7 +546,7 @@ enum WeChatThumbnailProvider {
             LogManager.shared.debugLog("wechat", "缩略图由长图生成", context: [
                 "alignment": alignment == .top ? "top" : "center",
                 "bytes": "\(data.count)",
-                "source": "\(Int(image.size.width))x\(Int(image.size.height))"
+                "source": SJZImageIntegrity.pixelSizeText(of: image)
             ])
         }
         return data
@@ -525,6 +555,13 @@ enum WeChatThumbnailProvider {
     /// 等比缩放 + 裁方 + JPEG 分级压缩（官方缩略图方形展示）
     static func compress(_ image: UIImage, alignment: ThumbAlignment = .center) -> Data? {
         guard let scaled = squareScaled(image, side: thumbSide, anchorTop: alignment == .top) else { return nil }
+        // 缩略图内容校验：绘制失败会静默产出纯色图（黑缩略图会直接显示在微信会话列表）
+        guard !SJZImageIntegrity.isLikelyBlank(scaled) else {
+            LogManager.shared.warning("wechat", "缩略图绘制校验未通过（纯色 / 黑图，放弃缩略图）", context: [
+                "alignment": alignment == .top ? "top" : "center"
+            ])
+            return nil
+        }
         var quality: CGFloat = 0.82
         while quality >= 0.2 {
             if let data = scaled.jpegData(compressionQuality: quality), data.count <= maxThumbBytes {
@@ -546,9 +583,10 @@ enum WeChatThumbnailProvider {
     /// nonisolated：长图载荷构造（非隔离上下文）复用本核心生成预览小图；UIGraphicsImageRenderer 线程安全
     nonisolated private static func squareScaled(_ image: UIImage, side: CGFloat, anchorTop: Bool) -> UIImage? {
         guard image.size.width > 0, image.size.height > 0 else { return nil }
-        let format = UIGraphicsImageRendererFormat.default()
+        let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true
+        format.preferredRange = .standard   // 8 位/通道（16 位扩展域会使内存翻倍）
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format)
         return renderer.image { _ in
             let scale = max(side / image.size.width, side / image.size.height)
@@ -561,7 +599,9 @@ enum WeChatThumbnailProvider {
     /// 顶部裁方预览小图（长图分享菜单头部专用）：载荷构造期一次生成，
     /// 避免菜单直接绘制可能上万像素高的长图（弹出即显、零绘制卡顿；裁切核心与缩略图一致）
     nonisolated static func topSquarePreview(from image: UIImage, side: CGFloat) -> UIImage? {
-        squareScaled(image, side: side, anchorTop: true)
+        guard let preview = squareScaled(image, side: side, anchorTop: true),
+              !SJZImageIntegrity.isLikelyBlank(preview) else { return nil }   // 纯色预览判失效 → 调用方回退原图
+        return preview
     }
 }
 
@@ -811,7 +851,7 @@ final class WeChatService: NSObject, ObservableObject {
                 "kind": WeChatShareKind.longImage.logName,
                 "scene": scene.logName,
                 "entry": entry,
-                "pixelSize": "\(Int(image.size.width))x\(Int(image.size.height))",
+                "pixelSize": SJZImageIntegrity.pixelSizeText(of: image),
                 "limit": "\(WeChatImageEncoder.maxImageBytes)B"
             ])
             showBanner("长图过大，未能压缩到微信限制内", kind: .failure)

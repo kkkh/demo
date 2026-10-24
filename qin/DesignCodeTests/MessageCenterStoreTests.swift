@@ -949,6 +949,295 @@ final class ArticleLongImageLogicTests: XCTestCase {
         XCTAssertFalse(noImagesAtAll.contains("省略"), "本就无图时不得追加降级说明")
     }
 
+    // MARK: 编码链路（黑图二次复现回归）
+
+    /// 回归（2026-09-28 黑图二次复现根因）：降采样必须按**像素**尺寸计算——
+    /// 自适应倍率源图（image.scale = 1.5）若按「点尺寸 × 系数」处理，会得到 2 倍大的位图（分配失败 → 黑图）
+    func testEncoderDownscaleIsPixelAccurateForAdaptiveScaleSource() {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.5          // 模拟长图渲染产物：像素 = 点 × 1.5
+        format.opaque = true
+        let source = UIGraphicsImageRenderer(size: CGSize(width: 800, height: 6000), format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 800, height: 6000))
+            UIColor.black.setFill()
+            for y in stride(from: 0, to: 6000, by: 120) {
+                ctx.fill(CGRect(x: 40, y: CGFloat(y), width: 400, height: 24))
+            }
+        }
+        let sourcePixel = SJZImageIntegrity.pixelSize(of: source)
+        XCTAssertEqual(sourcePixel.width, 1200, accuracy: 1, "源图应为 1200×9000 像素（800×6000 点 @1.5x）")
+        guard let down = WeChatImageEncoder.downscaledToPixelScale(source, scale: 0.75) else {
+            XCTFail("降采样必须成功")
+            return
+        }
+        let downPixel = SJZImageIntegrity.pixelSize(of: down)
+        XCTAssertEqual(downPixel.width, sourcePixel.width * 0.75, accuracy: 2, "必须按像素降采样（而非放大）")
+        XCTAssertEqual(downPixel.height, sourcePixel.height * 0.75, accuracy: 4, "必须按像素降采样（而非放大）")
+        XCTAssertFalse(SJZImageIntegrity.isLikelyBlank(down), "降采样产物不得为纯色 / 黑图")
+    }
+
+    /// 重图编码稳定性：小字节上限逼迫逐档降采样 + JPEG 压缩，最终产物解码回来必须非黑图
+    func testEncoderNeverReturnsBlankForHeavyImage() {
+        let image = noisyImage(width: 900, height: 5400)
+        guard let result = WeChatImageEncoder.encode(image, maxBytes: 200 * 1024) else {
+            XCTFail("重图在小上限下必须完成降档编码")
+            return
+        }
+        XCTAssertLessThanOrEqual(result.data.count, 200 * 1024, "产物必须满足字节上限")
+        guard let decoded = UIImage(data: result.data) else {
+            XCTFail("产物必须可解码")
+            return
+        }
+        XCTAssertFalse(SJZImageIntegrity.isLikelyBlank(decoded), "编码链路产物不得为黑图")
+        XCTAssertLessThanOrEqual(result.pixelSize.height, 5401, "降采样不得放大像素尺寸")
+    }
+
+    /// 编码数据校验（最后一道闸）：纯黑 JPEG 拦下、正常内容放行、非图像数据 fail-closed
+    func testEncodedDataBlankCheck() {
+        guard let blackData = solidImage(color: .black).jpegData(compressionQuality: 0.9),
+              let contentData = contentImage().jpegData(compressionQuality: 0.9) else {
+            XCTFail("测试数据构造失败")
+            return
+        }
+        XCTAssertTrue(SJZImageIntegrity.isLikelyBlank(encodedImage: blackData), "纯黑 JPEG 必须被拦截")
+        XCTAssertFalse(SJZImageIntegrity.isLikelyBlank(encodedImage: contentData), "正常内容 JPEG 不得误判")
+        XCTAssertTrue(SJZImageIntegrity.isLikelyBlank(encodedImage: Data("not image".utf8)), "非图像数据必须 fail-closed")
+    }
+
+    /// fail-closed：无位图数据（无法取证）时必须按失效处理，绝不放过疑似黑图
+    func testBlankDetectionFailsClosedWithoutBitmap() {
+        XCTAssertTrue(SJZImageIntegrity.isLikelyBlank(UIImage()), "无 CGImage 的图必须判失效")
+    }
+
+    // MARK: 重图文章端到端（现场故障场景）
+
+    /// 24 张素材的「图片多的文章」：真机端到端渲染必须在预算内产出非黑图（必要时自动降级），
+    /// 并打印诊断（探针）——「图片多 → 黑图」现场场景的最小复现
+    func testRendererHandlesImageHeavyArticleOnDevice() {
+        var assets: [ArticleLongImageAsset] = []
+        for index in 0..<24 {
+            guard let asset = makeAsset(size: CGSize(width: 1600, height: 1200),
+                                        color: index % 2 == 0 ? .systemTeal : .systemIndigo) else { return }
+            assets.append(asset)
+        }
+        let content = (1...72).map { "第\($0)段：重图文章渲染稳定性验证文本。" }.joined(separator: "\n")
+        let renderer = ArticleLongImageRenderer(
+            title: "重图文章渲染契约（24 图）",
+            metadata: "设备端探针 · 2026-09-28",
+            content: content,
+            images: assets,
+            articleURL: "https://www.sxjzit.edu.cn/heavy",
+            tag: "contract_heavy"
+        )
+        let started = Date()
+        guard let image = renderer.render() else {
+            XCTFail("重图文章必须产出可用长图（黑图会被校验拦截并降级重试）")
+            return
+        }
+        let pixel = SJZImageIntegrity.pixelSize(of: image)
+        let ms = Int(Date().timeIntervalSince(started) * 1000)
+        print("[LONGIMGPROBE] heavy px=\(Int(pixel.width))x\(Int(pixel.height)) scale=\(String(format: "%.2f", image.scale)) ms=\(ms) blank=\(SJZImageIntegrity.isLikelyBlank(image))")
+        XCTAssertFalse(SJZImageIntegrity.isLikelyBlank(image), "重图文章产物不得为黑图 / 纯色")
+        XCTAssertLessThanOrEqual(pixel.height, ArticleLongImageRenderer.maxPixelHeight + 1, "像素高度不得越过硬上限")
+        XCTAssertLessThanOrEqual(pixel.width * pixel.height * 4,
+                                 Double(ArticleLongImageRenderer.maxRenderBytes) * 1.05,
+                                 "位图字节不得越过预算上限（含取整余量）")
+    }
+
+    // MARK: 画布格式契约与取证
+
+    /// 回归（2026-09-28 黑图根因②）：渲染画布必须是 **8 位/通道（32bpp）**——
+    /// HDR 机型上默认色域可能给 16 位扩展域（64bpp），画布内存翻倍 → 超大画布分配失败 → 静默黑图
+    func testRenderedCanvasUsesStandard8BitFormat() {
+        let renderer = ArticleLongImageRenderer(
+            title: "画布格式契约",
+            metadata: "8 位/通道",
+            content: "格式验证。",
+            images: [],
+            articleURL: "https://www.sxjzit.edu.cn/format",
+            tag: "contract_format"
+        )
+        guard let image = renderer.render(), let cg = image.cgImage else {
+            XCTFail("画布必须产出")
+            return
+        }
+        XCTAssertEqual(cg.bitsPerPixel, 32, "画布必须为 8 位/通道（32bpp）；16 位扩展域会使内存翻倍并导致黑图")
+        XCTAssertGreaterThanOrEqual(cg.bytesPerRow, cg.width * 4, "行距不得小于 4 字节/像素")
+        XCTAssertEqual(cg.bytesPerRow % 4, 0, "行距必须按像素对齐（4 字节）")
+    }
+
+    /// 探针⑤：画布位图格式取证（automatic / standard / extended 三态）
+    func testProbeCanvasBitmapFormat() {
+        for (name, range) in [("automatic", UIGraphicsImageRendererFormat.Range.automatic),
+                              ("standard", .standard),
+                              ("extended", .extended)] {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 3
+            format.opaque = true
+            format.preferredRange = range
+            let image = UIGraphicsImageRenderer(size: CGSize(width: 100, height: 100), format: format).image { ctx in
+                UIColor.white.setFill()
+                ctx.fill(CGRect(x: 0, y: 0, width: 100, height: 100))
+            }
+            let cg = image.cgImage
+            print("[LONGIMGPROBE] canvasFormat \(name) bpp=\(cg?.bitsPerPixel ?? -1) rowBytes=\(cg?.bytesPerRow ?? -1) width=\(cg?.width ?? -1) scale=\(image.scale)")
+        }
+    }
+
+    // MARK: 诊断探针（黑图链路取证工具）
+
+    /// 探针④：重绘探针位图路径的可用性 + ImageIO 缩略图真实内容（校验器实现依据）
+    func testProbeRedrawnSampling() {
+        for (name, image) in [("solidWhite", solidImage(color: .white)),
+                              ("solidBlack", solidImage(color: .black)),
+                              ("content", contentImage()),
+                              ("noisy640x2400", noisyImage(width: 640, height: 2400))] {
+            print("[LONGIMGPROBE] redraw \(name) -> \(redrawStats(image))")
+        }
+        let image = noisyImage(width: 640, height: 2400)
+        guard let jpeg = image.jpegData(compressionQuality: 0.8),
+              let source = CGImageSourceCreateWithData(jpeg as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
+              let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                  kCGImageSourceCreateThumbnailFromImageAlways: true,
+                  kCGImageSourceThumbnailMaxPixelSize: 256
+              ] as CFDictionary) else {
+            print("[LONGIMGPROBE] redraw thumb -> 构造失败")
+            return
+        }
+        let thumbLength = thumb.dataProvider?.data.map { CFDataGetLength($0) } ?? -1
+        print("[LONGIMGPROBE] redraw thumb(ImageIO) raw bpp=\(thumb.bitsPerPixel) rowBytes=\(thumb.bytesPerRow) len=\(thumbLength) -> \(redrawStats(UIImage(cgImage: thumb)))")
+    }
+
+    /// 重绘到自有探针位图后按 rowBytes 抽样（打印布局与极值）
+    private func redrawStats(_ image: UIImage) -> String {
+        let side = 32
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let probe = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { _ in
+            image.draw(in: CGRect(x: 0, y: 0, width: side, height: side))
+        }
+        guard let cg = probe.cgImage, let data = cg.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else {
+            return "probe=nil"
+        }
+        let bpp = max(cg.bitsPerPixel / 8, 1)
+        let rowBytes = cg.bytesPerRow
+        let length = CFDataGetLength(data)
+        var minV: UInt8 = 255
+        var maxV: UInt8 = 0
+        var count = 0
+        for iy in 0..<side {
+            for ix in 0..<side {
+                let index = (cg.height * iy / side) * rowBytes + (cg.width * ix / side) * bpp
+                guard index + bpp <= length else { continue }
+                minV = min(minV, bytes[index])
+                maxV = max(maxV, bytes[index])
+                count += 1
+            }
+        }
+        return "probe=\(cg.width)x\(cg.height) bpp=\(cg.bitsPerPixel) rowBytes=\(rowBytes) len=\(length) min=\(minV) max=\(maxV) n=\(count)"
+    }
+
+    /// 探针③：ImageIO 缩略解码配方矩阵（编码产物校验依赖它；定位真机可用组合）
+    func testProbeImageIOThumbnailRecipes() {
+        let image = noisyImage(width: 640, height: 2400)
+        guard let jpeg = image.jpegData(compressionQuality: 0.8) else {
+            XCTFail("JPEG 构造失败")
+            return
+        }
+        for (srcName, srcOptions) in [("cacheFalse", [kCGImageSourceShouldCache: false] as CFDictionary),
+                                      ("default", [:] as CFDictionary)] {
+            guard let source = CGImageSourceCreateWithData(jpeg as CFData, srcOptions) else {
+                print("[LONGIMGPROBE] recipe[\(srcName)] source=nil")
+                continue
+            }
+            let variants: [(String, [CFString: Any])] = [
+                ("A always+transform+immediate+256", [kCGImageSourceCreateThumbnailFromImageAlways: true,
+                                                      kCGImageSourceCreateThumbnailWithTransform: true,
+                                                      kCGImageSourceShouldCacheImmediately: true,
+                                                      kCGImageSourceThumbnailMaxPixelSize: 256]),
+                ("B always+transform+256", [kCGImageSourceCreateThumbnailFromImageAlways: true,
+                                            kCGImageSourceCreateThumbnailWithTransform: true,
+                                            kCGImageSourceThumbnailMaxPixelSize: 256]),
+                ("C always+256", [kCGImageSourceCreateThumbnailFromImageAlways: true,
+                                  kCGImageSourceThumbnailMaxPixelSize: 256]),
+                ("D always+transform+immediate+1300", [kCGImageSourceCreateThumbnailFromImageAlways: true,
+                                                       kCGImageSourceCreateThumbnailWithTransform: true,
+                                                       kCGImageSourceShouldCacheImmediately: true,
+                                                       kCGImageSourceThumbnailMaxPixelSize: 1300]),
+                ("E ifAbsent+256", [kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
+                                    kCGImageSourceThumbnailMaxPixelSize: 256])
+            ]
+            for (name, options) in variants {
+                let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+                if let cg {
+                    print("[LONGIMGPROBE] recipe[\(srcName)] \(name) -> \(cg.width)x\(cg.height) \(redrawStats(UIImage(cgImage: cg)))")
+                } else {
+                    print("[LONGIMGPROBE] recipe[\(srcName)] \(name) -> nil")
+                }
+            }
+            let subsampled = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceSubsampleFactor: 16] as CFDictionary)
+            if let subsampled {
+                print("[LONGIMGPROBE] recipe[\(srcName)] F subsample16 -> \(subsampled.width)x\(subsampled.height) \(redrawStats(UIImage(cgImage: subsampled)))")
+            } else {
+                print("[LONGIMGPROBE] recipe[\(srcName)] F subsample16 -> nil")
+            }
+        }
+    }
+
+    /// 探针①：抽样字节统计——定位「校验误判」与「真黑图」的差异
+    func testProbeBlankSamplerDiagnostics() {
+        for (name, image) in [("solidBlack", solidImage(color: .black)),
+                              ("content", contentImage()),
+                              ("noisy640x2400", noisyImage(width: 640, height: 2400)),
+                              ("noisy1200x4000", noisyImage(width: 1200, height: 4000))] {
+            guard let cg = image.cgImage, let data = cg.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else {
+                print("[LONGIMGPROBE] sampler \(name) NO-DATA-PROVIDER")
+                continue
+            }
+            let bpp = max(cg.bitsPerPixel / 8, 1)
+            let rowBytes = cg.bytesPerRow
+            var minV: UInt8 = 255
+            var maxV: UInt8 = 0
+            var unique = Set<UInt8>()
+            var first: [UInt8] = []
+            for iy in 0..<32 {
+                let y = cg.height * iy / 32
+                for ix in 0..<32 {
+                    let x = cg.width * ix / 32
+                    let index = y * rowBytes + x * bpp
+                    guard index + bpp <= CFDataGetLength(data) else { continue }
+                    let value = bytes[index]
+                    minV = min(minV, value)
+                    maxV = max(maxV, value)
+                    unique.insert(value)
+                    if first.count < 8 { first.append(value) }
+                }
+            }
+            print("[LONGIMGPROBE] sampler \(name) px=\(cg.width)x\(cg.height) bpp=\(cg.bitsPerPixel) rowBytes=\(rowBytes) min=\(minV) max=\(maxV) uniq=\(unique.count) first=\(first) blank=\(SJZImageIntegrity.isLikelyBlank(image))")
+        }
+    }
+
+    /// 探针②：编码阶梯逐步诊断（候选尺寸 / 字节 / 两级校验结果）
+    func testProbeEncoderLadder() {
+        let image = noisyImage(width: 640, height: 2400)
+        print("[LONGIMGPROBE] ladder source blank=\(SJZImageIntegrity.isLikelyBlank(image)) px=\(SJZImageIntegrity.pixelSizeText(of: image))")
+        for scale in WeChatImageEncoder.scales {
+            let candidate = scale >= 1.0 ? image : WeChatImageEncoder.downscaledToPixelScale(image, scale: scale)
+            guard let candidate else {
+                print("[LONGIMGPROBE] ladder scale=\(scale) candidate=nil")
+                continue
+            }
+            let candidateBlank = SJZImageIntegrity.isLikelyBlank(candidate)
+            guard let data = candidate.jpegData(compressionQuality: 0.92) else {
+                print("[LONGIMGPROBE] ladder scale=\(scale) jpeg=nil")
+                continue
+            }
+            print("[LONGIMGPROBE] ladder scale=\(String(format: "%.2f", scale)) px=\(SJZImageIntegrity.pixelSizeText(of: candidate)) bytes=\(data.count) candBlank=\(candidateBlank) dataBlank=\(SJZImageIntegrity.isLikelyBlank(encodedImage: data))")
+        }
+    }
+
     // MARK: 辅助
 
     private func solidImage(color: UIColor, side: CGFloat = 60) -> UIImage {
@@ -986,5 +1275,24 @@ final class ArticleLongImageLogicTests: XCTestCase {
             return nil
         }
         return ArticleLongImageAsset(data: data, pixelSize: size, alt: "契约测试图", sourceHost: "test.host")
+    }
+
+    /// 高频噪声图（纯色图 JPEG 压缩率过高，无法验证降档链路；条纹提升熵值）
+    private func noisyImage(width: CGFloat, height: CGFloat) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format).image { ctx in
+            UIColor.systemTeal.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+            var x: CGFloat = 0
+            var i = 0
+            while x < width {
+                UIColor(hue: CGFloat(i % 60) / 60.0, saturation: 0.85, brightness: 0.9, alpha: 1).setFill()
+                ctx.fill(CGRect(x: x, y: 0, width: 3, height: height))
+                x += 6
+                i += 7
+            }
+        }
     }
 }
