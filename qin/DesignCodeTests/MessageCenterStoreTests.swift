@@ -817,3 +817,174 @@ final class DisplaySettingsLogicTests: XCTestCase {
         XCTAssertNotNil(UIFont(name: face, size: 17), "隶变-简字面必须可用")
     }
 }
+
+// MARK: - 长图渲染逻辑契约（画布预算 / 素材元数据 / 黑图校验 / 端到端）
+
+/// 长图渲染加固（2026-09-28）契约：
+/// ① 画布预算自适应（多图文章不再固定 3x 超大位图 → 杜绝位图分配失败导致的静默黑图）；
+/// ② 素材按需缩略解码（压缩数据驻留，杜绝 N 张全尺寸解码图同时驻留）；
+/// ③ 产物纯色 / 黑图校验与降级（绝不把黑图交付分享）。
+@MainActor
+final class ArticleLongImageLogicTests: XCTestCase {
+
+    // MARK: 预算函数
+
+    /// 常规长度文章：保持首选倍率（不牺牲清晰度）
+    func testBudgetKeepsPreferredScaleForNormalArticle() {
+        let budget = ArticleLongImageRenderer.budget(
+            forLogicalSize: CGSize(width: ArticleLongImageRenderer.imageWidth, height: 3000),
+            availableBytes: 2 * 1024 * 1024 * 1024
+        )
+        XCTAssertEqual(budget.scale, ArticleLongImageRenderer.preferredScale, accuracy: 0.001)
+        XCTAssertEqual(budget.reason, "preferred")
+        XCTAssertLessThanOrEqual(budget.bitmapBytes, ArticleLongImageRenderer.maxRenderBytes)
+    }
+
+    /// 多图超长文章（黑图现场场景）：倍率必须收敛到预算内
+    func testBudgetClampsForImageHeavyArticle() {
+        let budget = ArticleLongImageRenderer.budget(
+            forLogicalSize: CGSize(width: ArticleLongImageRenderer.imageWidth, height: 26_000),
+            availableBytes: 2 * 1024 * 1024 * 1024
+        )
+        XCTAssertLessThan(budget.scale, ArticleLongImageRenderer.preferredScale, "超长画布必须降倍率")
+        XCTAssertLessThanOrEqual(budget.bitmapBytes, ArticleLongImageRenderer.maxRenderBytes, "位图必须落在字节上限内")
+        XCTAssertLessThanOrEqual(budget.pixelSize.height, ArticleLongImageRenderer.maxPixelHeight, "像素高度必须落在硬上限内")
+        XCTAssertGreaterThan(budget.scale, ArticleLongImageRenderer.minScale)
+    }
+
+    /// 可用内存紧张：按比例收缩，且受字节下限兜底
+    func testBudgetShrinksWithLowAvailableMemory() {
+        let logical = CGSize(width: ArticleLongImageRenderer.imageWidth, height: 6000)
+        let tight = ArticleLongImageRenderer.budget(forLogicalSize: logical, availableBytes: 150 * 1024 * 1024)
+        let loose = ArticleLongImageRenderer.budget(forLogicalSize: logical, availableBytes: 4 * 1024 * 1024 * 1024)
+        XCTAssertLessThan(tight.scale, loose.scale, "低可用内存必须显著收缩画布")
+        XCTAssertEqual(tight.reason, "bytes")
+        XCTAssertLessThanOrEqual(tight.bitmapBytes, ArticleLongImageRenderer.minRenderBytes * 2, "收缩后仍受下限兜底")
+        XCTAssertGreaterThanOrEqual(tight.bitmapBytes, ArticleLongImageRenderer.minRenderBytes - 1024 * 1024, "不得低于字节下限（允许取整误差）")
+    }
+
+    /// 极端超长内容：允许低于质量下限（内存预算优先）并标记 floor
+    func testBudgetFloorForExtremeContent() {
+        let budget = ArticleLongImageRenderer.budget(
+            forLogicalSize: CGSize(width: ArticleLongImageRenderer.imageWidth, height: 400_000),
+            availableBytes: 1024 * 1024 * 1024
+        )
+        XCTAssertEqual(budget.reason, "floor")
+        XCTAssertLessThan(budget.scale, ArticleLongImageRenderer.minScale)
+        XCTAssertGreaterThan(budget.scale, 0)
+    }
+
+    // MARK: 素材元数据
+
+    /// EXIF 方向归一：5-8（90°/270° 旋转）必须交换宽高
+    func testOrientedPixelSizeSwapsForQuarterTurn() {
+        let size = CGSize(width: 4000, height: 3000)
+        for orientation in [UInt32(5), 6, 7, 8] {
+            let oriented = ArticleLongImageLoader.orientedPixelSize(size, orientation: orientation)
+            XCTAssertEqual(oriented.width, 3000)
+            XCTAssertEqual(oriented.height, 4000)
+        }
+        for orientation in [UInt32(1), 3, 4] {
+            XCTAssertEqual(ArticleLongImageLoader.orientedPixelSize(size, orientation: orientation), size)
+        }
+    }
+
+    /// 素材头解析：JPEG 数据可解出真实像素尺寸（不整图解码）；非图像数据必须失败（调用方跳过）
+    func testPixelSizeParsingFromJPEGData() {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1   // 固定 1x：确保 JPEG 内容为 640×360 像素（渲染器默认会按屏幕倍率放大）
+        format.opaque = true
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 640, height: 360), format: format).image { ctx in
+            UIColor.systemTeal.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 640, height: 360))
+        }
+        guard let data = image.jpegData(compressionQuality: 0.8) else {
+            XCTFail("测试数据构造失败")
+            return
+        }
+        let size = ArticleLongImageLoader.pixelSize(of: data)
+        XCTAssertEqual(size?.width, 640)
+        XCTAssertEqual(size?.height, 360)
+        XCTAssertNil(ArticleLongImageLoader.pixelSize(of: Data("not an image".utf8)), "非图像数据必须解析失败")
+    }
+
+    // MARK: 黑图校验
+
+    /// 纯黑 / 纯白画布必须判为失效；含内容的画布判为有效
+    func testBlankDetectionCatchesSolidCanvases() {
+        XCTAssertTrue(ArticleLongImageRenderer.isLikelyBlank(solidImage(color: .black)), "全黑产物（现场故障）必须被识别")
+        XCTAssertTrue(ArticleLongImageRenderer.isLikelyBlank(solidImage(color: .white)), "纯色画布同样属失效产物")
+        XCTAssertFalse(ArticleLongImageRenderer.isLikelyBlank(contentImage()), "正常长图（白底 + 深色文字）不得误判")
+    }
+
+    // MARK: 端到端渲染
+
+    /// 素材（压缩数据）驱动渲染：产出非黑图、逻辑宽度固定、像素倍率 ≥1x
+    func testRendererProducesValidImageWithAssets() {
+        guard let asset = makeAsset(size: CGSize(width: 800, height: 600), color: .systemBlue) else { return }
+        let renderer = ArticleLongImageRenderer(
+            title: "端到端渲染契约",
+            metadata: "契约测试 · 2026-09-28",
+            content: (1...6).map { "第\($0)段：长图渲染加固验证文本。" }.joined(separator: "\n"),
+            images: [asset],
+            articleURL: "https://www.sxjzit.edu.cn/test",
+            tag: "contract_test"
+        )
+        guard let image = renderer.render() else {
+            XCTFail("素材渲染必须成功")
+            return
+        }
+        XCTAssertFalse(ArticleLongImageRenderer.isLikelyBlank(image), "渲染产物不得为黑图 / 纯色")
+        XCTAssertEqual(image.size.width, ArticleLongImageRenderer.imageWidth, accuracy: 1, "逻辑宽度固定 750pt")
+        XCTAssertGreaterThanOrEqual(CGFloat(image.cgImage?.width ?? 0), ArticleLongImageRenderer.imageWidth, "输出像素宽度必须 ≥ 逻辑宽度（≥1x）")
+    }
+
+    /// 省略插图的降级页脚必须带可见说明（避免用户误以为丢图）
+    func testDegradedFooterNotesOmittedImages() {
+        let normal = ArticleLongImageRenderer.footerText(articleURL: "https://x.test", includeImages: true, imageCount: 3)
+        let degraded = ArticleLongImageRenderer.footerText(articleURL: "https://x.test", includeImages: false, imageCount: 3)
+        XCTAssertFalse(normal.contains("省略"))
+        XCTAssertTrue(degraded.contains("省略插图"), "降级产物必须在页脚可见告知")
+        let noImagesAtAll = ArticleLongImageRenderer.footerText(articleURL: "https://x.test", includeImages: false, imageCount: 0)
+        XCTAssertFalse(noImagesAtAll.contains("省略"), "本就无图时不得追加降级说明")
+    }
+
+    // MARK: 辅助
+
+    private func solidImage(color: UIColor, side: CGFloat = 60) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { ctx in
+            color.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
+        }
+    }
+
+    private func contentImage() -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: CGSize(width: 120, height: 120), format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 120, height: 120))
+            UIColor.black.setFill()
+            ctx.fill(CGRect(x: 10, y: 10, width: 100, height: 20))
+        }
+    }
+
+    private func makeAsset(size: CGSize, color: UIColor) -> ArticleLongImageAsset? {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            color.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+        }
+        guard let data = image.jpegData(compressionQuality: 0.9) else {
+            XCTFail("测试素材构造失败")
+            return nil
+        }
+        return ArticleLongImageAsset(data: data, pixelSize: size, alt: "契约测试图", sourceHost: "test.host")
+    }
+}

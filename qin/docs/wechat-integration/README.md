@@ -176,6 +176,7 @@ curl -sI https://jl.43322.cn/app/ | head -3
 | **长图分享：超 10MB 自动压缩** | 按质量档（0.92→0.44）与降采样档（1.0→0.34）逐档尝试至满足官方上限，成功即留痕（scale/quality/bytes） | INFO |
 | **长图分享：压缩仍不达上限** | 不发起分享，横幅「长图过大，未能压缩到微信限制内」并记录像素尺寸与上限 | ERROR |
 | **长图分享回执** | 成功「长图已分享到×××」/ 取消「已取消长图分享」；日志含 `kind=longImage` + `entry` + 字节数/像素/质量/缩略图字节/准备耗时 | INFO（取消不计失败） |
+| **长图生成：图片极多 / 内存紧张** | 画布自动降倍率（内存预算 ∩ 高度上限）；仍失效则降级为「省略插图」（图尾可见注明）；**绝不产出黑图** | WARNING（降级路径全程留痕 `longimage` 域） |
 | 自检超时（30s 无终态） | 中止并提示重试，已收集步骤保留 | WARNING |
 
 ---
@@ -231,3 +232,4 @@ curl -sI https://jl.43322.cn/app/ | head -3
 | 2026-09-28 | **长图分享到微信（WXImageObject）**：分享面板新增「长图分享到微信」入口（6 处文章页），复用既有长图生成链路（加载/错误覆盖层不变）→ `WeChatLongImageShareMenu` 三场景发送；`WeChatImageEncoder` 保证 `imageData ≤10MB`（逐档降质/降采样留痕）、缩略图锚定长图顶部 ≤32KB；回执按 `WeChatShareKind` 区分文案与 `kind` 日志；抽公共组件 `WeChatSceneTiles` / `WeChatUnavailableNotice`（两菜单共用，动效一致）；真机 108/108（新增 4 例长图契约），全量编译 0/0（`build/verify/longimage_*.log`） |
 | 2026-09-28 | **完整复核 + 补齐入口**：① 配置契约复核（xcframework 四段挂载 / `-ObjC -all_load` / 8 系统框架 / 产物 Info.plist 实测）/ 接线点复核（隐私门控注册、双通道回跳、WXApiDelegate、SDK 日志桥）/ **SDK API 形式冷编译取证**（`swiftc -typecheck` 对官方头，EXIT=0，探针 `build/verify/wxapi_probe.swift`）；② 新增第 7 处微信分享入口：**党建文章详情**（`PartySubjectView`，此前仅系统分享面板）；③ 真机：全量编译 0/0 + 护栏通过 + 104/104（`build/verify/audit2_*.log`）；④ 日志域基准刷新：`wechat` 51→52 处、全工程 1,077→1,078 处 |
 | 2026-09-28 | **长图分享 UI 细节审计 + 专项测试报告**：与 `WeChatShareMenu` 逐项对照（结构 / 间距 / 动效 / detents / 文案平行结构）确认融合；修复 ① 菜单头部直渲超长图 → 载荷构造期 **200pt 顶部裁方预览小图**（与官方缩略图同一裁切核心，新增契约用例 `testLongImagePayloadPreviewContract` 锁定）；② `entry` 占位值 → **页面级归因**（6 页）；新增 [完整测试报告](./test-report-20260928-long-image.md)；真机 **109/109** + 全量编译 0/0 + 护栏通过（`build/verify/uipolish_*.log`） |
+| 2026-09-28 | **长图生成「纯黑图」缺陷修复**（图片多的文章偶发黑图）：根因=渲染器固定 3x + 高度无界（多图文章位图 200MB+，分配失败时 `UIGraphicsImageRenderer` 静默产出黑图）与 7 处页面全尺寸解码图常驻；修复=画布预算自适应（内存∩高度上限，`budget(...)`）+ 素材按需缩略解码（`ArticleLongImageAsset` / `ImageIO` 缩略）+ 产物黑图校验与「降倍率→省略插图」降级阶梯（页脚可见说明）；附带修复插图纵向压扁、WeChat 编码档位像素预算跳过、print 残留清零、日志统一 `longimage` 域（42 处）；新增 10 例契约；真机 **119/119** + 全量编译 0/0 + 护栏通过（`build/verify/longimage_fix_*.log`），详见[测试报告附录 A](./test-report-20260928-long-image.md#附录-a长图生成纯黑图缺陷修复2026-09-28-追加第二轮) |

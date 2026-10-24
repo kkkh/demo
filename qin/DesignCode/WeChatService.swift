@@ -360,13 +360,33 @@ enum WeChatImageEncoder {
     }
 
     /// 质量档位（首档与系统分享面板路径一致，保证观感统一）
-    private static let qualities: [CGFloat] = [0.92, 0.8, 0.68, 0.56, 0.44]
+    nonisolated static let qualities: [CGFloat] = [0.92, 0.8, 0.68, 0.56, 0.44]
     /// 降采样档位（1.0 为原尺寸）
-    private static let scales: [CGFloat] = [1.0, 0.75, 0.6, 0.45, 0.34]
+    nonisolated static let scales: [CGFloat] = [1.0, 0.75, 0.6, 0.45, 0.34]
+    /// 首次尝试的像素预算（40MP，与长图渲染画布上限一致）：
+    /// 超过预算的大尺寸档位直接跳过——满尺寸 JPEG 尝试在超大图上既慢又占内存（叠加画布可能触发系统终止）
+    nonisolated static let maxFirstAttemptPixels: Double = 40_000_000
+
+    /// 首个满足像素预算的档位下标（纯函数，契约测试锚点）
+    nonisolated static func firstScaleIndex(pixelCount: Double) -> Int {
+        for (index, scale) in scales.enumerated() where pixelCount * Double(scale * scale) <= maxFirstAttemptPixels {
+            return index
+        }
+        return scales.count - 1
+    }
 
     static func encode(_ image: UIImage, maxBytes: Int = WeChatImageEncoder.maxImageBytes) -> Result? {
+        let pixelCount = Double(image.size.width * image.size.height)
+        let startIndex = firstScaleIndex(pixelCount: pixelCount)
+        if startIndex > 0 {
+            LogManager.shared.info("wechat", "长图编码跳过大尺寸档位（像素预算）", context: [
+                "pixel": "\(Int(pixelCount))",
+                "budget": "\(Int(maxFirstAttemptPixels))",
+                "startScale": String(format: "%.2f", scales[startIndex])
+            ])
+        }
         var lastBytes = 0
-        for scale in scales {
+        for scale in scales[startIndex...] {
             let candidate: UIImage?
             if scale >= 1.0 {
                 candidate = image
@@ -375,7 +395,8 @@ enum WeChatImageEncoder {
             }
             guard let candidate else { continue }
             for quality in qualities {
-                guard let data = candidate.jpegData(compressionQuality: quality) else { continue }
+                // autoreleasepool：逐档尝试的 JPEG 编码中间缓冲及时释放（超大图峰值可观）
+                guard let data = autoreleasepool(invoking: { candidate.jpegData(compressionQuality: quality) }) else { continue }
                 lastBytes = data.count
                 guard data.count <= maxBytes else { continue }
                 if scale < 1.0 || quality < 0.92 {

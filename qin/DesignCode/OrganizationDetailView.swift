@@ -3361,7 +3361,7 @@ struct OrganizationArticleDetailView: View {
         longImageError = nil
         generatedLongImage = nil
 
-        LogManager.shared.info("organization", "开始生成长图", context: [
+        LogManager.shared.info("longimage", "开始生成长图", context: [
             "articleId": article.articleId,
             "title": detailTitle.isEmpty ? article.title : detailTitle
         ])
@@ -3385,37 +3385,31 @@ struct OrganizationArticleDetailView: View {
         if !detailSource.isEmpty { metaParts.append("来源：\(detailSource)") }
         let metadata = metaParts.joined(separator: " · ")
 
-        // 下载图片
-        var loadedImages: [(UIImage, String?)] = []
-        if !detailImages.isEmpty {
-            for imgInfo in detailImages {
-                if let downloaded = await downloadImage(from: imgInfo.url) {
-                    loadedImages.append((downloaded, imgInfo.alt))
-                }
-            }
-        }
+        // 加载长图素材（压缩数据 + 尺寸元数据；渲染时按需缩略解码——多图文章的内存防线）
+        let imageAssets = await ArticleLongImageLoader.loadAll(detailImages, tag: "organization_detail")
 
         // 渲染长图
         let renderer = ArticleLongImageRenderer(
             title: title,
             metadata: metadata,
             content: body,
-            images: loadedImages,
-            articleURL: articleURL
+            images: imageAssets,
+            articleURL: articleURL,
+            tag: "organization_detail"
         )
 
         await MainActor.run {
             // 长图渲染日志（含配色联动状态，便于定位输出差异）
-            LogManager.shared.debugLog("organization", "开始生成文章长图", context: [
+            LogManager.shared.debugLog("longimage", "开始生成文章长图", context: [
                 "textPreset": displaySettings.articleTextColorPreset.rawValue,
                 "lightHex": DisplaySettingsManager.articleBodyLightHexSnapshot().hex
             ])
             let renderedImage = renderer.render()
             generatedLongImage = renderedImage
 
-            guard renderedImage.size.width > 0 else {
+            guard let renderedImage else {
                 longImageError = "长图生成失败，请重试"
-                LogManager.shared.error("organization", "长图生成失败", context: [
+                LogManager.shared.error("longimage", "长图生成失败", context: [
                     "articleId": article.articleId
                 ])
                 return
@@ -3423,7 +3417,7 @@ struct OrganizationArticleDetailView: View {
 
             isGeneratingLongImage = false
 
-            LogManager.shared.info("organization", "长图生成成功", context: [
+            LogManager.shared.info("longimage", "长图生成成功", context: [
                 "articleId": article.articleId,
                 "imageSize": "\(Int(renderedImage.size.width))x\(Int(renderedImage.size.height))"
             ])
@@ -3447,6 +3441,7 @@ struct OrganizationArticleDetailView: View {
         guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
 
@@ -3464,10 +3459,11 @@ struct OrganizationArticleDetailView: View {
         } catch {
             longImageError = "图片保存失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图临时文件写入失败", context: ["title": title])
             return
         }
 
-        LogManager.shared.debugLog("organization", "长图文件已保存", context: [
+        LogManager.shared.debugLog("longimage", "长图文件已保存", context: [
             "path": fileURL.path,
             "sizeKB": "\(jpegData.count / 1024)"
         ])
@@ -3499,38 +3495,17 @@ struct OrganizationArticleDetailView: View {
                 try? FileManager.default.removeItem(at: fileURL)
             }
             if let error = error {
-                LogManager.shared.error("organization", "长图分享失败", context: [
+                LogManager.shared.error("longimage", "长图分享失败", context: [
                     "error": error.localizedDescription
                 ])
             }
-            LogManager.shared.info("organization", "长图分享完成", context: [
+            LogManager.shared.info("longimage", "长图分享完成", context: [
                 "completed": "\(completed)"
             ])
         }
 
         topVC.present(activityVC, animated: true) {
-            LogManager.shared.debugLog("organization", "长图分享面板已呈现")
-        }
-    }
-
-    /// 下载单张图片
-    private func downloadImage(from urlString: String) async -> UIImage? {
-        guard let url = URL(string: urlString) else { return nil }
-
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 15
-        if url.host?.contains("sxjzit.edu.cn") == true {
-            request.setValue("https://www.sxjzit.edu.cn/", forHTTPHeaderField: "Referer")
-            request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
-        }
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else { return nil }
-            return UIImage(data: data)
-        } catch {
-            return nil
+            LogManager.shared.debugLog("longimage", "长图分享面板已呈现")
         }
     }
 

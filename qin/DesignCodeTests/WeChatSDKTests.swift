@@ -326,6 +326,15 @@ final class WeChatSDKTests: XCTestCase {
         XCTAssertEqual(payload.image.size, image.size, "载荷仍保留原始长图（发送用，不被预览替换）")
     }
 
+    /// 编码档位跳过契约：超过像素预算的大尺寸档位必须被跳过（防满尺寸 JPEG 尝试拖慢 / 爆内存）
+    func testEncoderSkipsOversizedScaleLadder() {
+        XCTAssertEqual(WeChatImageEncoder.firstScaleIndex(pixelCount: 2_000_000), 0, "小图必须从首选档位开始")
+        XCTAssertEqual(WeChatImageEncoder.firstScaleIndex(pixelCount: 40_000_000), 0, "预算内的图不跳档")
+        XCTAssertEqual(WeChatImageEncoder.firstScaleIndex(pixelCount: 60_000_000), 1, "超预算必须跳到 0.75 档")
+        XCTAssertEqual(WeChatImageEncoder.firstScaleIndex(pixelCount: 500_000_000),
+                       WeChatImageEncoder.scales.count - 1, "极端大图必须退到最小档位")
+    }
+
     // MARK: - 辅助
 
     /// 高频噪声图：纯色图 JPEG 压缩率过高，无法验证压缩链路；条纹提升熵值

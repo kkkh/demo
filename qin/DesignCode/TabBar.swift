@@ -2109,14 +2109,159 @@ enum ShareFormat: Identifiable {
     }
 }
 
+// MARK: - 长图素材（压缩数据 + 尺寸元数据）
+
+/// 长图素材：压缩数据 + 像素尺寸（EXIF 方向已归一）+ 图注。
+/// 体积小可常驻；渲染时按目标尺寸即时缩略解码，避免 N 张全尺寸解码图同时驻留
+/// ——「图片多的文章」黑图 / 内存被杀的主要来源之一。
+struct ArticleLongImageAsset {
+    let data: Data
+    let pixelSize: CGSize
+    let alt: String?
+    let sourceHost: String
+}
+
+// MARK: - 长图素材加载器（7 处文章页共用）
+
+/// 长图素材加载器：只做「下载压缩数据 + ImageIO 头解析像素尺寸」，绝不整图解码；
+/// 有界并发（受全局图片闸约束），多图文章保持原顺序返回。
+@MainActor
+enum ArticleLongImageLoader {
+    static let logDomain = "longimage"
+    /// 并发上限（避免多图文章请求风暴，同时受全局图片闸 ≤4 约束）
+    static let maxConcurrent = 3
+
+    /// 批量加载（保持原顺序；单张失败跳过并留痕，不阻断其余图片）
+    static func loadAll(_ infos: [DataService.ArticleImage], tag: String) async -> [ArticleLongImageAsset] {
+        guard !infos.isEmpty else { return [] }
+        let started = Date()
+        var results = [ArticleLongImageAsset?](repeating: nil, count: infos.count)
+        await withTaskGroup(of: (Int, ArticleLongImageAsset?).self) { group in
+            var nextIndex = 0
+            func enqueueNext() {
+                guard nextIndex < infos.count else { return }
+                let index = nextIndex
+                nextIndex += 1
+                group.addTask { (index, await load(infos[index], index: index, tag: tag)) }
+            }
+            for _ in 0..<min(maxConcurrent, infos.count) { enqueueNext() }
+            for await (index, asset) in group {
+                results[index] = asset
+                enqueueNext()
+            }
+        }
+        let assets = results.compactMap { $0 }
+        let totalBytes = assets.reduce(0) { $0 + $1.data.count }
+        LogManager.shared.info(logDomain, "长图素材加载完成", context: [
+            "tag": tag,
+            "requested": "\(infos.count)",
+            "loaded": "\(assets.count)",
+            "failed": "\(infos.count - assets.count)",
+            "bytes": "\(totalBytes)",
+            "ms": "\(Int(Date().timeIntervalSince(started) * 1000))"
+        ])
+        return assets
+    }
+
+    /// 单图加载：下载 + 解析像素尺寸（不解码）
+    private static func load(_ info: DataService.ArticleImage, index: Int, tag: String) async -> ArticleLongImageAsset? {
+        guard let url = URL(string: info.url), url.scheme?.hasPrefix("http") == true else {
+            LogManager.shared.debugLog(logDomain, "长图素材地址无效（已跳过）", context: [
+                "tag": tag, "index": "\(index)", "url": info.url
+            ])
+            return nil
+        }
+        let started = Date()
+        // 全局图片闸（与列表 / 全屏 / 预取共用名额，治理镜像站拥塞）
+        await SJZImageConcurrencyGate.shared.acquire()
+        let data = await download(url, index: index, tag: tag)
+        await SJZImageConcurrencyGate.shared.release()
+        guard let data else { return nil }
+        guard let pixelSize = Self.pixelSize(of: data) else {
+            LogManager.shared.warning(logDomain, "长图素材解析失败（无有效图像头，已跳过）", context: [
+                "tag": tag, "index": "\(index)", "bytes": "\(data.count)", "file": url.lastPathComponent
+            ])
+            return nil
+        }
+        LogManager.shared.debugLog(logDomain, "长图素材就绪", context: [
+            "tag": tag,
+            "index": "\(index)",
+            "bytes": "\(data.count)",
+            "pixel": "\(Int(pixelSize.width))x\(Int(pixelSize.height))",
+            "host": url.host ?? "-",
+            "ms": "\(Int(Date().timeIntervalSince(started) * 1000))"
+        ])
+        return ArticleLongImageAsset(data: data, pixelSize: pixelSize, alt: info.alt, sourceHost: url.host ?? "-")
+    }
+
+    /// 下载压缩数据（统一图片管线：协议层 Referer + 会话复用）
+    private static func download(_ url: URL, index: Int, tag: String) async -> Data? {
+        do {
+            let request = SJZImageKit.makeRequest(url: url)
+            let (data, response) = try await SJZImageKit.imageSession.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode), !data.isEmpty else {
+                LogManager.shared.warning(logDomain, "长图素材下载失败", context: [
+                    "tag": tag, "index": "\(index)",
+                    "status": "\((response as? HTTPURLResponse)?.statusCode ?? -1)",
+                    "file": url.lastPathComponent
+                ])
+                return nil
+            }
+            return data
+        } catch {
+            // 取消语义对齐工程红线：cancelled / CancellationError 静默处理（用户切页 / 取消属正常行为，不告警）
+            let urlError = error as? URLError
+            if urlError?.code == .cancelled || error is CancellationError || Task.isCancelled {
+                LogManager.shared.debugLog(logDomain, "长图素材下载取消", context: ["tag": tag, "index": "\(index)"])
+                return nil
+            }
+            LogManager.shared.warning(logDomain, "长图素材下载异常", context: [
+                "tag": tag, "index": "\(index)", "error": error.localizedDescription
+            ])
+            return nil
+        }
+    }
+
+    // MARK: 像素尺寸（ImageIO 头解析；纯函数便于契约测试）
+
+    /// 解析像素尺寸（不整图解码）；读取 EXIF 方向并归一
+    nonisolated static func pixelSize(of data: Data) -> CGSize? {
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, options),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+              let height = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
+              width > 0, height > 0 else { return nil }
+        let orientation = (props[kCGImagePropertyOrientation] as? NSNumber)?.uint32Value ?? 1
+        return orientedPixelSize(CGSize(width: width, height: height), orientation: orientation)
+    }
+
+    /// 按 EXIF 方向归一像素尺寸：5-8 为 90°/270° 旋转 → 宽高互换（契约测试锚点）
+    nonisolated static func orientedPixelSize(_ size: CGSize, orientation: UInt32) -> CGSize {
+        (5...8).contains(orientation) ? CGSize(width: size.height, height: size.width) : size
+    }
+}
+
 // MARK: - 文章长图渲染器
 
+/// 文章长图渲染器（白底长图：品牌头 / 标题 / 元数据 / 正文 / 插图 / 页脚）。
+///
+/// 黑图防线（2026-09-28 加固；现场「图片多的文章偶发纯黑图」根因修复）：
+/// ① 画布自适应：原实现固定 `scale = 3` 且高度无界——多图文章位图动辄 200MB+，
+///    CoreGraphics 位图分配失败时 `UIGraphicsImageRenderer` 会**静默产出黑图**；
+///    现按「设备可用内存 + 像素总量 / 高度硬上限」计算渲染倍率（`budget(...)`）；
+/// ② 插图按需缩略解码：素材以压缩数据持有，绘制时经 ImageIO 缩略解码到目标尺寸，
+///    不再把 N 张全尺寸解码图同时驻留内存（多图文章的另一内存主因）；
+/// ③ 产物校验 + 降级重试：渲染后做纯色 / 黑图校验（`isLikelyBlank`），
+///    失效则「降倍率 → 省略插图」逐级重试，全链日志留痕，绝不把黑图交给分享。
 struct ArticleLongImageRenderer {
     let title: String
     let metadata: String
     let content: String
-    let images: [(UIImage, String?)]
+    let images: [ArticleLongImageAsset]
     let articleURL: String
+    /// 入口标识（日志归因，如 "news_detail" / "organization_detail"）
+    var tag: String = "article"
 
     static let imageWidth: CGFloat = 750
     static let paddingH: CGFloat = 28
@@ -2126,124 +2271,291 @@ struct ArticleLongImageRenderer {
     static let bodyFont = UIFont.systemFont(ofSize: 17)
     static let footerFont = UIFont.systemFont(ofSize: 12)
     static let lineSpacing: CGFloat = 8
+    /// 插图最大显示高度（相对内容宽度）：超过则等比填充裁切（不再纵向压扁）
+    static let imageHeightCapRatio: CGFloat = 1.2
 
-    func render() -> UIImage {
-        let totalHeight = calculateTotalHeight()
+    // MARK: 渲染预算（黑图防线①；纯函数，契约测试锚点）
 
+    /// 首选输出倍率
+    static let preferredScale: CGFloat = 3
+    /// 位图高度硬上限（像素）
+    static let maxPixelHeight: CGFloat = 32_000
+    /// 位图字节硬上限（RGBA 4B/px，≈40MP）：与后续 JPEG 编码 / 微信分享的峰值内存匹配
+    static let maxRenderBytes = 160 * 1024 * 1024
+    /// 位图字节下限（可用内存极低时仍保证可渲染）
+    static let minRenderBytes = 64 * 1024 * 1024
+    /// 可用内存使用比例上限（为 JPEG 编码 / 分享 / 系统留余量）
+    static let memoryUseRatio = 0.35
+    /// 常规质量下限（低于则属极端超长内容：内存预算优先，允许继续降）
+    static let minScale: CGFloat = 0.5
+
+    /// 渲染预算（倍率 + 像素尺寸 + 字节 + 约束来源）
+    struct RenderBudget {
+        let scale: CGFloat
+        let pixelSize: CGSize
+        let bitmapBytes: Int
+        let availableBytes: UInt64
+        /// 约束来源：preferred / bytes / height / floor
+        let reason: String
+    }
+
+    /// 计算渲染预算：scale = min(首选倍率, 内存预算, 高度上限)
+    static func budget(forLogicalSize logical: CGSize, availableBytes: UInt64) -> RenderBudget {
+        let w = max(logical.width, 1)
+        let h = max(logical.height, 1)
+        let byteBudget: Double
+        if availableBytes > 0 {
+            byteBudget = min(Double(maxRenderBytes),
+                             max(Double(minRenderBytes), Double(availableBytes) * memoryUseRatio))
+        } else {
+            byteBudget = Double(maxRenderBytes)
+        }
+        let scaleByBytes = (byteBudget / 4 / Double(w * h)).squareRoot()
+        let scaleByHeight = Double(maxPixelHeight) / Double(h)
+        let preferred = Double(preferredScale)
+        var scale = min(preferred, scaleByBytes, scaleByHeight)
+        var reason = "preferred"
+        if scale < preferred { reason = scaleByBytes <= scaleByHeight ? "bytes" : "height" }
+        if scale < Double(minScale) {
+            // 极端超长内容：内存预算优先（不再保证质量下限），reason=floor 留痕
+            scale = max(scale, 0.2)
+            reason = "floor"
+        }
+        let pixelSize = CGSize(width: (w * scale).rounded(.down), height: (h * scale).rounded(.down))
+        return RenderBudget(scale: CGFloat(scale),
+                            pixelSize: pixelSize,
+                            bitmapBytes: Int(pixelSize.width * pixelSize.height) * 4,
+                            availableBytes: availableBytes,
+                            reason: reason)
+    }
+
+    /// 进程可用内存（字节）；取不到返回 0（预算退回静态上限）
+    static func availableMemoryBytes() -> UInt64 {
+        let bytes = os_proc_available_memory()
+        return bytes > 0 ? UInt64(bytes) : 0
+    }
+
+    // MARK: 渲染（含校验与降级重试）
+
+    /// 生成长图；全部降级尝试均未通过校验时返回 nil（调用方展示错误态，绝不交付黑图）
+    @MainActor
+    func render() -> UIImage? {
+        let available = Self.availableMemoryBytes()
+        let started = Date()
+        // 降级阶梯：预算倍率 → 降倍率 → 省略插图（图片多到内存不足时仍产出可用长图）
+        let ladder: [(label: String, factor: CGFloat, includeImages: Bool)] = [
+            ("budget", 1.0, true),
+            ("reduced", 0.6, true),
+            ("noImages", 0.6, false)
+        ]
+
+        for (index, step) in ladder.enumerated() {
+            let logicalSize = CGSize(width: Self.imageWidth,
+                                     height: calculateTotalHeight(includeImages: step.includeImages))
+            let budget = Self.budget(forLogicalSize: logicalSize, availableBytes: available)
+            let scale = max(budget.scale * step.factor, 0.3)
+            let pixelSize = CGSize(width: (logicalSize.width * scale).rounded(.down),
+                                   height: (logicalSize.height * scale).rounded(.down))
+            let bitmapMB = Int(pixelSize.width * pixelSize.height) * 4 / 1024 / 1024
+
+            if index == 0 {
+                LogManager.shared.info("longimage", "长图渲染开始", context: [
+                    "tag": tag,
+                    "title": String(title.prefix(24)),
+                    "logical": "\(Int(logicalSize.width))x\(Int(logicalSize.height))",
+                    "scale": String(format: "%.2f", scale),
+                    "pixel": "\(Int(pixelSize.width))x\(Int(pixelSize.height))",
+                    "bitmapMB": "\(bitmapMB)",
+                    "availableMB": "\(available / 1024 / 1024)",
+                    "constraint": budget.reason,
+                    "images": "\(images.count)"
+                ])
+            }
+
+            guard let image = renderOnce(logicalSize: logicalSize,
+                                         includeImages: step.includeImages,
+                                         scale: scale) else {
+                LogManager.shared.warning("longimage", "长图渲染未产出画布（已降级重试）", context: [
+                    "tag": tag, "step": step.label, "scale": String(format: "%.2f", scale)
+                ])
+                continue
+            }
+
+            if !Self.isLikelyBlank(image) {
+                let cost = Int(Date().timeIntervalSince(started) * 1000)
+                LogManager.shared.info("longimage", "长图渲染完成", context: [
+                    "tag": tag,
+                    "step": step.label,
+                    "scale": String(format: "%.2f", scale),
+                    "pixel": "\(image.cgImage?.width ?? 0)x\(image.cgImage?.height ?? 0)",
+                    "bitmapMB": "\(bitmapMB)",
+                    "images": "\(images.count)",
+                    "includedImages": step.includeImages ? "\(images.count)" : "0",
+                    "degraded": "\(step.label != "budget")",
+                    "ms": "\(cost)"
+                ])
+                return image
+            }
+
+            LogManager.shared.warning("longimage", "长图校验未通过（疑似纯色 / 黑图产物），自动降级重试", context: [
+                "tag": tag,
+                "step": step.label,
+                "scale": String(format: "%.2f", scale),
+                "pixel": "\(Int(pixelSize.width))x\(Int(pixelSize.height))",
+                "bitmapMB": "\(bitmapMB)",
+                "availableMB": "\(available / 1024 / 1024)",
+                "next": index + 1 < ladder.count ? ladder[index + 1].label : "fail"
+            ])
+        }
+
+        LogManager.shared.error("longimage", "长图生成失败（全部降级尝试均未通过校验）", context: [
+            "tag": tag,
+            "images": "\(images.count)",
+            "availableMB": "\(available / 1024 / 1024)",
+            "ms": "\(Int(Date().timeIntervalSince(started) * 1000))"
+        ])
+        return nil
+    }
+
+    /// 单次渲染（不做校验）：画布未产出时返回 nil
+    @MainActor
+    private func renderOnce(logicalSize: CGSize, includeImages: Bool, scale: CGFloat) -> UIImage? {
         let format = UIGraphicsImageRendererFormat()
-        format.scale = 3.0
+        format.scale = scale
+        format.opaque = true   // 白底不透明：避免透明画布并提升绘制 / 编码效率
+        let renderer = UIGraphicsImageRenderer(size: logicalSize, format: format)
+        let image = renderer.image { ctx in
+            draw(in: ctx, logicalSize: logicalSize, includeImages: includeImages, scale: scale)
+        }
+        guard image.cgImage != nil else { return nil }
+        return image
+    }
 
-        let renderer = UIGraphicsImageRenderer(
-            size: CGSize(width: Self.imageWidth, height: totalHeight),
-            format: format
-        )
-
-        return renderer.image { ctx in
-            // 白色背景
-            UIColor.white.setFill()
-            ctx.fill(CGRect(x: 0, y: 0, width: Self.imageWidth, height: totalHeight))
-
-            var y: CGFloat = 32
-
-            // 顶部品牌标识
-            let brandAttr: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 11, weight: .medium),
-                .foregroundColor: UIColor(white: 0.5, alpha: 1)
-            ]
-            let brandStr = "山西晋中理工学院 APP"
-            let brandSize = (brandStr as NSString).size(withAttributes: brandAttr)
-            (brandStr as NSString).draw(
-                at: CGPoint(x: Self.paddingH, y: y),
-                withAttributes: brandAttr
-            )
-            y += brandSize.height + 16
-
-            // 标题
-            let titleAttr: [NSAttributedString.Key: Any] = [
-                .font: Self.titleFont,
-                .foregroundColor: UIColor.black
-            ]
-            let titleHeight = drawMultilineText(
-                title, at: CGPoint(x: Self.paddingH, y: y),
-                width: Self.contentWidth, attributes: titleAttr, lineSpacing: 4
-            )
-            y += titleHeight + 12
-
-            // 元数据
-            if !metadata.isEmpty {
-                let metaAttr: [NSAttributedString.Key: Any] = [
-                    .font: Self.metaFont,
-                    .foregroundColor: UIColor(white: 0.45, alpha: 1)
-                ]
-                let metaHeight = drawMultilineText(
-                    metadata, at: CGPoint(x: Self.paddingH, y: y),
-                    width: Self.contentWidth, attributes: metaAttr, lineSpacing: 2
-                )
-                y += metaHeight + 16
+    /// 产物校验（黑图防线③）：直接抽样位图像素（32×32 网格），极差 < 8 判定为纯色失效产物
+    /// （正常长图必含深色文字与白底，绝不可能是纯色画布；无法取证时不误判）
+    static func isLikelyBlank(_ image: UIImage) -> Bool {
+        guard let cgImage = image.cgImage,
+              let data = cgImage.dataProvider?.data,
+              let bytes = CFDataGetBytePtr(data) else { return false }
+        let bytesPerPixel = max(cgImage.bitsPerPixel / 8, 1)
+        let rowBytes = cgImage.bytesPerRow
+        let length = CFDataGetLength(data)
+        let grid = 32
+        var minValue: UInt8 = 255
+        var maxValue: UInt8 = 0
+        for iy in 0..<grid {
+            let y = cgImage.height * iy / grid
+            for ix in 0..<grid {
+                let x = cgImage.width * ix / grid
+                let index = y * rowBytes + x * bytesPerPixel
+                guard index + bytesPerPixel <= length else { continue }
+                let value = bytes[index]
+                minValue = min(minValue, value)
+                maxValue = max(maxValue, value)
             }
+        }
+        return Int(maxValue) - Int(minValue) < 8
+    }
 
-            // 分隔线
-            UIColor(white: 0.9, alpha: 1).setFill()
-            ctx.fill(CGRect(x: Self.paddingH, y: y, width: Self.contentWidth, height: 1))
-            y += 20
+    // MARK: 绘制
 
-            // 正文（段落间插入图片）
-            let paragraphs = content.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-            let bodyParagraphStyle = NSMutableParagraphStyle()
-            bodyParagraphStyle.lineSpacing = Self.lineSpacing
-            // 正文颜色联动显示设置：白底长图固定使用浅色色值；「跟随系统」保持原默认深灰
-            let bodyAttr: [NSAttributedString.Key: Any] = [
-                .font: Self.bodyFont,
-                .foregroundColor: Self.resolvedBodyUIColor(),
-                .paragraphStyle: bodyParagraphStyle
+    @MainActor
+    private func draw(in ctx: UIGraphicsImageRendererContext, logicalSize: CGSize, includeImages: Bool, scale: CGFloat) {
+        // 白色背景
+        UIColor.white.setFill()
+        ctx.fill(CGRect(x: 0, y: 0, width: logicalSize.width, height: logicalSize.height))
+
+        var y: CGFloat = 32
+
+        // 顶部品牌标识
+        let brandAttr: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 11, weight: .medium),
+            .foregroundColor: UIColor(white: 0.5, alpha: 1)
+        ]
+        let brandStr = "山西晋中理工学院 APP"
+        let brandSize = (brandStr as NSString).size(withAttributes: brandAttr)
+        (brandStr as NSString).draw(at: CGPoint(x: Self.paddingH, y: y), withAttributes: brandAttr)
+        y += brandSize.height + 16
+
+        // 标题
+        let titleAttr: [NSAttributedString.Key: Any] = [
+            .font: Self.titleFont,
+            .foregroundColor: UIColor.black
+        ]
+        y += drawMultilineText(title, at: CGPoint(x: Self.paddingH, y: y),
+                               width: Self.contentWidth, attributes: titleAttr, lineSpacing: 4) + 12
+
+        // 元数据
+        if !metadata.isEmpty {
+            let metaAttr: [NSAttributedString.Key: Any] = [
+                .font: Self.metaFont,
+                .foregroundColor: UIColor(white: 0.45, alpha: 1)
             ]
+            y += drawMultilineText(metadata, at: CGPoint(x: Self.paddingH, y: y),
+                                   width: Self.contentWidth, attributes: metaAttr, lineSpacing: 2) + 16
+        }
 
-            var imgIndex = 0
-            for (i, para) in paragraphs.enumerated() {
-                let paraHeight = drawMultilineText(
-                    para, at: CGPoint(x: Self.paddingH, y: y),
-                    width: Self.contentWidth, attributes: bodyAttr, lineSpacing: Self.lineSpacing
-                )
-                y += paraHeight + 10
+        // 分隔线
+        UIColor(white: 0.9, alpha: 1).setFill()
+        ctx.fill(CGRect(x: Self.paddingH, y: y, width: Self.contentWidth, height: 1))
+        y += 20
 
-                // 每 2-3 段插入一张图片（如果有的话）
-                if (i + 1) % 3 == 0 && imgIndex < images.count {
-                    y += 8
-                    let (img, alt) = images[imgIndex]
-                    let imgHeight = drawImage(img, alt: alt, at: CGPoint(x: Self.paddingH, y: y))
-                    y += imgHeight + 12
-                    imgIndex += 1
-                }
-            }
+        // 正文（段落间插入图片）
+        let paragraphs = content.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let bodyParagraphStyle = NSMutableParagraphStyle()
+        bodyParagraphStyle.lineSpacing = Self.lineSpacing
+        // 正文颜色联动显示设置：白底长图固定使用浅色色值；「跟随系统」保持原默认深灰
+        let bodyAttr: [NSAttributedString.Key: Any] = [
+            .font: Self.bodyFont,
+            .foregroundColor: Self.resolvedBodyUIColor(),
+            .paragraphStyle: bodyParagraphStyle
+        ]
 
-            // 插入剩余图片
-            while imgIndex < images.count {
+        let drawAssets = includeImages ? images : []
+        var imgIndex = 0
+        for (i, para) in paragraphs.enumerated() {
+            y += drawMultilineText(para, at: CGPoint(x: Self.paddingH, y: y),
+                                   width: Self.contentWidth, attributes: bodyAttr, lineSpacing: Self.lineSpacing) + 10
+
+            // 每 3 段插入一张图片（如果有的话）
+            if (i + 1) % 3 == 0 && imgIndex < drawAssets.count {
                 y += 8
-                let (img, alt) = images[imgIndex]
-                let imgHeight = drawImage(img, alt: alt, at: CGPoint(x: Self.paddingH, y: y))
-                y += imgHeight + 12
+                y += drawImage(drawAssets[imgIndex], at: CGPoint(x: Self.paddingH, y: y), scale: scale) + 12
                 imgIndex += 1
             }
-
-            y += 12
-
-            // 分隔线
-            UIColor(white: 0.9, alpha: 1).setFill()
-            ctx.fill(CGRect(x: Self.paddingH, y: y, width: Self.contentWidth, height: 1))
-            y += 20
-
-            // 页脚
-            let footerAttr: [NSAttributedString.Key: Any] = [
-                .font: Self.footerFont,
-                .foregroundColor: UIColor(white: 0.55, alpha: 1)
-            ]
-            let footerStr = "阅读原文：\(articleURL)\n由山西晋中理工学院 APP 分享"
-            let footerHeight = drawMultilineText(
-                footerStr, at: CGPoint(x: Self.paddingH, y: y),
-                width: Self.contentWidth, attributes: footerAttr, lineSpacing: 4
-            )
-            y += footerHeight + 32
         }
+
+        // 插入剩余图片
+        while imgIndex < drawAssets.count {
+            y += 8
+            y += drawImage(drawAssets[imgIndex], at: CGPoint(x: Self.paddingH, y: y), scale: scale) + 12
+            imgIndex += 1
+        }
+
+        y += 12
+
+        // 分隔线
+        UIColor(white: 0.9, alpha: 1).setFill()
+        ctx.fill(CGRect(x: Self.paddingH, y: y, width: Self.contentWidth, height: 1))
+        y += 20
+
+        // 页脚
+        let footerAttr: [NSAttributedString.Key: Any] = [
+            .font: Self.footerFont,
+            .foregroundColor: UIColor(white: 0.55, alpha: 1)
+        ]
+        _ = drawMultilineText(Self.footerText(articleURL: articleURL, includeImages: includeImages, imageCount: images.count),
+                              at: CGPoint(x: Self.paddingH, y: y),
+                              width: Self.contentWidth, attributes: footerAttr, lineSpacing: 4)
+    }
+
+    /// 页脚文案；省略插图时追加降级说明（可见告知，避免用户误以为丢图）
+    nonisolated static func footerText(articleURL: String, includeImages: Bool, imageCount: Int) -> String {
+        var text = "阅读原文：\(articleURL)\n由山西晋中理工学院 APP 分享"
+        if !includeImages && imageCount > 0 {
+            text += "\n（本篇图片较多，为保证生成成功已省略插图）"
+        }
+        return text
     }
 
     /// 长图正文颜色解析：联动显示设置（白底长图始终取浅色色值；「跟随系统」保持原默认深灰）
@@ -2256,7 +2568,7 @@ struct ArticleLongImageRenderer {
         return UIColor(hex: snapshot.hex)
     }
 
-    private func calculateTotalHeight() -> CGFloat {
+    private func calculateTotalHeight(includeImages: Bool) -> CGFloat {
         var h: CGFloat = 32
 
         // 品牌标识
@@ -2265,18 +2577,18 @@ struct ArticleLongImageRenderer {
         h += (brandStr as NSString).size(withAttributes: brandAttr).height + 16
 
         // 标题
-        let titleAttr: [NSAttributedString.Key: Any] = [.font: Self.titleFont]
-        h += measureMultilineHeight(title, width: Self.contentWidth, attributes: titleAttr, lineSpacing: 4) + 12
+        h += measureMultilineHeight(title, width: Self.contentWidth,
+                                    attributes: [.font: Self.titleFont], lineSpacing: 4) + 12
 
         // 元数据
         if !metadata.isEmpty {
-            let metaAttr: [NSAttributedString.Key: Any] = [.font: Self.metaFont]
-            h += measureMultilineHeight(metadata, width: Self.contentWidth, attributes: metaAttr, lineSpacing: 2) + 16
+            h += measureMultilineHeight(metadata, width: Self.contentWidth,
+                                        attributes: [.font: Self.metaFont], lineSpacing: 2) + 16
         }
 
         h += 1 + 20  // 分隔线
 
-        // 正文段落
+        // 正文段落（含插图：高度口径与绘制完全一致）
         let paragraphs = content.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         let bodyParagraphStyle = NSMutableParagraphStyle()
         bodyParagraphStyle.lineSpacing = Self.lineSpacing
@@ -2285,66 +2597,95 @@ struct ArticleLongImageRenderer {
             .paragraphStyle: bodyParagraphStyle
         ]
 
+        let layoutAssets = includeImages ? images : []
         var imgIndex = 0
         for (i, para) in paragraphs.enumerated() {
             h += measureMultilineHeight(para, width: Self.contentWidth, attributes: bodyAttr, lineSpacing: Self.lineSpacing) + 10
-            if (i + 1) % 3 == 0 && imgIndex < images.count {
-                let (img, _) = images[imgIndex]
-                h += 8 + imageDisplayHeight(for: img) + 12
+            if (i + 1) % 3 == 0 && imgIndex < layoutAssets.count {
+                h += 8 + imageDisplayHeight(for: layoutAssets[imgIndex].pixelSize) + 12
                 imgIndex += 1
             }
         }
-        while imgIndex < images.count {
-            let (img, _) = images[imgIndex]
-            h += 8 + imageDisplayHeight(for: img) + 12
+        while imgIndex < layoutAssets.count {
+            h += 8 + imageDisplayHeight(for: layoutAssets[imgIndex].pixelSize) + 12
             imgIndex += 1
         }
 
         h += 12 + 1 + 20  // 分隔线
 
-        let footerAttr: [NSAttributedString.Key: Any] = [.font: Self.footerFont]
-        let footerStr = "阅读原文：\(articleURL)\n由山西晋中理工学院 APP 分享"
-        h += measureMultilineHeight(footerStr, width: Self.contentWidth, attributes: footerAttr, lineSpacing: 4) + 32
+        h += measureMultilineHeight(Self.footerText(articleURL: articleURL, includeImages: includeImages, imageCount: images.count),
+                                    width: Self.contentWidth,
+                                    attributes: [.font: Self.footerFont], lineSpacing: 4) + 32
 
         return max(h, 200)
     }
 
-    private func imageDisplayHeight(for image: UIImage) -> CGFloat {
+    /// 插图显示高度：按内容宽度等比缩放，超过 1.2 倍内容宽度时封顶（绘制时按填充裁切，不压扁）
+    private func imageDisplayHeight(for pixelSize: CGSize) -> CGFloat {
         let maxWidth = Self.contentWidth
-        let ratio = image.size.height / max(image.size.width, 1)
-        let displayHeight = maxWidth * ratio
-        return min(displayHeight, Self.contentWidth * 1.2)  // 限制最大高度
+        let ratio = pixelSize.height / max(pixelSize.width, 1)
+        return min(maxWidth * ratio, maxWidth * Self.imageHeightCapRatio)
     }
 
-    private func drawImage(_ image: UIImage, alt: String?, at origin: CGPoint) -> CGFloat {
+    /// 绘制插图：按目标像素即时缩略解码（ImageIO）+ 等比填充居中裁切；返回占用高度（含图注）
+    @MainActor
+    private func drawImage(_ asset: ArticleLongImageAsset, at origin: CGPoint, scale: CGFloat) -> CGFloat {
         guard let ctx = UIGraphicsGetCurrentContext() else { return 0 }
         let maxWidth = Self.contentWidth
-        let displayHeight = imageDisplayHeight(for: image)
-
-        // 圆角裁剪
+        let displayHeight = imageDisplayHeight(for: asset.pixelSize)
         let imgRect = CGRect(x: origin.x, y: origin.y, width: maxWidth, height: displayHeight)
-        let path = UIBezierPath(roundedRect: imgRect, cornerRadius: 8)
-        ctx.saveGState()
-        path.addClip()
-        image.draw(in: imgRect)
-        ctx.restoreGState()
+
+        // 目标最长边像素（1.25x 冗余：填充裁切下仍足够清晰，且避免解码过大）
+        let targetPixel = max(imgRect.width, imgRect.height) * max(scale, 0.5) * 1.25
+        autoreleasepool {
+            guard let cgImage = Self.decodeThumbnail(asset.data, maxPixel: targetPixel) else {
+                LogManager.shared.warning("longimage", "长图插图解码失败（已跳过绘制）", context: [
+                    "tag": tag,
+                    "bytes": "\(asset.data.count)",
+                    "host": asset.sourceHost
+                ])
+                return
+            }
+            ctx.saveGState()
+            UIBezierPath(roundedRect: imgRect, cornerRadius: 8).addClip()
+            // 等比填充 + 居中裁切（scaledToFill 语义）：修复原实现「按目标矩形拉伸」导致的纵向压扁
+            let pixel = CGSize(width: CGFloat(cgImage.width), height: CGFloat(cgImage.height))
+            let fillScale = max(imgRect.width / max(pixel.width, 1), imgRect.height / max(pixel.height, 1))
+            let drawSize = CGSize(width: pixel.width * fillScale, height: pixel.height * fillScale)
+            let drawOrigin = CGPoint(x: imgRect.midX - drawSize.width / 2,
+                                     y: imgRect.midY - drawSize.height / 2)
+            ctx.draw(cgImage, in: CGRect(origin: drawOrigin, size: drawSize))
+            ctx.restoreGState()
+        }
 
         var totalHeight = displayHeight
 
         // 图片描述
-        if let alt = alt, !alt.isEmpty {
+        if let alt = asset.alt, !alt.isEmpty {
             let altAttr: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 11),
                 .foregroundColor: UIColor(white: 0.5, alpha: 1)
             ]
-            let altHeight = drawMultilineText(
+            totalHeight += 6 + drawMultilineText(
                 alt, at: CGPoint(x: origin.x, y: origin.y + displayHeight + 6),
                 width: maxWidth, attributes: altAttr, lineSpacing: 2
             )
-            totalHeight += 6 + altHeight
         }
 
         return totalHeight
+    }
+
+    /// 从压缩数据即时缩略解码（不落地全尺寸位图）；maxPixel 为目标最长边
+    nonisolated static func decodeThumbnail(_ data: Data, maxPixel: CGFloat) -> CGImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,   // 应用 EXIF 方向
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: max(64, maxPixel)
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
     private func drawMultilineText(
@@ -3166,35 +3507,29 @@ struct EnhancedNewsDetailView: View {
         if let source = fullDetail?.source, !source.isEmpty { metaParts.append("来源：\(source)") }
         let metadata = metaParts.joined(separator: " · ")
 
-        // 下载图片
-        var loadedImages: [(UIImage, String?)] = []
-        if let imageURLs = fullDetail?.images, !imageURLs.isEmpty {
-            for imgInfo in imageURLs {
-                if let downloaded = await downloadImage(from: imgInfo.url) {
-                    loadedImages.append((downloaded, imgInfo.alt))
-                }
-            }
-        }
+        // 加载长图素材（压缩数据 + 尺寸元数据；渲染时按需缩略解码——多图文章的内存防线）
+        let imageAssets = await ArticleLongImageLoader.loadAll(fullDetail?.images ?? [], tag: "news_detail")
 
         // 渲染长图
         let renderer = ArticleLongImageRenderer(
             title: title,
             metadata: metadata,
             content: body,
-            images: loadedImages,
-            articleURL: articleURL
+            images: imageAssets,
+            articleURL: articleURL,
+            tag: "news_detail"
         )
 
         await MainActor.run {
             // 长图渲染日志（含配色联动状态，便于定位输出差异）
-            LogManager.shared.debugLog("organization", "开始生成文章长图", context: [
+            LogManager.shared.debugLog("longimage", "开始生成文章长图", context: [
                 "textPreset": displaySettings.articleTextColorPreset.rawValue,
                 "lightHex": DisplaySettingsManager.articleBodyLightHexSnapshot().hex
             ])
             let renderedImage = renderer.render()
             generatedLongImage = renderedImage
 
-            guard renderedImage.size.width > 0 else {
+            guard let renderedImage else {
                 // 保持 isGeneratingLongImage = true，让 overlay 显示错误信息
                 longImageError = "长图生成失败，请重试"
                 return
@@ -3224,6 +3559,7 @@ struct EnhancedNewsDetailView: View {
         guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
 
@@ -3242,10 +3578,11 @@ struct EnhancedNewsDetailView: View {
         } catch {
             longImageError = "图片保存失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图临时文件写入失败", context: ["title": title])
             return
         }
 
-        print("[LongImage] File saved: \(fileURL.path) (\(jpegData.count / 1024)KB)")
+        LogManager.shared.debugLog("longimage", "长图文件已保存", context: ["file": fileURL.lastPathComponent, "sizeKB": "\(jpegData.count / 1024)"])
 
         // 找到最顶层的 ViewController 来呈现分享面板
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
@@ -3280,27 +3617,13 @@ struct EnhancedNewsDetailView: View {
                 try? FileManager.default.removeItem(at: fileURL)
             }
             if let error = error {
-                print("[LongImage] Share error: \(error.localizedDescription)")
+                LogManager.shared.error("longimage", "长图分享失败", context: ["error": error.localizedDescription])
             }
-            print("[LongImage] Share completed: \(completed)")
+            LogManager.shared.info("longimage", "长图分享完成", context: ["completed": "\(completed)"])
         }
 
         topVC.present(activityVC, animated: true) {
-            print("[LongImage] Share panel presented successfully")
-        }
-    }
-
-    /// 下载单张图片（统一走 SJZImageKit：缓存复用 + 进度通道 + 协议层 Referer）
-    private func downloadImage(from urlString: String) async -> UIImage? {
-        guard let url = URL(string: urlString) else { return nil }
-        let request = SJZImageKit.makeRequest(url: url)
-        do {
-            let (data, response) = try await SJZImageKit.imageSession.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else { return nil }
-            return UIImage(data: data)
-        } catch {
-            return nil
+            LogManager.shared.debugLog("longimage", "长图分享面板已呈现")
         }
     }
 
@@ -4265,31 +4588,25 @@ struct HonorDetailView: View {
         if let source = fullDetail?.source, !source.isEmpty { metaParts.append("来源：\(source)") }
         let metadata = metaParts.joined(separator: " · ")
 
-        // 下载图片
-        var loadedImages: [(UIImage, String?)] = []
-        if let imageURLs = fullDetail?.images, !imageURLs.isEmpty {
-            for imgInfo in imageURLs {
-                if let downloaded = await downloadImage(from: imgInfo.url) {
-                    loadedImages.append((downloaded, imgInfo.alt))
-                }
-            }
-        }
+        // 加载长图素材（压缩数据 + 尺寸元数据；渲染时按需缩略解码——多图文章的内存防线）
+        let imageAssets = await ArticleLongImageLoader.loadAll(fullDetail?.images ?? [], tag: "honor_detail")
 
         // 渲染长图
         let renderer = ArticleLongImageRenderer(
             title: title,
             metadata: metadata,
             content: body,
-            images: loadedImages,
-            articleURL: articleURL
+            images: imageAssets,
+            articleURL: articleURL,
+            tag: "honor_detail"
         )
 
         await MainActor.run {
-            LogManager.shared.debugLog("ui", "开始生成荣誉长图", context: [
-                "title": title, "images": "\(loadedImages.count)"
+            LogManager.shared.debugLog("longimage", "开始生成荣誉长图", context: [
+                "title": title, "images": "\(imageAssets.count)"
             ])
             let renderedImage = renderer.render()
-            guard renderedImage.size.width > 0 else {
+            guard let renderedImage else {
                 // 保持 isGeneratingLongImage = true，让 overlay 显示错误信息
                 longImageError = "长图生成失败，请重试"
                 return
@@ -4314,6 +4631,7 @@ struct HonorDetailView: View {
         guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
 
@@ -4331,6 +4649,7 @@ struct HonorDetailView: View {
         } catch {
             longImageError = "图片保存失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图临时文件写入失败", context: ["title": title])
             return
         }
 
@@ -4371,19 +4690,6 @@ struct HonorDetailView: View {
     }
 
     /// 下载单张图片（统一走 SJZImageKit：缓存复用 + 进度通道 + 协议层 Referer）
-    private func downloadImage(from urlString: String) async -> UIImage? {
-        guard let url = URL(string: urlString) else { return nil }
-        let request = SJZImageKit.makeRequest(url: url)
-        do {
-            let (data, response) = try await SJZImageKit.imageSession.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else { return nil }
-            return UIImage(data: data)
-        } catch {
-            return nil
-        }
-    }
-
     private func loadDetail() async {
         guard let articleId = honor.articleId else {
             isLoadingDetail = false
@@ -4884,31 +5190,25 @@ struct TeacherDetailView: View {
         if let source = fullDetail?.source, !source.isEmpty { metaParts.append("来源：\(source)") }
         let metadata = metaParts.joined(separator: " · ")
 
-        // 下载图片
-        var loadedImages: [(UIImage, String?)] = []
-        if let imageURLs = fullDetail?.images, !imageURLs.isEmpty {
-            for imgInfo in imageURLs {
-                if let downloaded = await downloadImage(from: imgInfo.url) {
-                    loadedImages.append((downloaded, imgInfo.alt))
-                }
-            }
-        }
+        // 加载长图素材（压缩数据 + 尺寸元数据；渲染时按需缩略解码——多图文章的内存防线）
+        let imageAssets = await ArticleLongImageLoader.loadAll(fullDetail?.images ?? [], tag: "teacher_detail")
 
         // 渲染长图
         let renderer = ArticleLongImageRenderer(
             title: title,
             metadata: metadata,
             content: body,
-            images: loadedImages,
-            articleURL: articleURL
+            images: imageAssets,
+            articleURL: articleURL,
+            tag: "teacher_detail"
         )
 
         await MainActor.run {
-            LogManager.shared.debugLog("ui", "开始生成教师风采长图", context: [
-                "title": title, "images": "\(loadedImages.count)"
+            LogManager.shared.debugLog("longimage", "开始生成教师风采长图", context: [
+                "title": title, "images": "\(imageAssets.count)"
             ])
             let renderedImage = renderer.render()
-            guard renderedImage.size.width > 0 else {
+            guard let renderedImage else {
                 // 保持 isGeneratingLongImage = true，让 overlay 显示错误信息
                 longImageError = "长图生成失败，请重试"
                 return
@@ -4933,6 +5233,7 @@ struct TeacherDetailView: View {
         guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
 
@@ -4950,6 +5251,7 @@ struct TeacherDetailView: View {
         } catch {
             longImageError = "图片保存失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图临时文件写入失败", context: ["title": title])
             return
         }
 
@@ -4990,19 +5292,6 @@ struct TeacherDetailView: View {
     }
 
     /// 下载单张图片（统一走 SJZImageKit：缓存复用 + 进度通道 + 协议层 Referer）
-    private func downloadImage(from urlString: String) async -> UIImage? {
-        guard let url = URL(string: urlString) else { return nil }
-        let request = SJZImageKit.makeRequest(url: url)
-        do {
-            let (data, response) = try await SJZImageKit.imageSession.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else { return nil }
-            return UIImage(data: data)
-        } catch {
-            return nil
-        }
-    }
-
     private func loadDetail() async {
         guard let articleId = teacher.articleId else {
             isLoadingDetail = false
@@ -5433,31 +5722,25 @@ struct StoryDetailView: View {
         if let source = fullDetail?.source, !source.isEmpty { metaParts.append("来源：\(source)") }
         let metadata = metaParts.joined(separator: " · ")
 
-        // 下载图片
-        var loadedImages: [(UIImage, String?)] = []
-        if let imageURLs = fullDetail?.images, !imageURLs.isEmpty {
-            for imgInfo in imageURLs {
-                if let downloaded = await downloadImage(from: imgInfo.url) {
-                    loadedImages.append((downloaded, imgInfo.alt))
-                }
-            }
-        }
+        // 加载长图素材（压缩数据 + 尺寸元数据；渲染时按需缩略解码——多图文章的内存防线）
+        let imageAssets = await ArticleLongImageLoader.loadAll(fullDetail?.images ?? [], tag: "story_detail")
 
         // 渲染长图
         let renderer = ArticleLongImageRenderer(
             title: title,
             metadata: metadata,
             content: body,
-            images: loadedImages,
-            articleURL: articleURL
+            images: imageAssets,
+            articleURL: articleURL,
+            tag: "story_detail"
         )
 
         await MainActor.run {
-            LogManager.shared.debugLog("ui", "开始生成学生故事长图", context: [
-                "title": title, "images": "\(loadedImages.count)"
+            LogManager.shared.debugLog("longimage", "开始生成学生故事长图", context: [
+                "title": title, "images": "\(imageAssets.count)"
             ])
             let renderedImage = renderer.render()
-            guard renderedImage.size.width > 0 else {
+            guard let renderedImage else {
                 // 保持 isGeneratingLongImage = true，让 overlay 显示错误信息
                 longImageError = "长图生成失败，请重试"
                 return
@@ -5482,6 +5765,7 @@ struct StoryDetailView: View {
         guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
 
@@ -5499,6 +5783,7 @@ struct StoryDetailView: View {
         } catch {
             longImageError = "图片保存失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图临时文件写入失败", context: ["title": title])
             return
         }
 
@@ -5539,19 +5824,6 @@ struct StoryDetailView: View {
     }
 
     /// 下载单张图片（统一走 SJZImageKit：缓存复用 + 进度通道 + 协议层 Referer）
-    private func downloadImage(from urlString: String) async -> UIImage? {
-        guard let url = URL(string: urlString) else { return nil }
-        let request = SJZImageKit.makeRequest(url: url)
-        do {
-            let (data, response) = try await SJZImageKit.imageSession.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else { return nil }
-            return UIImage(data: data)
-        } catch {
-            return nil
-        }
-    }
-
     private func loadDetail() async {
         guard let articleId = story.articleId else {
             isLoadingDetail = false
@@ -5986,31 +6258,25 @@ struct ActivityDetailView: View {
         if let source = fullDetail?.source, !source.isEmpty { metaParts.append("来源：\(source)") }
         let metadata = metaParts.joined(separator: " · ")
 
-        // 下载图片
-        var loadedImages: [(UIImage, String?)] = []
-        if let imageURLs = fullDetail?.images, !imageURLs.isEmpty {
-            for imgInfo in imageURLs {
-                if let downloaded = await downloadImage(from: imgInfo.url) {
-                    loadedImages.append((downloaded, imgInfo.alt))
-                }
-            }
-        }
+        // 加载长图素材（压缩数据 + 尺寸元数据；渲染时按需缩略解码——多图文章的内存防线）
+        let imageAssets = await ArticleLongImageLoader.loadAll(fullDetail?.images ?? [], tag: "activity_detail")
 
         // 渲染长图
         let renderer = ArticleLongImageRenderer(
             title: title,
             metadata: metadata,
             content: body,
-            images: loadedImages,
-            articleURL: articleURL
+            images: imageAssets,
+            articleURL: articleURL,
+            tag: "activity_detail"
         )
 
         await MainActor.run {
-            LogManager.shared.debugLog("ui", "开始生成校园活动长图", context: [
-                "title": title, "images": "\(loadedImages.count)"
+            LogManager.shared.debugLog("longimage", "开始生成校园活动长图", context: [
+                "title": title, "images": "\(imageAssets.count)"
             ])
             let renderedImage = renderer.render()
-            guard renderedImage.size.width > 0 else {
+            guard let renderedImage else {
                 // 保持 isGeneratingLongImage = true，让 overlay 显示错误信息
                 longImageError = "长图生成失败，请重试"
                 return
@@ -6035,6 +6301,7 @@ struct ActivityDetailView: View {
         guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
             longImageError = "图片编码失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图 JPEG 编码失败", context: ["title": title])
             return
         }
 
@@ -6052,6 +6319,7 @@ struct ActivityDetailView: View {
         } catch {
             longImageError = "图片保存失败"
             isGeneratingLongImage = true
+            LogManager.shared.warning("longimage", "长图临时文件写入失败", context: ["title": title])
             return
         }
 
@@ -6092,19 +6360,6 @@ struct ActivityDetailView: View {
     }
 
     /// 下载单张图片（统一走 SJZImageKit：缓存复用 + 进度通道 + 协议层 Referer）
-    private func downloadImage(from urlString: String) async -> UIImage? {
-        guard let url = URL(string: urlString) else { return nil }
-        let request = SJZImageKit.makeRequest(url: url)
-        do {
-            let (data, response) = try await SJZImageKit.imageSession.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else { return nil }
-            return UIImage(data: data)
-        } catch {
-            return nil
-        }
-    }
-
     private func loadDetail() async {
         guard let articleId = activity.articleId else {
             isLoadingDetail = false
