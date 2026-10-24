@@ -1153,9 +1153,12 @@ final class DisplaySettingsManager: ObservableObject {
                 LogManager.shared.info("display", "字体下载超时但实查已就绪", context: ["family": family.rawValue])
             } else {
                 self.fontAvailability[family] = .unavailable
-                LogManager.shared.warning("display", "字体按需下载超时（可点击重试）", context: [
+                // 状态流转（已转「可重试」态）而非待处理异常：INFO 级完整记录，警告栏只留真异常（2026-09-27 警告栏净化）；
+                // 用户可操作入口由 UI 橙色徽章呈现（点击重新发起下载）
+                LogManager.shared.info("display", "字体按需下载超时，已转为可重试状态", context: [
                     "family": family.rawValue,
-                    "timeoutSeconds": "\(Int(Self.fontDownloadTimeoutSeconds))"
+                    "timeoutSeconds": "\(Int(Self.fontDownloadTimeoutSeconds))",
+                    "action": "转为可重试（橙色徽章），点击后重新发起下载"
                 ])
             }
         }
