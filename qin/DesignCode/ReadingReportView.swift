@@ -146,7 +146,7 @@ struct ReadingReportView: View {
     private var heroCard: some View {
         let palette = ReadingReportPalette.forNow()
         let today = store.todaySeconds
-        let thisWeek = store.thisWeekMinutes * 60
+        let thisWeek = store.thisWeekSeconds
         let goalMinutes = heroPeriod == .daily ? goalStore.dailyMinutes : goalStore.weeklyMinutes
         let base = heroPeriod == .daily ? today : thisWeek
         let progress = min(1.0, Double(base) / Double(max(1, goalMinutes) * 60))
@@ -224,6 +224,8 @@ struct ReadingReportView: View {
                 Text(todayDurationText)
                     .displayFont(54, weight: .bold)
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                     .foregroundStyle(.white)
                     .contentTransition(.numericText(value: Double(store.todaySeconds)))
                     .animation(reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8), value: store.todaySeconds)
@@ -301,6 +303,7 @@ struct ReadingReportView: View {
                 .rotationEffect(.degrees(12))
                 .offset(x: 10, y: 14)
                 .accessibilityHidden(true)
+                .allowsHitTesting(false)  // 纯装饰，避免拦截右下「设定目标」按钮的点击
         }
         .shadow(color: palette.colors.first?.opacity(0.38) ?? .clear, radius: 22, y: 12)
     }
@@ -526,8 +529,8 @@ struct ReadingReportView: View {
 
     // MARK: - 图表 ③：分类环形
 
-    private func categoryRingCard(sources: [(source: String, minutes: Int)]) -> some View {
-        let total = sources.reduce(0) { $0 + $1.minutes }
+    private func categoryRingCard(sources: [(source: String, seconds: Int)]) -> some View {
+        let total = sources.reduce(0) { $0 + $1.seconds }
         return ReportCard(title: "", caption: "") {
             if total <= 0 {
                 HStack {
@@ -552,15 +555,19 @@ struct ReadingReportView: View {
                                 .animation(.spring(response: 0.6, dampingFraction: 0.85), value: total)
                             }
                             VStack(spacing: 2) {
-                                Text("\(total)").displayFont(25, weight: .bold).monospacedDigit()
+                                Text(compactDuration(total))
+                                    .displayFont(24, weight: .bold)
+                                    .monospacedDigit()
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.7)
                                     .contentTransition(.numericText(value: Double(total)))
-                                Text("分钟").displayFont(12).foregroundStyle(.secondary)
+                                Text("总专注").displayFont(11).foregroundStyle(.secondary)
                             }
                         }
                         .frame(width: 134, height: 134)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("分类分布，共 \(total) 分钟")
-                        .accessibilityValue(sources.map { "\($0.source) \($0.minutes) 分钟" }.joined(separator: "，"))
+                        .accessibilityLabel("分类分布，共 \(compactDuration(total))")
+                        .accessibilityValue(sources.map { "\($0.source) \(compactDuration($0.seconds))" }.joined(separator: "，"))
 
                         VStack(alignment: .leading, spacing: 11) {
                             ForEach(Array(sources.prefix(5).enumerated()), id: \.offset) { idx, item in
@@ -569,7 +576,7 @@ struct ReadingReportView: View {
                                         .overlay(Circle().strokeBorder(.white.opacity(0.6), lineWidth: 1))
                                     Text(item.source).displayFont(13).lineLimit(1)
                                     Spacer()
-                                    Text("\(item.minutes)′").displayFont(13, weight: .medium).monospacedDigit()
+                                    Text(compactDuration(item.seconds)).displayFont(13, weight: .medium).monospacedDigit()
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -582,9 +589,17 @@ struct ReadingReportView: View {
         }
     }
 
-    private func sectorStart(sources: [(source: String, minutes: Int)], upto: Int) -> Double {
-        let total = max(1, sources.reduce(0) { $0 + $1.minutes })
-        let acc = sources.prefix(upto).reduce(0) { $0 + $1.minutes }
+    /// 秒 → 紧凑时长文案（与 Hero 大数字同口径，精确到秒）
+    private func compactDuration(_ seconds: Int) -> String {
+        if seconds <= 0 { return "0 秒" }
+        if seconds < 60 { return "\(seconds) 秒" }
+        let m = seconds / 60, r = seconds % 60
+        return r > 0 ? "\(m) 分\(r) 秒" : "\(m) 分钟"
+    }
+
+    private func sectorStart(sources: [(source: String, seconds: Int)], upto: Int) -> Double {
+        let total = max(1, sources.reduce(0) { $0 + $1.seconds })
+        let acc = sources.prefix(upto).reduce(0) { $0 + $1.seconds }
         return Double(acc) / Double(total) * 360
     }
 

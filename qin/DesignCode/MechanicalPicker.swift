@@ -19,6 +19,9 @@ struct MechanicalPicker: View {
 
     @State private var scrollID: Int?
     @State private var lastChangeAt: TimeInterval = 0
+    /// 程序化滚动目标（外部 selection 变更驱动，如切周期 Tab / 重置）；
+    /// 非 nil 期间抑制触觉与 selection 回写，防止中间值污染 draft
+    @State private var programmaticID: Int?
 
     private var values: [Int] {
         stride(from: range.lowerBound, through: range.upperBound, by: step).map { $0 }
@@ -47,15 +50,31 @@ struct MechanicalPicker: View {
         .scrollPosition(id: $scrollID)
         .onChange(of: scrollID) { _, newID in
             guard let newID else { return }
+            if let target = programmaticID {
+                // 程序化滚动：中间值不回写、不触发触觉；到位后清除标记
+                if newID == target { programmaticID = nil }
+                return
+            }
             let now = Date().timeIntervalSinceReferenceDate
             let interval = now - lastChangeAt
             lastChangeAt = now
             selection = min(max(newID, range.lowerBound), range.upperBound)
             HapticEngine.shared.tick(interval: interval)
         }
+        // 外部值变更（切周期 Tab / 重置）驱动滚轮平滑跟随
+        .onChange(of: selection) { _, newValue in
+            let clamped = min(max(newValue, range.lowerBound), range.upperBound)
+            guard scrollID != clamped else { return }
+            programmaticID = clamped
+            withAnimation(.snappy) { scrollID = clamped }
+        }
         .onScrollPhaseChange { _, phase in
-            if phase == .idle {
+            switch phase {
+            case .interacting:
+                programmaticID = nil   // 用户接管滚动，取消程序化标记
+            case .idle:
                 HapticEngine.shared.settleClick()
+            default: break
             }
         }
         .overlay(alignment: .center) {

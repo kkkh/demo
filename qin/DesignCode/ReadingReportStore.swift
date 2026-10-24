@@ -166,6 +166,12 @@ final class ReadingReportStore: ObservableObject {
         return Self.displayMinutes(fromSeconds: events(in: interval).reduce(0) { $0 + $1.durationSeconds })
     }
 
+    /// 本周专注秒（秒级精确，供 Hero 周进度与今日口径保持同源）
+    var thisWeekSeconds: Int {
+        guard let interval = weekInterval() else { return 0 }
+        return events(in: interval).reduce(0) { $0 + $1.durationSeconds }
+    }
+
     /// 上周专注分钟（本周起始往前推 7 天）
     var lastWeekMinutes: Int {
         guard let interval = weekInterval(),
@@ -188,24 +194,24 @@ final class ReadingReportStore: ObservableObject {
         return streak
     }
 
-    /// 分类分钟分布（环形图数据源，本周口径）
-    func categoryMinutes() -> [(source: String, minutes: Int)] {
+    /// 分类专注分布（环形图数据源，本周口径，秒级精确——与 Hero 大数字同步）
+    func categoryMinutes() -> [(source: String, seconds: Int)] {
         let range: DateInterval? = weekInterval() ?? DateInterval(start: calendar.startOfDay(for: Date()), end: Date())
         guard let range else { return [] }
         var map: [String: Int] = [:]
         for e in events(in: range) {
             map[e.source, default: 0] += e.durationSeconds
         }
-        return map.map { ($0.key, Self.displayMinutes(fromSeconds: $0.value)) }.sorted { $0.minutes > $1.minutes }
+        return map.map { ($0.key, $0.value) }.sorted { $0.seconds > $1.seconds }
     }
 
-    /// 分类分钟分布（今日口径——日报环形数据源）
-    func todayCategoryMinutes() -> [(source: String, minutes: Int)] {
+    /// 分类专注分布（今日口径——日报环形数据源，秒级精确）
+    func todayCategoryMinutes() -> [(source: String, seconds: Int)] {
         var map: [String: Int] = [:]
         for e in events(on: Date()) {
             map[e.source, default: 0] += e.durationSeconds
         }
-        return map.map { ($0.key, Self.displayMinutes(fromSeconds: $0.value)) }.sorted { $0.minutes > $1.minutes }
+        return map.map { ($0.key, $0.value) }.sorted { $0.seconds > $1.seconds }
     }
 
     /// 24 小时专注分布（日报=今日，周报=本周），热力格数据源
