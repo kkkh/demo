@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Security
 
 // MARK: - 网络配置
 
@@ -1667,6 +1668,111 @@ extension NetworkService {
             throw NetworkError.serverError(resp.message ?? "查询失败")
         }
         return resp.data
+    }
+}
+
+// MARK: - 录取查询 RSA 加密（与官网前端同构；2026-10-07 契约实测）
+
+/// 录取查询身份证号加密：完整复刻官网前端（jsencrypt）的加密契约。
+///
+/// 实测契约（2026-10-07，直连 `gwqietap.sxjzit.edu.cn/mapi/common/recruit/query` 验证）：
+/// · 公钥：官网 `/assets/crypto-*.js` 内置 SPKI（1024 位，Base64）；
+/// · 算法：RSA PKCS#1 v1.5（jsencrypt 默认），明文 UTF-8，密文 128 字节 → Base64（172 字符）；
+/// · 提交 Base64 密文 → `code:200 success`；提交明文 → `code:500`（服务端解密失败）。
+///
+/// 安全约定：官网前端存在「加密失败静默降级明文提交」路径，本实现**不复制**该降级——
+/// 任何一步失败即返回 `nil`，由调用方提示改用「官网查询」，绝不发明文。
+enum RecruitCrypto {
+    /// 官网前端公钥（SPKI Base64；来源：官网 crypto chunk 的 VITE_RSA_PUBLIC_KEY，2026-10-07 取证）
+    static let publicKeyBase64 = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCKU5NBxR6Ho4NW+SeMdoap7ILOiR8fxTGZEQhvO+BCVfyrO8Gi4IjlyGBgCguZcPUvBDk3UYLFELLO+us1sRZ82SVqL637i4c2NmY2Gs2LVhuTIyTW9qzWV/kEdWS1N6V0lg0llSH6yArr0NvT1n9n1AUeEw6JnPvH6mADyu8sswIDAQAB"
+
+    /// PKCS#1 v1.5 单块明文上限（1024 位：128 − 11 = 117 字节）；身份证 18 字节恒为单块
+    static let singleBlockMaxBytes = 117
+
+    /// 加密身份证号（UTF-8 → PKCS#1 v1.5 → Base64）。
+    /// 空值 / 超长 / 公钥导入失败 / 加密失败 → `nil`（调用方据此提示改走官网，绝不降级明文）。
+    /// 说明：本类型为非隔离纯函数（`LogManager` 为 `@MainActor`），失败原因由调用方统一记录。
+    static func encryptIDCard(_ plain: String) -> String? {
+        let trimmed = plain.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let data = trimmed.data(using: .utf8),
+              data.count <= singleBlockMaxBytes,
+              let key = publicKey() else { return nil }
+        guard let cipher = SecKeyCreateEncryptedData(key, .rsaEncryptionPKCS1, data as CFData, nil) else {
+            return nil
+        }
+        return (cipher as Data).base64EncodedString()
+    }
+
+    /// 导入公钥（SPKI → PKCS#1 → SecKey）
+    static func publicKey() -> SecKey? {
+        guard let der = Data(base64Encoded: publicKeyBase64),
+              let pkcs1 = pkcs1FromSPKI(der) else { return nil }
+        let attrs: [CFString: Any] = [
+            kSecAttrKeyType: kSecAttrKeyTypeRSA,
+            kSecAttrKeyClass: kSecAttrKeyClassPublic
+        ]
+        return SecKeyCreateWithData(pkcs1 as CFData, attrs as CFDictionary, nil)
+    }
+
+    /// SPKI(DER) → PKCS#1 RSAPublicKey —— iOS `SecKeyCreateWithData` 只接受 PKCS#1。
+    /// 结构：`SEQUENCE { AlgorithmIdentifier(SEQUENCE), BIT STRING { RSAPublicKey(SEQUENCE) } }`
+    static func pkcs1FromSPKI(_ der: Data) -> Data? {
+        guard der.count > 4, der[0] == 0x30 else { return nil }
+        var idx = 1
+        guard let (outerLen, outerLenBytes) = derLength(der, idx) else { return nil }
+        idx += outerLenBytes
+        let outerEnd = min(idx + outerLen, der.count)
+        // AlgorithmIdentifier：整段跳过
+        guard idx < outerEnd, der[idx] == 0x30,
+              let (algLen, algLenBytes) = derLength(der, idx + 1) else { return nil }
+        idx += 1 + algLenBytes + algLen
+        // BIT STRING：首字节为 unused-bits 计数，其后即 PKCS#1
+        guard idx < outerEnd, der[idx] == 0x03,
+              let (bitLen, bitLenBytes) = derLength(der, idx + 1) else { return nil }
+        idx += 1 + bitLenBytes
+        guard idx < der.count, der[idx] == 0x00 else { return nil }
+        idx += 1
+        let innerLen = bitLen - 1
+        guard innerLen > 0, idx + innerLen <= der.count else { return nil }
+        return der.subdata(in: idx..<(idx + innerLen))
+    }
+
+    /// DER 长度字段解析 → (内容长度, 长度字段占用字节数)
+    private static func derLength(_ der: Data, _ idx: Int) -> (Int, Int)? {
+        guard idx < der.count else { return nil }
+        let first = Int(der[idx])
+        if first < 0x80 { return (first, 1) }
+        let n = first & 0x7F
+        guard n >= 1, n <= 4, idx + n < der.count else { return nil }
+        var len = 0
+        for k in 1...n { len = (len << 8) | Int(der[idx + k]) }
+        return (len, 1 + n)
+    }
+
+    /// 身份证号校验（与官网前端同规则：18 位格式 + 出生日期合法 + GB 11643 校验位）
+    static func isValidIDCard(_ raw: String) -> Bool {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let pattern = "^[1-9]\\d{5}(18|19|20)\\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\\d{3}[0-9X]$"
+        guard s.range(of: pattern, options: .regularExpression) != nil else { return false }
+        let chars = Array(s)
+        guard chars.count == 18,
+              let year = Int(String(chars[6...9])),
+              let month = Int(String(chars[10...11])),
+              let day = Int(String(chars[12...13])) else { return false }
+        let calendar = Calendar(identifier: .gregorian)
+        guard let date = calendar.date(from: DateComponents(year: year, month: month, day: day)),
+              calendar.component(.year, from: date) == year,
+              calendar.component(.month, from: date) == month,
+              calendar.component(.day, from: date) == day else { return false }
+        let weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+        let checksumTable = Array("10X98765432")
+        var sum = 0
+        for (i, weight) in weights.enumerated() {
+            guard let digit = Int(String(chars[i])) else { return false }
+            sum += digit * weight
+        }
+        return chars[17] == checksumTable[sum % 11]
     }
 }
 

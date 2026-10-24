@@ -2029,3 +2029,55 @@ final class ReadingReportTests: XCTestCase {
         store.clearAll()
     }
 }
+
+// MARK: - 录取查询 RSA 加密契约（与官网前端同构；2026-10-07 契约实测）
+
+/// 契约锚点（2026-10-07 直连真接口验证）：
+/// 公钥 SPKI 162B → PKCS#1 140B（头 0x30 81 89）；1024 位密文 = 128B → Base64 172 字符；
+/// PKCS#1 v1.5 随机填充（两次密文不同）；加密失败一律 nil（**绝不降级明文**，官网前端存在该降级，本实现不复制）。
+final class RecruitCryptoTests: XCTestCase {
+
+    // 1) 公钥解析：SPKI → PKCS#1
+    func testPublicKeyDerivation() {
+        guard let der = Data(base64Encoded: RecruitCrypto.publicKeyBase64) else {
+            XCTFail("公钥 Base64 解码失败"); return
+        }
+        XCTAssertEqual(der.count, 162, "SPKI DER 应为 162 字节")
+        guard let pkcs1 = RecruitCrypto.pkcs1FromSPKI(der) else {
+            XCTFail("SPKI → PKCS#1 转换失败"); return
+        }
+        XCTAssertEqual(pkcs1.count, 140, "PKCS#1 应为 140 字节（SEQUENCE 30 81 89 + 137）")
+        XCTAssertEqual([UInt8](pkcs1.prefix(3)), [0x30, 0x81, 0x89], "PKCS#1 头应为 SEQUENCE(30 81 89)")
+    }
+
+    // 2) 加密形状与随机化
+    func testEncryptShapeAndRandomness() {
+        guard let enc = RecruitCrypto.encryptIDCard("140702200401010014") else {
+            XCTFail("加密失败"); return
+        }
+        XCTAssertEqual(enc.count, 172, "1024 位密文 Base64 应 172 字符")
+        guard let raw = Data(base64Encoded: enc) else {
+            XCTFail("密文非合法 Base64"); return
+        }
+        XCTAssertEqual(raw.count, 128, "密文应为 128 字节")
+        let again = RecruitCrypto.encryptIDCard("140702200401010014")
+        XCTAssertNotNil(again)
+        XCTAssertNotEqual(enc, again, "PKCS#1 v1.5 随机填充：两次密文应不同")
+    }
+
+    // 3) 非法输入一律拒绝（不降级明文）
+    func testEncryptRejectsInvalidInput() {
+        XCTAssertNil(RecruitCrypto.encryptIDCard(""), "空值应拒绝")
+        XCTAssertNil(RecruitCrypto.encryptIDCard("   "), "纯空白应拒绝")
+        XCTAssertNil(RecruitCrypto.encryptIDCard(String(repeating: "A", count: 118)), "超单块上限（>117B）应拒绝")
+    }
+
+    // 4) 身份证校验（与官网 Gn() 同规则）
+    func testIDCardValidation() {
+        XCTAssertTrue(RecruitCrypto.isValidIDCard("140702200401010014"), "校验位合法应通过")
+        XCTAssertFalse(RecruitCrypto.isValidIDCard("140702200401010015"), "错误校验位应拒绝")
+        XCTAssertFalse(RecruitCrypto.isValidIDCard("140702200413010014"), "非法出生日期（13 月）应拒绝")
+        XCTAssertFalse(RecruitCrypto.isValidIDCard("14070220040101001"), "17 位应拒绝")
+        XCTAssertFalse(RecruitCrypto.isValidIDCard("14070220040101001A"), "非法字符应拒绝")
+    }
+}

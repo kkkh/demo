@@ -47,7 +47,7 @@ struct OrgChildSection: Identifiable {
     let columnId: String?
     /// 子区块自身的 siteId（可能独立于父级部门）
     let siteId: String?
-    /// 子区块的 href（用于路由：专业介绍→SpecialtyListView，录取查询→Safari）
+    /// 子区块的 href（用于路由：专业介绍→SpecialtyListView，录取查询→站内直查表单、官网查询为兜底）
     let href: String?
 }
 
@@ -235,8 +235,10 @@ struct OrganizationDetailView: View {
     @State private var childNavigation: ChildSectionNavigation?
     /// 专业介绍列表导航（招生就业处专用）
     @State private var showSpecialtyList = false
-    /// 录取查询外链 URL（招生就业处专用）
-    @State private var admissionQueryURL: URL?
+    /// 录取查询（站内直查）sheet 呈现（2026-10-07 RSA 契约取证后启用）
+    @State private var showRecruitQuery = false
+    /// 站内直查入口归因（日志：org_tool_entry / org_child_tab）
+    @State private var recruitQueryEntry = "org_tool_entry"
     /// 历年分数线查询 WebView 显示状态（招生就业处专用）
     @State private var showScoreLine = false
 
@@ -454,11 +456,9 @@ struct OrganizationDetailView: View {
             }
             .sjzPresentationChrome()
         }
-        .onChange(of: admissionQueryURL) { _, newURL in
-            if let url = newURL {
-                openURL(url)
-                admissionQueryURL = nil
-            }
+        .sheet(isPresented: $showRecruitQuery) {
+            RecruitQuerySheet(department: unit.name, entry: recruitQueryEntry)
+                .sjzPresentationChrome()
         }
         .task {
             // 取消之前的加载任务，防止并发（必须在创建新任务前取消旧任务）
@@ -1514,9 +1514,14 @@ struct OrganizationDetailView: View {
             return
         }
         if tool.title.contains("录取查询") {
-            if let url = URL(string: "https://www.sxjzit.edu.cn/#/zsw-query") {
-                admissionQueryURL = url
-            }
+            // 站内直查（2026-10-07 RSA 契约取证后，由「跳 Safari」改为站内表单）
+            LogManager.shared.info("organization", "录取查询·站内直查打开", context: [
+                "department": unit.name,
+                "tool": tool.title,
+                "entry": "org_tool_entry"
+            ])
+            recruitQueryEntry = "org_tool_entry"
+            showRecruitQuery = true
             return
         }
     }
@@ -2754,11 +2759,20 @@ struct OrganizationDetailView: View {
         }
     }
 
-    /// recruit 形态：提交前置合规确认（仅用于录取查询，提交即同意；不保存凭证）
+    /// recruit 形态：提交前置校验 + 合规确认（仅用于录取查询，提交即同意；不保存凭证）
     private func submitRecruitQuery(column: OrgColumnSpec) {
         let name = recruitName.trimmingCharacters(in: .whitespaces)
         let idCard = recruitIdCard.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty, !idCard.isEmpty else { return }
+        guard RecruitCrypto.isValidIDCard(idCard) else {
+            recruitResult = nil
+            recruitError = "身份证号格式有误，请核对后重试"
+            LogManager.shared.info("organization", "录取查询·身份证格式校验未通过", context: [
+                "department": unit.name, "column": column.title, "stage": "pre_submit"
+            ])
+            return
+        }
+        recruitError = nil
         LogManager.shared.info("organization", "录取查询·提交合规确认", context: [
             "department": unit.name,
             "column": column.title,
@@ -2767,20 +2781,60 @@ struct OrganizationDetailView: View {
         recruitShowConsent = true
     }
 
-    /// 已获合规同意后处理查询。RSA 公钥尚未实现期取证：不发起假请求，
-    /// 直接给出「接入中 → 官网查询」引导（设计稿 §8.1-5：真机捕获公钥后切回 POST /common/recruit/query）。
+    /// 已获合规同意后执行站内直查：RSA 加密身份证号 → POST /common/recruit/query。
+    /// 契约已实测（2026-10-07）：Base64 密文 → code 200；加密失败不降级明文，提示改走官网。
     @MainActor
     private func performRecruitQuery(column: OrgColumnSpec) {
         let name = recruitName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
+        let idCard = recruitIdCard.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, !idCard.isEmpty else { return }
+        guard let encrypted = RecruitCrypto.encryptIDCard(idCard) else {
+            recruitResult = nil
+            recruitError = "本机加密失败，请改用「官网查询」"
+            LogManager.shared.warning("organization", "录取查询·加密失败（不降级明文）", context: [
+                "department": unit.name, "column": column.title
+            ])
+            return
+        }
+        recruitIsSubmitting = true
         recruitResult = nil
         recruitError = nil
-        LogManager.shared.info("organization", "录取查询·合规已同意（RSA 待取证→官网保底）", context: [
+        LogManager.shared.info("organization", "录取查询·发起站内直查", context: [
             "department": unit.name,
             "column": column.title,
-            "note": "no persistence; no fake request"
+            "note": "idcard encrypted; not logged"
         ])
-        recruitError = "录取查询服务接入中，请前往官网查询"
+        Task {
+            do {
+                let hit = try await NetworkService.shared.queryRecruit(name: name, encryptedIdCard: encrypted)
+                recruitIsSubmitting = false
+                if let hit {
+                    recruitResult = hit
+                    LogManager.shared.info("organization", "录取查询·查询完成", context: [
+                        "department": unit.name, "column": column.title, "found": "true"
+                    ])
+                } else {
+                    recruitError = "未查询到录取信息，请核对后重试"
+                    LogManager.shared.info("organization", "录取查询·查询完成", context: [
+                        "department": unit.name, "column": column.title, "found": "false"
+                    ])
+                }
+            } catch {
+                recruitIsSubmitting = false
+                if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
+                    // 取消语义：用户离开/切换属正常行为，不计失败（对齐 NetworkService 红线）
+                    LogManager.shared.debugLog("organization", "录取查询·请求取消", context: [
+                        "department": unit.name, "column": column.title
+                    ])
+                    return
+                }
+                recruitError = friendlyErrorText(error)
+                LogManager.shared.warning("organization", "录取查询·查询失败", context: [
+                    "department": unit.name, "column": column.title,
+                    "error": error.localizedDescription
+                ])
+            }
+        }
     }
 
     /// 统一错误文案（网络类给出可操作说明）
@@ -2942,18 +2996,16 @@ struct OrganizationDetailView: View {
                 return
             }
 
-            // 录取查询：外链→Safari 打开
+            // 录取查询：站内直查（2026-10-07 RSA 契约取证后，由「跳 Safari」改为站内表单）
             if child.title.contains("录取查询") {
-                if let href = child.href, !href.isEmpty, href != "/" {
-                    let queryURL = "https://www.sxjzit.edu.cn/#/zsw-query"
-                    if let url = URL(string: queryURL) {
-                        LogManager.shared.info("organization", "录取查询→Safari 打开", context: [
-                            "url": queryURL
-                        ])
-                        admissionQueryURL = url
-                        return
-                    }
-                }
+                LogManager.shared.info("organization", "录取查询·站内直查打开", context: [
+                    "department": unit.name,
+                    "child": child.title,
+                    "entry": "org_child_tab"
+                ])
+                recruitQueryEntry = "org_child_tab"
+                showRecruitQuery = true
+                return
             }
 
             childNavigation = ChildSectionNavigation(
@@ -7635,6 +7687,289 @@ struct ChildSectionDetailView: View {
             }
         }
         return String(raw.prefix(10))
+    }
+}
+
+// MARK: - 录取查询（站内直查）表单
+
+/// 录取查询表单：姓名 + 身份证号 → RSA 加密（与官网前端同构，2026-10-07 契约实测）→ `POST /common/recruit/query`。
+/// 2026-10-07 起，机构子站「录取查询」入口由「跳 Safari」改为站内直查；「官网查询」保留为并列兜底。
+/// 合规：提交前必弹「个人信息确认」；身份证号仅内存加密后提交，不落盘、不写日志。
+struct RecruitQuerySheet: View {
+    /// 日志归因：来源（如「招生就业处」/「招生网」）
+    let department: String
+    /// 日志归因：入口标识（org_tool_entry / org_child_tab / zsw_home_card）
+    let entry: String
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @State private var name = ""
+    @State private var idCard = ""
+    @State private var isSubmitting = false
+    @State private var result: NetworkService.RecruitResultDTO?
+    @State private var errorText: String?
+    @State private var showConsent = false
+
+    /// 学校官方录取查询页（兜底入口，与改造前行为一致）
+    private static let officialQueryURL = "https://www.sxjzit.edu.cn/#/zsw-query"
+
+    private var canSubmit: Bool {
+        !isSubmitting
+            && !name.trimmingCharacters(in: .whitespaces).isEmpty
+            && !idCard.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    header
+                    fields
+                    resultArea
+                    actionRow
+                    footnote
+                }
+                .padding(16)
+            }
+            .scrollIndicators(.hidden)
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("录取查询")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") {
+                        LogManager.shared.info("organization", "录取查询·表单关闭", context: [
+                            "department": department, "entry": entry
+                        ])
+                        dismiss()
+                    }
+                    .displayFont(17)
+                }
+            }
+        }
+        .alert("个人信息确认", isPresented: $showConsent) {
+            Button("取消", role: .cancel) {}
+            Button("同意并查询") { startQuery() }
+        } message: {
+            Text("仅用于录取查询，提交即同意；不保存凭证。")
+                .displayFont(13)
+        }
+        .onAppear {
+            LogManager.shared.info("organization", "录取查询·表单打开", context: [
+                "department": department, "entry": entry
+            ])
+        }
+    }
+
+    // MARK: 头部
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .displaySymbolFont(18, weight: .medium)
+                .foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: 11).fill(Color.sjzPrimary))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("录取查询")
+                    .displayFont(14, weight: .semibold)
+                Text("仅用于录取查询，不保存任何凭证")
+                    .displayFont(11)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: 输入
+
+    private var fields: some View {
+        VStack(spacing: 10) {
+            TextField("考生姓名", text: $name)
+                .displayFont(14)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+            TextField("身份证号", text: $idCard)
+                .displayFont(14)
+                .autocorrectionDisabled()
+                .keyboardType(.asciiCapable)
+                .textInputAutocapitalization(.never)
+                .accessibilityLabel("身份证号")
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+        }
+    }
+
+    // MARK: 结果三态
+
+    @ViewBuilder
+    private var resultArea: some View {
+        if isSubmitting {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("查询中…")
+                    .displayFont(13)
+                    .foregroundStyle(.secondary)
+            }
+        } else if let result {
+            resultPill("查询成功 · \(result.name ?? "") \(result.major ?? "")", tint: .sjzGreen)
+        } else if let errorText {
+            resultPill(errorText, tint: .sjzOrange)
+        }
+    }
+
+    private func resultPill(_ text: String, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "info.circle.fill")
+                .displaySymbolFont(12)
+                .foregroundStyle(tint)
+            Text(text)
+                .displayFont(12, weight: .medium)
+                .foregroundStyle(tint)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    // MARK: 操作
+
+    private var actionRow: some View {
+        HStack(spacing: 10) {
+            Button {
+                submit()
+            } label: {
+                Text(isSubmitting ? "查询中…" : "立即查询")
+                    .displayFont(14, weight: .semibold)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Capsule().fill(Color.sjzPrimary))
+            }
+            .buttonStyle(.plain)
+            .disabled(!canSubmit)
+            .opacity(canSubmit ? 1 : 0.55)
+
+            Button {
+                openOfficialPage()
+            } label: {
+                Text("官网查询")
+                    .displayFont(13, weight: .semibold)
+                    .foregroundStyle(Color.sjzPrimary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 999)
+                            .stroke(Color.sjzPrimary.opacity(0.5), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var footnote: some View {
+        Text("查询服务由校招生办提供；身份信息加密后仅用于本次查询，不保存凭证。")
+            .displayFont(10)
+            .foregroundStyle(.tertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: 提交与查询
+
+    /// 提交前校验（非空 + 身份证格式/校验位）→ 弹合规确认
+    private func submit() {
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        let trimmedID = idCard.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty, !trimmedID.isEmpty else { return }
+        guard RecruitCrypto.isValidIDCard(trimmedID) else {
+            result = nil
+            errorText = "身份证号格式有误，请核对后重试"
+            LogManager.shared.info("organization", "录取查询·身份证格式校验未通过", context: [
+                "department": department, "entry": entry, "stage": "pre_submit"
+            ])
+            return
+        }
+        errorText = nil
+        LogManager.shared.info("organization", "录取查询·提交合规确认", context: [
+            "department": department, "entry": entry,
+            "note": "consent prompt shown; no credential logged"
+        ])
+        showConsent = true
+    }
+
+    /// 已同意 → RSA 加密（失败不降级明文）→ 站内直查
+    private func startQuery() {
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        let trimmedID = idCard.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty, !trimmedID.isEmpty else { return }
+        guard let encrypted = RecruitCrypto.encryptIDCard(trimmedID) else {
+            result = nil
+            errorText = "本机加密失败，请改用「官网查询」"
+            LogManager.shared.warning("organization", "录取查询·加密失败（不降级明文）", context: [
+                "department": department, "entry": entry
+            ])
+            return
+        }
+        isSubmitting = true
+        result = nil
+        errorText = nil
+        LogManager.shared.info("organization", "录取查询·发起站内直查", context: [
+            "department": department, "entry": entry, "note": "idcard encrypted; not logged"
+        ])
+        Task {
+            do {
+                let hit = try await NetworkService.shared.queryRecruit(name: trimmedName, encryptedIdCard: encrypted)
+                isSubmitting = false
+                if let hit {
+                    result = hit
+                    LogManager.shared.info("organization", "录取查询·查询完成", context: [
+                        "department": department, "entry": entry, "found": "true"
+                    ])
+                } else {
+                    errorText = "未查询到录取信息，请核对后重试"
+                    LogManager.shared.info("organization", "录取查询·查询完成", context: [
+                        "department": department, "entry": entry, "found": "false"
+                    ])
+                }
+            } catch {
+                isSubmitting = false
+                if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
+                    // 取消语义：用户离开/切换属正常行为，不计失败（对齐 NetworkService 红线）
+                    LogManager.shared.debugLog("organization", "录取查询·请求取消", context: [
+                        "department": department, "entry": entry
+                    ])
+                    return
+                }
+                errorText = friendlyError(error)
+                LogManager.shared.warning("organization", "录取查询·查询失败", context: [
+                    "department": department, "entry": entry,
+                    "error": error.localizedDescription
+                ])
+            }
+        }
+    }
+
+    private func friendlyError(_ error: Error) -> String {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .timedOut: return "网络较慢，查询超时，请重试"
+            case .notConnectedToInternet, .networkConnectionLost: return "当前无网络连接"
+            default: break
+            }
+        }
+        return error.localizedDescription
+    }
+
+    /// 兜底：打开学校官方录取查询页（系统浏览器）
+    private func openOfficialPage() {
+        guard let url = URL(string: Self.officialQueryURL) else { return }
+        LogManager.shared.info("organization", "录取查询·官网查询打开", context: [
+            "department": department, "entry": entry, "url": Self.officialQueryURL
+        ])
+        openURL(url)
     }
 }
 
