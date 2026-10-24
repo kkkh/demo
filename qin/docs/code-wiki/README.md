@@ -22,7 +22,7 @@
 | 文档类型 | 合并设计文档（HLD 为主 + LLD 关键类与算法层） |
 | 系统阶段 | 褐地（既有系统逆向）且持续演进中 |
 | 受众 | 设计评审者 / 架构师 / iOS 工程师 / 接手维护者 |
-| 复杂度 | 重量级（系统级，48 文件 65,635 行，多分册） |
+| 复杂度 | 重量级（系统级，48 文件 65,715 行，多分册） |
 | 上游产物 | 逆向工程为主；`qin/.trae/documents/` 存有五个模块的工程规格书（校园日历 / 显示设置 / 使用帮助 / 消息中心 / 网络监测），属部分上游 |
 
 ## 文档导航
@@ -42,8 +42,8 @@
 - 是什么：山西晋中理工学院校园信息聚合 iOS App，纯 SwiftUI，唯一第三方为微信开放平台 SDK（2026-09-27 接入），无后端、无账号体系。
 - 数据从哪来：学校公开 API `https://gwqietap.sxjzit.edu.cn/mapi`（GET 只读）+ 开发者博客 `https://www.43322.cn/blog`（公告/隐私协议），失败时降级本地 JSON 缓存 → 静态兜底数据。
 - 最核心的特色：无服务端条件下，用官网指纹轮询自建了一套本属于服务端的本地推送体系（新闻/信箱/概况/党建四通道 + 收藏第五通道）与站内信消息中心；并以 `URLProtocol` 埋点自建全 App 网络遥测（链路/吞吐/延迟/诊断/测速）。
-- 规模（2026-09-28 `wc -l` 实测）：48 个 Swift 源文件共 65,635 行——主 target 46 文件 62,149 行 + 测试 5 文件 3,486 行；主视图集全在单文件 [TabBar.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/TabBar.swift)（12,934 行，60+ View）。单元测试 189 例（MessageCenterStore 系 92 + NetworkServiceDTO 系 22 + WeChatSDK 系 23 + 收藏 Bookmark 系 20 + 已读 ReadStatus 系 4 + 日志 Log 系 28）；2026-09-28 真机复测 189/189 通过（0 失败，日志 `qin/build/verify/log_module_full_test.log`）。
-- 日志：自研 `LogManager`，全工程 37 个日志域、1,235 处字面域埋点（`LogManager.shared` 调用点共 1,274 处），可在「我的 → 应用日志」查看（支持级别/模块/关键词三维筛选、日期分组、跟随最新、详情卡、导出 TXT/JSON）；网络监测独占 `netmon` 域 50 处、显示设置独占 `display` 域 50 处、微信集成独占 `wechat` 域 66 处、长图生成独占 `longimage` 域 55 处、收藏 `favorite` 域 76 处、日志模块自身 `log` 域 49 处。
+- 规模（2026-09-28 `wc -l` 实测）：48 个 Swift 源文件共 65,715 行——主 target 46 文件 62,229 行 + 测试 5 文件 3,486 行；主视图集全在单文件 [TabBar.swift](file:///Users/qinchao/Downloads/designcode-swiftui/qin/DesignCode/TabBar.swift)（12,993 行，60+ View）。单元测试 189 例（MessageCenterStore 系 92 + NetworkServiceDTO 系 22 + WeChatSDK 系 23 + 收藏 Bookmark 系 20 + 已读 ReadStatus 系 4 + 日志 Log 系 28）；2026-09-28 真机复测 189/189 通过（0 失败，日志 `qin/build/verify/log_module_full_test.log`）。
+- 日志：自研 `LogManager`，全工程 37 个日志域、1,246 处字面域埋点（`LogManager.shared` 调用点共 1,285 处），可在「我的 → 应用日志」查看（支持级别/模块/关键词三维筛选、日期分组、跟随最新、详情卡、导出 TXT/JSON）；网络监测独占 `netmon` 域 50 处、显示设置独占 `display` 域 50 处、微信集成独占 `wechat` 域 66 处、长图生成独占 `longimage` 域 55 处、收藏 `favorite` 域 76 处、日志模块自身 `log` 域 61 处（含 DEBUG 自测钩子 12 处）。
 - 构建环境：Xcode 27.0（27A266a）+ iOS 26 SDK；真机「秦超的iPhone」（iPhone 13 Pro Max，UDID `00008110-000411A40EC1401E`）为唯一调试目标。
 
 ## 设计目标与约束

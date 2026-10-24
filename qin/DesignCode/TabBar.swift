@@ -9271,6 +9271,58 @@ struct ProfileView: View {
         logEntrySubtitle = parts.joined(separator: " · ")
     }
 
+    #if DEBUG
+    /// 实机自测渲染截图（仅 DEBUG + `-uiTestOpenLogs`）：把当前主窗口画面写入 Documents，
+    /// 供 `devicectl device copy from` 回读后人工/模型视觉复核真机渲染效果
+    private func captureSelfTestScreenshot(_ name: String) {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        LogManager.shared.info("log", "自测截图开始", context: ["name": name, "scenes": "\(scenes.count)"])
+        guard let scene = scenes.first else {
+            LogManager.shared.warning("log", "自测截图失败：无窗口场景", context: ["name": name])
+            return
+        }
+        let windows = scene.windows
+        var topVC = windows.first(where: { $0.isKeyWindow })?.rootViewController
+            ?? windows.first?.rootViewController
+        var depth = 0
+        while let presented = topVC?.presentedViewController {
+            topVC = presented
+            depth += 1
+        }
+        LogManager.shared.info("log", "自测截图窗口清单", context: [
+            "name": name, "windows": "\(windows.count)",
+            "keyWindow": "\(windows.contains(where: { $0.isKeyWindow }))",
+            "presentDepth": "\(depth)"
+        ])
+        let captureView: UIView
+        if let topView = topVC?.view, depth > 0 {
+            // sheet 等 presentation 由最上层容器承载：直接捕获其视图，避免漏掉弹出层内容
+            captureView = topView
+        } else if let window = windows.first(where: { $0.isKeyWindow }) ?? windows.first {
+            captureView = window
+        } else {
+            LogManager.shared.warning("log", "自测截图失败：无可用窗口", context: ["name": name])
+            return
+        }
+        let renderer = UIGraphicsImageRenderer(bounds: captureView.bounds)
+        let image = renderer.image { _ in
+            captureView.drawHierarchy(in: captureView.bounds, afterScreenUpdates: false)
+        }
+        guard let data = image.jpegData(compressionQuality: 0.85) else {
+            LogManager.shared.warning("log", "自测截图失败：编码失败", context: ["name": name])
+            return
+        }
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("SelfTest_\(name).jpg")
+        do {
+            try data.write(to: url, options: .atomic)
+            LogManager.shared.info("log", "自测截图已保存", context: ["name": name, "bytes": "\(data.count)"])
+        } catch {
+            LogManager.shared.warning("log", "自测截图失败：写入失败", context: ["name": name, "error": error.localizedDescription])
+        }
+    }
+    #endif
+
     var body: some View {
         ScrollView {
             VStack(spacing: 30) {
@@ -9317,14 +9369,21 @@ struct ProfileView: View {
                 LogManager.shared.info("log", "实机自测：自动打开日志页", context: [:])
                 showLogs = true
                 Task { @MainActor in
+                    // 渲染截图取证（真机画面）：页面打开 / 稳定后 / 风暴后各一张
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    captureSelfTestScreenshot("a_open")
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    captureSelfTestScreenshot("b_settled")
+                    for sample in 1...55 {
+                        LogManager.shared.debugLog("log", "自测风暴样本", context: ["index": "\(sample)"])
+                    }
+                    LogManager.shared.info("log", "实机自测：风暴样本注入完成（55 条同内容）", context: [:])
+                    try? await Task.sleep(nanoseconds: 2_500_000_000)
+                    captureSelfTestScreenshot("c_afterStorm")
                     for beat in 1...3 {
                         try? await Task.sleep(nanoseconds: 4_000_000_000)
                         LogManager.shared.info("log", "实机自测心跳 \(beat)/3", context: ["beat": "\(beat)"])
                     }
-                    for index in 1...55 {
-                        LogManager.shared.debugLog("logTest", "自测风暴样本", context: ["index": "\(index)"])
-                    }
-                    LogManager.shared.info("log", "实机自测：风暴样本注入完成（55 条同内容）", context: [:])
                 }
             }
             #endif
