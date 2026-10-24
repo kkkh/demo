@@ -2694,7 +2694,8 @@ struct OrganizationArticleDetailView: View {
                 ZStack {
                     OrganizationArticleWebView(
                         htmlContent: detailContent,
-                        title: detailTitle.isEmpty ? article.title : detailTitle
+                        title: detailTitle.isEmpty ? article.title : detailTitle,
+                        typographyCSS: DisplaySettingsManager.shared.articleCSSLiveInjectionPayload
                     )
                     .opacity(webViewLoaded ? 1 : 0)
 
@@ -3967,6 +3968,8 @@ private func resolveImageURL(_ rawURL: String, baseDomain: String, alternateDoma
 struct OrganizationArticleWebView: UIViewRepresentable {
     let htmlContent: String
     let title: String
+    /// 排版实时重注入载荷（设置变更/字体下载完成 → 无需重载页面即覆盖 style#sjz-typography）
+    let typographyCSS: String
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -3997,6 +4000,9 @@ struct OrganizationArticleWebView: UIViewRepresentable {
             )
         }
         context.coordinator.retainProgressObservation(observation)
+        // 初始化重注入基线：首次打开以内联样式呈现，后续变更由 updateUIView 增量覆盖
+        context.coordinator.lastTypographyCSS = typographyCSS
+        context.coordinator.latestTypographyCSS = typographyCSS
 
         let startTime = Date()
         let html = buildHTMLPage(content: htmlContent, title: title)
@@ -4008,7 +4014,70 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         return webView
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {}
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // 排版实时重注入（2026-09-29）：设置变更（家族/字号档/行距/字距/粗体）或字体下载完成（revision）
+        // → 覆盖 <style id="sjz-typography"> + DOM 级 inline !important 强制 → 无需重载页面即时生效
+        guard context.coordinator.lastTypographyCSS != typographyCSS else { return }
+        context.coordinator.lastTypographyCSS = typographyCSS
+        context.coordinator.latestTypographyCSS = typographyCSS
+        Self.injectTypography(typographyCSS, into: webView, logTag: "机构文章",
+                              probeFamily: DisplaySettingsManager.shared.articleCSSCurrentFamilyName, phase: "update")
+    }
+
+    /// 排版实时重注入 + DOM 级强制覆盖（2026-09-29 真机反馈强化）：
+    /// ① 写入 style#sjz-typography（规则块含 !important 与后代全选）；
+    /// ② 再把 body 的最终计算值以「inline !important」落到全部元素——inline !important 是作者层最高优先级，
+    ///    可压过官网原文的元素内联样式（CMS 正文常见 `<span style="font-family:微软雅黑;font-size:20px">`）；
+    /// ③ 返回探针串（命中元素/实际 font-family/字号/字重/document.fonts.check）供日志取证。
+    /// JSON 编码规避引号/反斜杠转义风险；元素缺失时结果为 missing（留痕不误报）。
+    static func injectTypography(_ css: String, into webView: WKWebView, logTag: String,
+                                 probeFamily: String, phase: String) {
+        guard let cssData = try? JSONEncoder().encode(css),
+              let cssJSON = String(data: cssData, encoding: .utf8),
+              let famData = try? JSONEncoder().encode(probeFamily),
+              let famJSON = String(data: famData, encoding: .utf8) else { return }
+        let js = """
+        (function(){
+          var el = document.getElementById('sjz-typography');
+          if (!el) { return 'missing'; }
+          el.textContent = \(cssJSON);
+          var b = getComputedStyle(document.body);
+          var props = ['font-family','font-size','line-height','letter-spacing','font-weight'];
+          var vals = props.map(function(p){ return b.getPropertyValue(p); });
+          var nodes = document.querySelectorAll('body, body *');
+          for (var i = 0; i < nodes.length; i++) {
+            var sn = nodes[i].style;
+            if (!sn) { continue; }
+            for (var j = 0; j < props.length; j++) { sn.setProperty(props[j], vals[j], 'important'); }
+          }
+          var probe = document.querySelector('p span, span, p, div') || document.body;
+          var cs = getComputedStyle(probe);
+          var fam = \(famJSON);
+          return 'ok|' + probe.tagName + '|' + cs.fontFamily.slice(0, 90) + '|' + cs.fontSize + '|' + cs.fontWeight + '|check=' + document.fonts.check("16px '" + fam + "'");
+        })();
+        """
+        webView.evaluateJavaScript(js) { result, error in
+            let resultText = (result as? String) ?? "-"
+            let errorText = error?.localizedDescription
+            Task { @MainActor in
+                if let errorText {
+                    LogManager.shared.warning("organization", "WebView 排版实时重注入失败", context: [
+                        "tag": logTag,
+                        "phase": phase,
+                        "error": errorText
+                    ])
+                } else {
+                    LogManager.shared.info("organization", "WebView 排版已实时重注入", context: [
+                        "tag": logTag,
+                        "phase": phase,
+                        "result": resultText,
+                        "probeFamily": probeFamily,
+                        "css": String(css.prefix(160))
+                    ])
+                }
+            }
+        }
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -4218,6 +4287,7 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                 });
             });
             </script>
+        <style id="sjz-typography">\(displaySettings.articleCSSTypographyRuleBlock)</style>
         </head>
         <body>\(fixedContent)</body>
         </html>
@@ -4228,6 +4298,10 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         private var loadStartTime: Date?
         /// 持有 estimatedProgress KVO 观察，防止提前释放
         private var progressObservation: NSKeyValueObservation?
+        /// 排版实时重注入基线（去重：值未变不重复注入；2026-09-29）
+        var lastTypographyCSS: String = ""
+        /// 最近一次载荷（加载完成后兜底强制覆盖与自检探针使用；2026-09-29）
+        var latestTypographyCSS: String = ""
 
         func retainProgressObservation(_ observation: NSKeyValueObservation) {
             progressObservation?.invalidate()
@@ -4253,6 +4327,12 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                 "url": webView.url?.absoluteString ?? "about:blank",
                 "elapsed": "\(elapsed)ms"
             ])
+            // 排版兜底强制 + 自检探针（初始渲染同样走 DOM 级 inline !important 覆盖；2026-09-29）
+            if !latestTypographyCSS.isEmpty {
+                OrganizationArticleWebView.injectTypography(
+                    latestTypographyCSS, into: webView, logTag: "机构文章",
+                    probeFamily: DisplaySettingsManager.shared.articleCSSCurrentFamilyName, phase: "load")
+            }
             // 检测渲染内容是否为空（空白 WebView 检测）
             // 关键修复：纯图片文章（如招生计划表格图）的 innerText 为空，
             // 必须同时检测 img 标签是否存在，避免误判为空白内容
@@ -4314,6 +4394,8 @@ extension Notification.Name {
 struct HTMLWebView: UIViewRepresentable {
     let htmlContent: String
     let title: String
+    /// 排版实时重注入载荷（与机构文章 WebView 同链；2026-09-29）
+    let typographyCSS: String
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -4332,12 +4414,23 @@ struct HTMLWebView: UIViewRepresentable {
         webView.scrollView.showsVerticalScrollIndicator = false
         webView.scrollView.showsHorizontalScrollIndicator = false
 
+        // 初始化重注入基线：首次打开以内联样式呈现，后续变更由 updateUIView 增量覆盖
+        context.coordinator.lastTypographyCSS = typographyCSS
+        context.coordinator.latestTypographyCSS = typographyCSS
         let html = buildHTMLPage(content: htmlContent, title: title)
         webView.loadHTMLString(html, baseURL: URL(string: "http://www.sxjzit.edu.cn"))
         return webView
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {}
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // 排版实时重注入（与机构文章 WebView 同链；2026-09-29）
+        guard context.coordinator.lastTypographyCSS != typographyCSS else { return }
+        context.coordinator.lastTypographyCSS = typographyCSS
+        context.coordinator.latestTypographyCSS = typographyCSS
+        OrganizationArticleWebView.injectTypography(typographyCSS, into: webView, logTag: "原文浏览",
+                                                    probeFamily: DisplaySettingsManager.shared.articleCSSCurrentFamilyName,
+                                                    phase: "update")
+    }
 
     func makeCoordinator() -> HTMLWebViewCoordinator {
         HTMLWebViewCoordinator()
@@ -4473,6 +4566,7 @@ struct HTMLWebView: UIViewRepresentable {
                 span[style*="font-family"] { font-family: inherit !important; }
                 .rich_media_content { max-width: 100% !important; }
             </style>
+        <style id="sjz-typography">\(displaySettings.articleCSSTypographyRuleBlock)</style>
         </head>
         <body>\(fixedContent)</body>
         </html>
@@ -4480,8 +4574,19 @@ struct HTMLWebView: UIViewRepresentable {
     }
 
     class HTMLWebViewCoordinator: NSObject, WKNavigationDelegate {
+        /// 排版实时重注入基线（去重；2026-09-29）
+        var lastTypographyCSS: String = ""
+        /// 最近一次载荷（加载完成后兜底强制覆盖与自检探针；2026-09-29）
+        var latestTypographyCSS: String = ""
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             LogManager.shared.debugLog("organization", "文章原文 WebView 加载完成")
+            // 排版兜底强制 + 自检探针（初始渲染同样走 DOM 级 inline !important 覆盖；2026-09-29）
+            if !latestTypographyCSS.isEmpty {
+                OrganizationArticleWebView.injectTypography(
+                    latestTypographyCSS, into: webView, logTag: "原文浏览",
+                    probeFamily: DisplaySettingsManager.shared.articleCSSCurrentFamilyName, phase: "load")
+            }
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

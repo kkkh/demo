@@ -270,8 +270,10 @@ struct OrganizationView: View {
         .searchScopes($selectedCategoryScope) {
             if searchMode == .organization {
                 Text("全部").tag(nil as OrganizationCategory?)
+                    .displayFont(13)
                 ForEach(OrganizationCategory.allCases) { category in
                     Text(category.rawValue)
+                        .displayFont(13)
                         .tag(category as OrganizationCategory?)
                 }
             }
@@ -606,6 +608,7 @@ struct OrganizationView: View {
                     }
                 } label: {
                     Label(order.rawValue, systemImage: order.icon)
+                        .displayLabelFont(17)
                 }
             }
         } label: {
@@ -784,6 +787,7 @@ struct OrganizationView: View {
 
             if let time = manager.lastFetchTime {
                 Text("·")
+                    .displayFont(11)
                     .foregroundStyle(.tertiary)
                 Text(time.formatted(.relative(presentation: .numeric)))
                     .displayFont(11)
@@ -956,7 +960,11 @@ struct OrganizationView: View {
         }
         var matchAttr = AttributedString(match)
         matchAttr.foregroundColor = .primary
-        matchAttr.font = .system(size: 14, weight: .bold)
+        // 高亮片段字体联动显示设置（快照直读：AttributedString 直写字体，普通护栏不可见；2026-09-29）
+        let typography = DisplaySettingsManager.typographySnapshot()
+        matchAttr.font = DisplayFontFactory.font(size: 14, weight: .bold,
+                                                 scale: typography.scale,
+                                                 family: typography.family, bold: typography.bold)
         result.append(matchAttr)
         if !after.isEmpty {
             var afterAttr = AttributedString(after)
@@ -1178,6 +1186,7 @@ extension OrganizationView {
                                 }
                             } label: {
                                 Label(order.rawValue, systemImage: order.icon)
+                                    .displayLabelFont(17)
                             }
                         }
                     } label: {

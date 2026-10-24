@@ -1,10 +1,15 @@
-# 显示设置覆盖护栏 · 例外清单（2026-09-27 建立）
+# 显示设置覆盖护栏 · 例外清单（2026-09-27 建立；2026-09-29 四规则升级）
 #
 # 语法（每行一条，行内 # 之后为理由）：
 #   font:文件名.swift|需匹配的代码片段        # 为什么必须绕过排版链
 #   presentation:文件名.swift|需匹配的代码片段 # 为什么该弹出层无需呈现链
+#   uikit:文件名.swift|需匹配的代码片段       # 为什么必须直写 UIKit/AttributedString 字体
+#   baretext:文件名.swift|需匹配的片段        # 为什么该文本构造无需接排版链（如平台组件限制）
 #
 # 说明：
 # - 排版链例外必须写明原因（例如某组件不接受 View 修饰器、系统组件限制等）；
 # - 弹出层默认全部要求挂载 .sjzPresentationChrome()，系统分享面板 ShareSheet 已内置自动豁免（无需登记）；
 # - 本文件为空是理想状态（0 例外 = 100% 覆盖）。
+
+uikit:DisplaySettingsManager.swift|.systemFont(ofSize: resolved  # DisplayUIFontFactory 工厂本体：系统家族/字体缺失回退的唯一合法出口（2026-09-29）
+uikit:DisplaySettingsManager.swift|UIFont(name:  # 字体家族可用性探测（UIFont(name:) != nil 判定，仅探存在性不用于呈现），属显示排版子系统职责（2026-09-29）

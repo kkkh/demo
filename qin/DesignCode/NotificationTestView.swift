@@ -81,6 +81,7 @@ struct NotificationTestView: View {
         Section {
             HStack {
                 Label("通知权限", systemImage: notificationManager.isAuthorized ? "checkmark.shield.fill" : "shield.slash.fill")
+                    .displayLabelFont(17)
                     .foregroundStyle(notificationManager.isAuthorized ? Color.sjzGreen : Color.sjzOrange)
                 Spacer()
                 if isRefreshingAuth || isRequestingPermission {
@@ -89,6 +90,7 @@ struct NotificationTestView: View {
                     Button("刷新") {
                         refreshAuth()
                     }
+                    .displayFont(17)
                     .buttonStyle(.borderless)
                 }
             }
@@ -110,7 +112,7 @@ struct NotificationTestView: View {
                     Button {
                         requestPermission()
                     } label: {
-                        HStack { Spacer(); Label("请求通知权限", systemImage: "bell.badge.fill"); Spacer() }
+                        HStack { Spacer(); Label("请求通知权限", systemImage: "bell.badge.fill").displayLabelFont(17); Spacer() }
                     }
                 } else {
                     Button {
@@ -120,14 +122,15 @@ struct NotificationTestView: View {
                         ])
                         notificationManager.openSystemSettings()
                     } label: {
-                        HStack { Spacer(); Label("前往系统设置开启", systemImage: "gear.badge"); Spacer() }
+                        HStack { Spacer(); Label("前往系统设置开启", systemImage: "gear.badge").displayLabelFont(17); Spacer() }
                     }
                 }
             }
         } header: {
-            Text("权限探测")
+            Text("权限探测").displayFont(13, weight: .semibold)
         } footer: {
             Text("只有系统通知权限开启后，任何测试通知才能被系统接受并送达。返回本页会随本次探测自动刷新状态。")
+                .displayFont(13)
         }
     }
 
@@ -163,9 +166,10 @@ struct NotificationTestView: View {
             }
             .disabled(isSendingBanner || isSendingBackground)
         } header: {
-            Text("系统送达与横幅")
+            Text("系统送达与横幅").displayFont(13, weight: .semibold)
         } footer: {
             Text("两次测试共用同一条真实文章（若已联网同步）。退到后台/锁屏收到后点击它，可一并验证「点击通知跳转文章详情」的完整链路。")
+                .displayFont(13)
         }
     }
 
@@ -198,9 +202,10 @@ struct NotificationTestView: View {
                 }
             }
         } header: {
-            Text("点击跳转链路")
+            Text("点击跳转链路").displayFont(13, weight: .semibold)
         } footer: {
             Text("模拟链路：广播点击事件 → 主界面登记文章 → 等待前台活跃与安全解锁 → 自动打开文章详情。日志记录完整过程。")
+                .displayFont(13)
         }
     }
 
@@ -234,15 +239,17 @@ struct NotificationTestView: View {
 
             HStack {
                 Label("系统「标记」许可", systemImage: "app.badge")
+                    .displayLabelFont(17)
                 Spacer()
                 Text(notificationManager.badgeSettingText)
                     .displayFont(13)
                     .foregroundStyle(notificationManager.badgeSettingText.hasPrefix("已开启") ? Color.sjzGreen : .orange)
             }
         } header: {
-            Text("应用角标")
+            Text("应用角标").displayFont(13, weight: .semibold)
         } footer: {
             Text("角标数字显示在桌面 App 图标右上角，设置为 0 即清除。若系统「标记」已关闭，需前往系统设置 → 通知 → 「园枢」开启「标记」后角标才能生效。")
+                .displayFont(13)
         }
     }
 
@@ -308,9 +315,10 @@ struct NotificationTestView: View {
                 }
             }
         } header: {
-            Text("测试记录")
+            Text("测试记录").displayFont(13, weight: .semibold)
         } footer: {
             Text("全部测试操作均已写入应用日志（模块 notificationTest / notification），可在「我的 → 应用日志」中查看完整链路。")
+                .displayFont(13)
         }
     }
 

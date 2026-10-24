@@ -1049,6 +1049,7 @@ struct SchoolProfileView: View {
                         UIApplication.shared.open(url)
                     } label: {
                         Label("打开官网概况页", systemImage: "safari.fill")
+                            .displayLabelFont(17)
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -1478,10 +1479,16 @@ struct SchoolProfileView: View {
             .contextMenu {
                 Button {
                     Task { await saveImageAndToast(urlString: store.markLogoURL, title: "校徽") }
-                } label: { Label("保存图片", systemImage: "square.and.arrow.down") }
+                } label: {
+                    Label("保存图片", systemImage: "square.and.arrow.down")
+                        .displayLabelFont(17)
+                }
                 Button {
                     shareImage(urlString: store.markLogoURL, title: "校徽")
-                } label: { Label("分享…", systemImage: "square.and.arrow.up") }
+                } label: {
+                    Label("分享…", systemImage: "square.and.arrow.up")
+                        .displayLabelFont(17)
+                }
             }
             .padding(18)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -1546,10 +1553,16 @@ struct SchoolProfileView: View {
                         .contextMenu {
                             Button {
                                 Task { await saveImageAndToast(urlString: urlString, title: "校名规范图") }
-                            } label: { Label("保存图片", systemImage: "square.and.arrow.down") }
+                            } label: {
+                                Label("保存图片", systemImage: "square.and.arrow.down")
+                                    .displayLabelFont(17)
+                            }
                             Button {
                                 shareImage(urlString: urlString, title: "校名规范图")
-                            } label: { Label("分享…", systemImage: "square.and.arrow.up") }
+                            } label: {
+                                Label("分享…", systemImage: "square.and.arrow.up")
+                                    .displayLabelFont(17)
+                            }
                         }
                         .padding(10)
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -1892,10 +1905,16 @@ struct SchoolProfileView: View {
                        !urlString.contains("no_picture") {
                         Button {
                             Task { await saveCooperationImage(urlString: urlString, title: item.title) }
-                        } label: { Label("保存图片", systemImage: "square.and.arrow.down") }
+                        } label: {
+                            Label("保存图片", systemImage: "square.and.arrow.down")
+                                .displayLabelFont(17)
+                        }
                         Button {
                             shareCooperationImage(urlString: urlString, title: item.title)
-                        } label: { Label("分享…", systemImage: "square.and.arrow.up") }
+                        } label: {
+                            Label("分享…", systemImage: "square.and.arrow.up")
+                                .displayLabelFont(17)
+                        }
                     }
                 }
 
@@ -2526,11 +2545,13 @@ struct ProfileTextDetailView: View {
                             Task { await handleSave(urlString: urlString, title: entry.title) }
                         } label: {
                             Label("保存图片", systemImage: "square.and.arrow.down")
+                                .displayLabelFont(17)
                         }
                         Button {
                             handleShare(urlString: urlString, title: entry.title)
                         } label: {
                             Label("分享…", systemImage: "square.and.arrow.up")
+                                .displayLabelFont(17)
                         }
                     }
                 }
@@ -2941,13 +2962,22 @@ struct ProfileAlbumView: View {
                     .contextMenu {
                         Button {
                             Task { await save(url: url, index: index) }
-                        } label: { Label("保存图片", systemImage: "square.and.arrow.down") }
+                        } label: {
+                            Label("保存图片", systemImage: "square.and.arrow.down")
+                                .displayLabelFont(17)
+                        }
                         Button {
                             share(url: url, index: index)
-                        } label: { Label("分享…", systemImage: "square.and.arrow.up") }
+                        } label: {
+                            Label("分享…", systemImage: "square.and.arrow.up")
+                                .displayLabelFont(17)
+                        }
                         Button {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { carouselIndex = index }
-                        } label: { Label("查看大图", systemImage: "arrow.up.left.and.arrow.down.right") }
+                        } label: {
+                            Label("查看大图", systemImage: "arrow.up.left.and.arrow.down.right")
+                                .displayLabelFont(17)
+                        }
                     }
                     .tag(index)
                 }
@@ -3016,10 +3046,16 @@ struct ProfileAlbumView: View {
                     .contextMenu {
                         Button {
                             Task { await save(url: url, index: index) }
-                        } label: { Label("保存图片", systemImage: "square.and.arrow.down") }
+                        } label: {
+                            Label("保存图片", systemImage: "square.and.arrow.down")
+                                .displayLabelFont(17)
+                        }
                         Button {
                             share(url: url, index: index)
-                        } label: { Label("分享…", systemImage: "square.and.arrow.up") }
+                        } label: {
+                            Label("分享…", systemImage: "square.and.arrow.up")
+                                .displayLabelFont(17)
+                        }
                     }
                 }
             }
@@ -3312,10 +3348,16 @@ struct ProfileCooperateDetailView: View {
         .contextMenu {
             Button {
                 Task { await save(url: url, label: "封面") }
-            } label: { Label("保存图片", systemImage: "square.and.arrow.down") }
+            } label: {
+                Label("保存图片", systemImage: "square.and.arrow.down")
+                    .displayLabelFont(17)
+            }
             Button {
                 share(url: url, label: "封面")
-            } label: { Label("分享…", systemImage: "square.and.arrow.up") }
+            } label: {
+                Label("分享…", systemImage: "square.and.arrow.up")
+                    .displayLabelFont(17)
+            }
         }
     }
 
@@ -3386,10 +3428,16 @@ struct ProfileCooperateDetailView: View {
                     .contextMenu {
                         Button {
                             Task { await save(url: url, label: "图集\(index + 1)") }
-                        } label: { Label("保存图片", systemImage: "square.and.arrow.down") }
+                        } label: {
+                            Label("保存图片", systemImage: "square.and.arrow.down")
+                                .displayLabelFont(17)
+                        }
                         Button {
                             share(url: url, label: "图集\(index + 1)")
-                        } label: { Label("分享…", systemImage: "square.and.arrow.up") }
+                        } label: {
+                            Label("分享…", systemImage: "square.and.arrow.up")
+                                .displayLabelFont(17)
+                        }
                     }
                 }
             }

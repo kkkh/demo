@@ -688,8 +688,10 @@ struct PartySubjectView: View {
                         } label: {
                             if selectedSiteKey == config.key {
                                 Label(config.name, systemImage: "checkmark")
+                                    .displayLabelFont(17)
                             } else {
                                 Text(config.name)
+                                    .displayLabelFont(17)
                             }
                         }
                     }
@@ -703,6 +705,7 @@ struct PartySubjectView: View {
                         UIApplication.shared.open(url)
                     } label: {
                         Label("打开官网党建页", systemImage: "safari.fill")
+                            .displayLabelFont(17)
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -1897,16 +1900,19 @@ struct PartyArticleDetailView: View {
                                 ])
                             } label: {
                                 Label("分享到微信", systemImage: "bubble.left.and.bubble.right.fill")
+                                    .displayLabelFont(17)
                             }
                             Button {
                                 copyFullText()
                             } label: {
                                 Label("复制全文", systemImage: "doc.on.doc")
+                                    .displayLabelFont(17)
                             }
                             Button {
                                 openOriginal()
                             } label: {
                                 Label("查看官网原文", systemImage: "safari.fill")
+                                    .displayLabelFont(17)
                             }
                         } label: {
                             Image(systemName: "ellipsis.circle")
@@ -2185,9 +2191,11 @@ struct PartyArticleDetailView: View {
                 saveImage(url)
             } label: {
                 Label("保存图片", systemImage: "square.and.arrow.down")
+                    .displayLabelFont(17)
             }
             ShareLink(item: url) {
                 Label("分享图片", systemImage: "square.and.arrow.up")
+                    .displayLabelFont(17)
             }
         }
         .accessibilityElement(children: .ignore)

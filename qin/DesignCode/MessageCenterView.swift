@@ -510,6 +510,7 @@ struct MessageCenterView: View {
                 }
             } label: {
                 Label("已读", systemImage: "circle.fill")
+                    .displayLabelFont(17)
             }
             .tint(Color.sjzAccent)
             Button {
@@ -520,6 +521,7 @@ struct MessageCenterView: View {
                 }
             } label: {
                 Label("未读", systemImage: "circle")
+                    .displayLabelFont(17)
             }
             .tint(.orange)
         }
@@ -533,6 +535,7 @@ struct MessageCenterView: View {
                 LogManager.shared.info("messageCenter", "消息右滑删除", context: ["id": item.id])
             } label: {
                 Label("删除", systemImage: "trash.fill")
+                    .displayLabelFont(17)
             }
         }
         .contextMenu {
@@ -545,6 +548,7 @@ struct MessageCenterView: View {
                     }
                 } label: {
                     Label("标记为未读", systemImage: "circle")
+                        .displayLabelFont(17)
                 }
             } else {
                 Button {
@@ -555,6 +559,7 @@ struct MessageCenterView: View {
                     }
                 } label: {
                     Label("标记为已读", systemImage: "circle.fill")
+                        .displayLabelFont(17)
                 }
             }
             Button {
@@ -562,9 +567,11 @@ struct MessageCenterView: View {
                 LogManager.shared.info("messageCenter", "消息复制标题正文", context: ["id": item.id])
             } label: {
                 Label("复制内容", systemImage: "doc.on.doc")
+                        .displayLabelFont(17)
             }
             ShareLink(item: "\(item.title)\n\(item.subtitle)") {
                 Label("分享", systemImage: "square.and.arrow.up")
+                    .displayLabelFont(17)
             }
         }
         .transition(.asymmetric(
@@ -634,11 +641,13 @@ struct MessageCenterView: View {
                         showSettings = true
                     } label: {
                         Label("消息中心设置", systemImage: "gearshape")
+                            .displayLabelFont(17)
                     }
                     Button(role: .destructive) {
                         showClearMenu = true
                     } label: {
                         Label("清空历史…", systemImage: "trash")
+                            .displayLabelFont(17)
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -754,6 +763,7 @@ struct MessageCenterView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { showRepairPanel = false }
+                        .displayFont(17)
                 }
             }
         }
@@ -855,6 +865,7 @@ struct MessageCenterSettingsPanel: View {
                         Text("200 条").tag(200)
                         Text("500 条").tag(500)
                     }
+                    .displayFont(17)
                     .onChange(of: maxCount) { _, newValue in
                         store.maxCount = newValue
                         LogManager.shared.info("messageCenter", "设置：上限条数变更", context: ["maxCount": "\(newValue)"])
@@ -868,10 +879,12 @@ struct MessageCenterSettingsPanel: View {
 
                 Section {
                     Toggle("前台自动检查", isOn: $autoCheck)
+                        .displayFont(17)
                         .onChange(of: autoCheck) { _, newValue in
                             store.setAutoCheck(newValue)
                         }
                     Toggle("桌面角标显示未读数", isOn: $badgeEnabled)
+                        .displayFont(17)
                         .onChange(of: badgeEnabled) { _, newValue in
                             store.setBadgeEnabled(newValue)
                         }
@@ -911,6 +924,7 @@ struct MessageCenterSettingsPanel: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
+                        .displayFont(17)
                 }
             }
             .onAppear {

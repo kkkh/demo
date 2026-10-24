@@ -430,6 +430,7 @@ struct LogListView: View {
                 selectModule(nil)
             } label: {
                 Label("全部模块", systemImage: selectedModule == nil ? "checkmark" : "square.grid.2x2")
+                    .displayLabelFont(17)
             }
             Divider()
             ForEach(logManager.moduleFacets(), id: \.module) { facet in
@@ -438,6 +439,7 @@ struct LogListView: View {
                 } label: {
                     Label("\(facet.module)（\(facet.count)）",
                           systemImage: selectedModule == facet.module ? "checkmark" : "folder")
+                        .displayLabelFont(17)
                 }
             }
         } label: {
@@ -635,6 +637,7 @@ struct LogListView: View {
                 copyEntry(entry, source: "swipe")
             } label: {
                 Label("复制", systemImage: "doc.on.doc")
+                    .displayLabelFont(17)
             }
             .tint(Color.sjzAccent)
         }
@@ -643,6 +646,7 @@ struct LogListView: View {
                 deleteEntry(entry, source: "swipe")
             } label: {
                 Label("删除", systemImage: "trash.fill")
+                    .displayLabelFont(17)
             }
         }
         .contextMenu {
@@ -650,6 +654,7 @@ struct LogListView: View {
                 copyEntry(entry, source: "menu")
             } label: {
                 Label("复制本条日志", systemImage: "doc.on.doc")
+                        .displayLabelFont(17)
             }
             Button {
                 UIPasteboard.general.string = entry.jsonText()
@@ -657,15 +662,18 @@ struct LogListView: View {
                 showBanner("已复制 JSON", icon: "curlybraces", tone: .success)
             } label: {
                 Label("复制 JSON", systemImage: "curlybraces")
+                        .displayLabelFont(17)
             }
             ShareLink(item: entry.detailText) {
                 Label("分享本条日志", systemImage: "square.and.arrow.up")
+                    .displayLabelFont(17)
             }
             Divider()
             Button(role: .destructive) {
                 deleteEntry(entry, source: "menu")
             } label: {
                 Label("删除本条日志", systemImage: "trash")
+                        .displayLabelFont(17)
             }
         }
         .transition(.asymmetric(
@@ -793,22 +801,26 @@ struct LogListView: View {
                 performExport(scope: .filtered, format: .text)
             } label: {
                 Label("导出当前筛选（TXT）", systemImage: "doc.plaintext")
+                        .displayLabelFont(17)
             }
             Button {
                 performExport(scope: .filtered, format: .json)
             } label: {
                 Label("导出当前筛选（JSON）", systemImage: "curlybraces")
+                        .displayLabelFont(17)
             }
             Divider()
             Button {
                 performExport(scope: .all, format: .text)
             } label: {
                 Label("导出全部（TXT）", systemImage: "doc.plaintext")
+                        .displayLabelFont(17)
             }
             Button {
                 performExport(scope: .all, format: .json)
             } label: {
                 Label("导出全部（JSON）", systemImage: "curlybraces")
+                        .displayLabelFont(17)
             }
         } label: {
             Image(systemName: "square.and.arrow.up")
@@ -827,6 +839,7 @@ struct LogListView: View {
                 showBanner("已复制 \(filteredEntries.count) 条日志", icon: "doc.on.doc.fill", tone: .success)
             } label: {
                 Label("复制当前筛选", systemImage: "doc.on.doc")
+                        .displayLabelFont(17)
             }
             .disabled(filteredEntries.isEmpty)
             Divider()
@@ -834,24 +847,28 @@ struct LogListView: View {
                 showClearFilteredConfirm = true
             } label: {
                 Label("清空当前筛选结果…", systemImage: "line.3.horizontal.decrease.circle")
+                        .displayLabelFont(17)
             }
             .disabled(!hasActiveFilter || filteredEntries.isEmpty)
             Button(role: .destructive) {
                 showClearTodayConfirm = true
             } label: {
                 Label("清空今日日志…", systemImage: "calendar.badge.minus")
+                        .displayLabelFont(17)
             }
             .disabled(stats.today == 0)
             Button(role: .destructive) {
                 showClearAllConfirm = true
             } label: {
                 Label("清空全部日志…", systemImage: "trash")
+                        .displayLabelFont(17)
             }
             .disabled(logManager.entries.isEmpty)
             Divider()
             Button {} label: {
                 Label(storageSnapshot.map { "磁盘占用 \($0.sizeText) · \($0.files) 个文件" } ?? "磁盘占用统计中…",
                       systemImage: "internaldrive")
+                    .displayLabelFont(17)
             }
             .disabled(true)
         } label: {
@@ -1290,6 +1307,7 @@ private struct LogDetailCard: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
+                        .displayFont(17)
                 }
             }
         }

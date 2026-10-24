@@ -428,6 +428,7 @@ struct PrincipalMailboxView: View {
                         UIApplication.shared.open(url)
                     } label: {
                         Label("打开官网信箱页", systemImage: "safari.fill")
+                            .displayLabelFont(17)
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")

@@ -37,6 +37,7 @@ struct BiometricSettingsView: View {
         Section {
             Toggle(isOn: securityBinding) {
                 Label("启用 Face ID 解锁", systemImage: security.capability.icon)
+                    .displayLabelFont(17)
             }
             .tint(Color.sjzAccent)
             .disabled(isEnabling)
@@ -73,6 +74,7 @@ struct BiometricSettingsView: View {
 
             HStack {
                 Label("设备能力", systemImage: "cpu")
+                    .displayLabelFont(17)
                 Spacer()
                 Text(security.capability.title)
                     .displayFont(13)
@@ -85,12 +87,14 @@ struct BiometricSettingsView: View {
                     .foregroundStyle(.red)
             }
         } header: {
-            Text("功能开关")
+            Text("功能开关").displayFont(13, weight: .semibold)
         } footer: {
             if !security.capability.isUsable {
                 Text("当前设备暂不具备生物识别条件。真机请在「系统设置 → 面容 ID 与密码」中录入；模拟器请使用 Xcode 菜单 Features → Face ID → Enrolled 注册。")
+                    .displayFont(13)
             } else {
                 Text("关闭开关需要二次身份认证，防止他人在您解锁手机后关闭保护。")
+                    .displayFont(13)
             }
         }
     }
@@ -104,11 +108,13 @@ struct BiometricSettingsView: View {
                     Text(policy.title).tag(policy)
                 }
             }
+            .displayFont(17)
             .disabled(!security.isEnabled)
         } header: {
-            Text("锁定策略")
+            Text("锁定策略").displayFont(13, weight: .semibold)
         } footer: {
             Text("App 退到后台超过设定时间再次进入时，将重新要求身份认证。「立即锁定」每次返回后台均需认证。")
+                .displayFont(13)
         }
     }
 
@@ -117,12 +123,16 @@ struct BiometricSettingsView: View {
     private var infoSection: some View {
         Section {
             LabeledContent("认证方式", value: security.capability.isUsable ? security.capability.title : "设备密码")
+                .displayFont(17)
             LabeledContent("降级机制", value: "5 次失败自动转密码")
+                .displayFont(17)
             LabeledContent("密钥存储", value: "Keychain（本机）")
+                .displayFont(17)
         } header: {
-            Text("安全说明")
+            Text("安全说明").displayFont(13, weight: .semibold)
         } footer: {
             Text("认证由系统 Secure Enclave 完成，App 无法获取任何生物特征数据。启用令牌与设备密码绑定并仅存本机，换机或抹除后需重新启用。")
+                .displayFont(13)
         }
     }
 

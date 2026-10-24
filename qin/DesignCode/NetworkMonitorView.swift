@@ -24,10 +24,12 @@ struct NetworkMonitorView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    // 图表坐标轴（AxisValueLabel 为 ChartContent，不接受 View 修饰器）→ 读取排版环境值交给字体工厂构造 Font
+    // 图表坐标轴（AxisValueLabel 为 ChartContent，不接受 View 修饰器）→ 读取排版环境值交给字体工厂构造 Font；
+    // 另读取 typographyRevision 建立「字体下载完成 → 图表重建」依赖（否则轴字体停留旧解析，2026-09-29 补全）
     @Environment(\.displayFontScale) private var displayFontScale
     @Environment(\.displayBold) private var displayBold
     @Environment(\.displayFontFamily) private var displayFontFamily
+    @Environment(\.displayTypographyRevision) private var displayTypographyRevision
 
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
@@ -524,6 +526,8 @@ struct NetworkMonitorView: View {
     private enum ChartKind { case throughput, latency }
 
     private func chartCanvas(kind: ChartKind) -> some View {
+        // 读取修订号建立依赖：字体按需下载完成后，坐标轴字体同步重建（与全 App display* 文本一致）
+        _ = displayTypographyRevision
         // 窗口 chips 联动：钳制 [1,120]（防 UserDefaults 被外部污染 ≤0 触发 suffix 前置断言崩溃）
         let window = max(1, min(monitor.chartWindow, 120))
         let data = monitor.samples.suffix(window)

@@ -491,12 +491,14 @@ struct BookmarkListView: View {
                     toggleRead(item, markRead: true)
                 } label: {
                     Label("已读", systemImage: "circle.fill")
+                        .displayLabelFont(17)
                 }
                 .tint(Color.sjzAccent)
                 Button {
                     toggleRead(item, markRead: false)
                 } label: {
                     Label("未读", systemImage: "circle")
+                        .displayLabelFont(17)
                 }
                 .tint(.orange)
             }
@@ -507,6 +509,7 @@ struct BookmarkListView: View {
                     removeItem(item, source: "swipe")
                 } label: {
                     Label("取消收藏", systemImage: "trash.fill")
+                        .displayLabelFont(17)
                 }
             }
         }
@@ -517,27 +520,32 @@ struct BookmarkListView: View {
                 } label: {
                     Label(readManager.isRead(item.readKey) ? "标记为未读" : "标记为已读",
                           systemImage: readManager.isRead(item.readKey) ? "circle" : "circle.fill")
+                        .displayLabelFont(17)
                 }
                 if !item.contentCached, item.articleId != nil {
                     Button {
                         cacheSingle(item)
                     } label: {
                         Label("缓存正文（离线阅读）", systemImage: "arrow.down.doc")
+                            .displayLabelFont(17)
                     }
                 }
                 Button {
                     copyLink(item)
                 } label: {
                     Label("复制链接", systemImage: "doc.on.doc")
+                            .displayLabelFont(17)
                 }
                 ShareLink(item: item.originalArticleURL) {
                     Label("分享原文链接", systemImage: "square.and.arrow.up")
+                        .displayLabelFont(17)
                 }
                 Divider()
                 Button(role: .destructive) {
                     removeItem(item, source: "menu")
                 } label: {
                     Label("取消收藏", systemImage: "trash")
+                        .displayLabelFont(17)
                 }
             }
         }
@@ -877,6 +885,7 @@ struct BookmarkListView: View {
                     ])
                 } label: {
                     Label(order.title, systemImage: sortOrder == order ? "checkmark" : order.icon)
+                        .displayLabelFont(17)
                 }
             }
         } label: {
@@ -893,6 +902,7 @@ struct BookmarkListView: View {
                 bookmarkManager.precacheAllContent()
             } label: {
                 Label("缓存全部正文（离线预热）", systemImage: "arrow.down.doc.fill")
+                    .displayLabelFont(17)
             }
             .disabled(bookmarkManager.precacheCandidates.isEmpty)
             Button {
@@ -900,12 +910,14 @@ struct BookmarkListView: View {
                 LogManager.shared.debugLog("favorite", "打开收藏诊断面板（菜单入口）", context: [:])
             } label: {
                 Label("存储诊断", systemImage: "wrench.and.screwdriver")
+                    .displayLabelFont(17)
             }
             Divider()
             Button(role: .destructive) {
                 showClearConfirm = true
             } label: {
                 Label("清空全部收藏", systemImage: "trash")
+                    .displayLabelFont(17)
             }
         } label: {
             Image(systemName: "ellipsis.circle")
@@ -956,6 +968,7 @@ struct BookmarkListView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { showDiagnosePanel = false }
+                        .displayFont(17)
                 }
             }
             .task {

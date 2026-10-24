@@ -25,9 +25,10 @@ struct HomeModuleSettingsView: View {
                 }
                 .onMove(perform: move)
             } header: {
-                Text("首页显示模块")
+                Text("首页显示模块").displayFont(13, weight: .semibold)
             } footer: {
                 Text("关闭的模块将不在首页出现。点击右上角「编辑」可拖拽调整模块在首页的显示顺序。首页 Banner、数据统计、快捷入口为固定区域，当前共显示 \(visibleCount) 个模块。")
+                    .displayFont(13)
             }
 
             Section {
@@ -43,12 +44,14 @@ struct HomeModuleSettingsView: View {
                     HStack {
                         Spacer()
                         Label("恢复默认设置", systemImage: "arrow.counterclockwise")
+                            .displayLabelFont(17)
                         Spacer()
                     }
                 }
                 .disabled(manager.isDefault)
             } footer: {
                 Text(manager.isDefault ? "当前已是默认状态。" : "重新显示全部模块，并还原为默认排列顺序。")
+                    .displayFont(13)
             }
         }
         .navigationTitle("首页模块管理")

@@ -230,9 +230,10 @@ struct DisplaySettingsView: View {
             .modifier(HeroBreathModifier(enabled: !systemReduceMotion))
             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
         } header: {
-            Text("实时预览")
+            Text("实时预览").displayFont(13, weight: .semibold)
         } footer: {
             Text("调整下方任意设置，本卡片立即以相同排版重新渲染；主题色同步驱动整页强调色。")
+                .displayFont(13)
         }
     }
 
@@ -355,9 +356,10 @@ struct DisplaySettingsView: View {
             }
             .padding(.vertical, 6)
         } header: {
-            Text("外观")
+            Text("外观").displayFont(13, weight: .semibold)
         } footer: {
             Text("主题色将应用于全局按钮、选中态与强调色，深浅模式下自动适配。")
+                .displayFont(13)
         }
     }
 
@@ -475,9 +477,10 @@ struct DisplaySettingsView: View {
             .onAppear { exposeSection("scheme") }
             .padding(.vertical, 4)
         } header: {
-            Text("排版方案")
+            Text("排版方案").displayFont(13, weight: .semibold)
         } footer: {
             Text("一键切换字号、行距、字间距、粗体与字体家族；套用后下方各项同步更新，可再微调。")
+                .displayFont(13)
         }
     }
 
@@ -538,11 +541,13 @@ struct DisplaySettingsView: View {
 
             Toggle(isOn: $settings.boldTextEnabled) {
                 Label("粗体文本", systemImage: "bold")
+                    .displayLabelFont(17)
             }
             .tint(settings.themeStyle.color)
 
             Toggle(isOn: $settings.useSystemFont) {
                 Label("使用系统字体", systemImage: "textformat")
+                    .displayLabelFont(17)
             }
             .tint(settings.themeStyle.color)
 
@@ -559,12 +564,14 @@ struct DisplaySettingsView: View {
 
             Toggle(isOn: $settings.buttonShapesEnabled) {
                 Label("按钮形状", systemImage: "rectangle.roundedtop.fill")
+                    .displayLabelFont(17)
             }
             .tint(settings.themeStyle.color)
         } header: {
-            Text("文字排版")
+            Text("文字排版").displayFont(13, weight: .semibold)
         } footer: {
             Text("「中（默认）」档跟随系统文字大小；其余档位全局即时缩放。行距与字间距为相对值，作用于支持排版的文本。")
+                .displayFont(13)
         }
     }
 
@@ -983,9 +990,10 @@ struct DisplaySettingsView: View {
                 }
             }
         } header: {
-            Text("文章文字颜色")
+            Text("文章文字颜色").displayFont(13, weight: .semibold)
         } footer: {
             Text(articleColorFooterText)
+                .displayFont(13)
         }
     }
 
@@ -1500,6 +1508,7 @@ struct DisplaySettingsView: View {
             // 总开关
             Toggle(isOn: $settings.readingStatsEnabled) {
                 Label("显示阅读统计", systemImage: "timer")
+                    .displayLabelFont(17)
             }
             .tint(settings.themeStyle.color)
 
@@ -1541,16 +1550,19 @@ struct DisplaySettingsView: View {
             if settings.readingStatsEnabled {
                 Toggle(isOn: $settings.readingCharCountEnabled) {
                     Label("正文字数", systemImage: "textformat.characters")
+                        .displayLabelFont(17)
                 }
                 .tint(settings.themeStyle.color)
 
                 Toggle(isOn: $settings.readingTimeEnabled) {
                     Label("预计阅读时长", systemImage: "clock")
+                        .displayLabelFont(17)
                 }
                 .tint(settings.themeStyle.color)
 
                 Toggle(isOn: $settings.readingListBadgeEnabled) {
                     Label("列表卡片阅读角标", systemImage: "rectangle.stack.badge.play")
+                        .displayLabelFont(17)
                 }
                 .tint(settings.themeStyle.color)
 
@@ -1595,16 +1607,19 @@ struct DisplaySettingsView: View {
                     ForEach(ReadingSpeedTier.allCases) { tier in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tier.title)
+                                .displayFont(16)
                             Text(tier.subtitle).displayFont(11).foregroundStyle(.secondary)
                         }
                         .tag(tier)
                     }
                 }
+                .displayFont(16)
             }
         } header: {
-            Text("阅读统计")
+            Text("阅读统计").displayFont(13, weight: .semibold)
         } footer: {
             Text(readingStatsFooterText)
+                .displayFont(13)
         }
     }
 
@@ -1703,6 +1718,7 @@ struct DisplaySettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
                     Label("亮度", systemImage: "sun.max.fill")
+                        .displayLabelFont(17)
                     Spacer()
                     // 光感太阳：随亮度真实缩放与明暗（视觉直觉）
                     Image(systemName: brightnessSunIcon)
@@ -1743,14 +1759,16 @@ struct DisplaySettingsView: View {
 
             Toggle(isOn: $settings.autoBrightnessEnabled) {
                 Label("自动亮度", systemImage: "rays")
+                    .displayLabelFont(17)
             }
             .tint(settings.themeStyle.color)
         } header: {
-            Text("屏幕")
+            Text("屏幕").displayFont(13, weight: .semibold)
         } footer: {
             Text(settings.autoBrightnessEnabled
                  ? "自动亮度开启：由系统与环境光实时调节，滑块暂停接管。点击百分比胶囊将自动关闭自动亮度并应用预设。"
                  : "自动亮度关闭：您可手动调节亮度，App 会记忆并在下次启动时恢复。")
+                .displayFont(13)
         }
     }
 
@@ -1820,6 +1838,7 @@ struct DisplaySettingsView: View {
                     Text(option.title).tag(option)
                 }
             }
+            .displayFont(17)
             .onAppear { exposeSection("auto_lock") }
 
             Button {
@@ -1827,6 +1846,7 @@ struct DisplaySettingsView: View {
             } label: {
                 HStack {
                     Text("在系统设置中调整")
+                        .displayFont(17)
                         .foregroundStyle(Color.primary)
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -1835,9 +1855,10 @@ struct DisplaySettingsView: View {
                 }
             }
         } header: {
-            Text("自动锁定")
+            Text("自动锁定").displayFont(13, weight: .semibold)
         } footer: {
             Text("「永不」将阻止设备自动息屏（阅读场景友好）；其余档位记录您的偏好，设备实际锁定时间需在系统「设置 → 显示与亮度 → 自动锁定」中调整。")
+                .displayFont(13)
         }
     }
 
@@ -1952,9 +1973,10 @@ struct DisplaySettingsView: View {
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(SJZDesignTokens.capsuleStroke, lineWidth: 1))
         } header: {
-            Text("屏幕常亮")
+            Text("屏幕常亮").displayFont(13, weight: .semibold)
         } footer: {
             Text(keepAwakeFooter)
+                .displayFont(13)
         }
     }
 
@@ -2022,6 +2044,7 @@ struct DisplaySettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Toggle(isOn: $settings.grayScaleEnabled.animation(.easeInOut(duration: 0.4))) {
                     Label("专注灰度模式", systemImage: "circle.lefthalf.filled")
+                        .displayLabelFont(17)
                 }
                 .tint(settings.themeStyle.color)
                 .onChange(of: settings.grayScaleEnabled) { _, newValue in
@@ -2055,6 +2078,7 @@ struct DisplaySettingsView: View {
             } label: {
                 HStack {
                     Label("前往系统设置", systemImage: "gearshape")
+                        .displayLabelFont(17)
                         .foregroundStyle(Color.primary)
                     Spacer()
                     Image(systemName: "arrow.up.right.square")
@@ -2063,9 +2087,10 @@ struct DisplaySettingsView: View {
                 }
             }
         } header: {
-            Text("辅助功能")
+            Text("辅助功能").displayFont(13, weight: .semibold)
         } footer: {
             Text("以上开关由系统统一控制，App 实时监听并展示当前状态；开启后 App 界面将自动适配对应效果。")
+                .displayFont(13)
         }
     }
 
@@ -2141,9 +2166,10 @@ struct DisplaySettingsView: View {
             .disabled(settings.changeHistory.isEmpty)
             .onAppear { exposeSection("history") }
         } header: {
-            Text("最近改动")
+            Text("最近改动").displayFont(13, weight: .semibold)
         } footer: {
             Text("自动记录最近 20 次显示设置变更（含方案套用与亮度预设），仅存于本机。")
+                .displayFont(13)
         }
     }
 
@@ -2197,6 +2223,7 @@ struct DisplaySettingsView: View {
             ShareLink(item: settings.shareSummaryText()) {
                 HStack {
                     Label("分享我的排版配置", systemImage: "square.and.arrow.up")
+                        .displayLabelFont(17)
                     Spacer()
                     Image(systemName: "chevron.right")
                         .displaySymbolFont(12)
@@ -2218,16 +2245,19 @@ struct DisplaySettingsView: View {
                 HStack {
                     Spacer()
                     Label("恢复默认显示设置", systemImage: "arrow.counterclockwise")
+                        .displayLabelFont(17)
                     Spacer()
                 }
             }
             .disabled(settings.isDefault)
 
             LabeledContent("应用版本", value: versionText)
+                .displayFont(17)
         } header: {
-            Text("其他")
+            Text("其他").displayFont(13, weight: .semibold)
         } footer: {
             Text(settings.isDefault ? "当前已是默认显示设置。" : "一键还原外观、字体、屏幕与锁定的全部默认值。")
+                .displayFont(13)
         }
     }
 }

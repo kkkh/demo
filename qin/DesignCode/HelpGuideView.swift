@@ -78,6 +78,7 @@ struct HelpGuideView: View {
                         markAllReadAction()
                     } label: {
                         Label("全部标记已读", systemImage: "checkmark.circle")
+                            .displayLabelFont(17)
                     }
                     .disabled(store.unreadCount == 0)
 
@@ -87,6 +88,7 @@ struct HelpGuideView: View {
                         showResetConfirm = true
                     } label: {
                         Label("清除阅读进度", systemImage: "arrow.counterclockwise.circle")
+                            .displayLabelFont(17)
                     }
                     .disabled(store.readProgress <= 0)
                 } label: {
