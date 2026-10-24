@@ -423,8 +423,12 @@ final class BookmarkManager: ObservableObject {
         bookmarks[index].updateDetectedAt = nil
         save()
         objectWillChange.send()
+        // 状态流转：最近阅读时间刷新（常态记录，供「最近阅读」排序对账）
+        LogManager.shared.debugLog("favorite", "状态流转：最近阅读时间已更新", context: [
+            "readKey": key, "hadUpdateBadge": "\(hadUpdate)"
+        ])
         if hadUpdate {
-            LogManager.shared.info("favorite", "打开收藏文章：更新提醒已清除", context: ["readKey": key])
+            LogManager.shared.info("favorite", "状态流转：内容更新徽标已清除", context: ["readKey": key])
         }
     }
 
@@ -566,6 +570,13 @@ final class BookmarkManager: ObservableObject {
             save()
             objectWillChange.send()
             if isRefreshCheck {
+                if changed {
+                    // 状态流转：更新徽标点亮（列表「内容有更新」胶囊的数据来源）
+                    LogManager.shared.info("favorite", "状态流转：内容更新徽标点亮", context: [
+                        "readKey": key, "title": bookmarks[currentIndex].title,
+                        "oldChars": "\(oldContent?.count ?? 0)", "newChars": "\(content.count)"
+                    ])
+                }
                 LogManager.shared.debugLog("favorite", "更新检测：正文比对完成", context: [
                     "readKey": key, "changed": "\(changed)", "chars": "\(content.count)"
                 ])
@@ -614,6 +625,14 @@ final class BookmarkManager: ObservableObject {
                 let outcome = await self?.cacheContent(for: item.readKey) ?? .skipped
                 if outcome == .cached { cached += 1 } else if outcome == .failed { failed += 1 }
                 self?.precacheProgress = PrecacheProgress(done: index + 1, total: candidates.count)
+                // 进度采样（首条 / 每 5 条 / 末条，防刷屏且状态可对账）
+                let done = index + 1
+                if done == 1 || done % 5 == 0 || done == candidates.count {
+                    LogManager.shared.debugLog("favorite", "批量缓存进度采样", context: [
+                        "done": "\(done)", "total": "\(candidates.count)",
+                        "cached": "\(cached)", "failed": "\(failed)"
+                    ])
+                }
             }
             let cancelled = Task.isCancelled
             let elapsed = Date().timeIntervalSince(start)
@@ -680,7 +699,10 @@ final class BookmarkManager: ObservableObject {
         let key = Self.imageCacheKey(for: normalized)
 
         // 内存已固化：直接完成
-        if imageCache.object(forKey: key as NSString) != nil { return true }
+        if imageCache.object(forKey: key as NSString) != nil {
+            logPersistHit(url: normalized, source: "memory")
+            return true
+        }
 
         let fileURL = imageCacheDir.appendingPathComponent("\(key).img")
         let fileExists = await Task.detached(priority: .utility) {
@@ -688,6 +710,7 @@ final class BookmarkManager: ObservableObject {
         }.value
         if fileExists {
             // 磁盘已固化：直接完成（内存缓存按离线兜底路径按需回填）
+            logPersistHit(url: normalized, source: "disk")
             return true
         }
 
@@ -735,10 +758,20 @@ final class BookmarkManager: ObservableObject {
         if let image = await SJZImageKit.decode(data: data, maxPixel: 360) {
             imageCache.setObject(image, forKey: key as NSString, cost: data.count)
         }
-        LogManager.shared.debugLog("favorite", "收藏图片已固化", context: [
-            "url": url.lastPathComponent, "fromURLCache": "\(fromURLCache)", "bytes": "\(data.count)"
+        LogManager.shared.debugLog("favorite", "状态流转：收藏图片已固化", context: [
+            "url": url.lastPathComponent,
+            "source": fromURLCache ? "urlcache" : "network",
+            "bytes": "\(data.count)"
         ])
         return true
+    }
+
+    /// 图片固化命中日志（按 URL 节流，列表滚动复用不刷屏）
+    private func logPersistHit(url: String, source: String) {
+        guard SJZImageKit.shouldLogHit("fav.persist:\(url)") else { return }
+        LogManager.shared.debugLog("favorite", "状态流转：图片固化命中（免二次下载）", context: [
+            "url": URL(string: url)?.lastPathComponent ?? "-", "source": source
+        ])
     }
 
     /// 清理单张固化图片（取消收藏时调用）
@@ -774,7 +807,7 @@ final class BookmarkManager: ObservableObject {
             let fileBytes = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
             return (images.files, images.bytes, fileBytes)
         }.value
-        return BookmarkStorageSnapshot(
+        let snapshot = BookmarkStorageSnapshot(
             total: bookmarks.count,
             contentCached: contentCachedCount,
             contentChars: bookmarks.reduce(0) { $0 + ($1.cachedContent?.count ?? 0) },
@@ -782,6 +815,13 @@ final class BookmarkManager: ObservableObject {
             imageBytes: scanned.1,
             storageFileBytes: scanned.2
         )
+        // 状态流转：存储快照取数（诊断面板对账依据）
+        LogManager.shared.debugLog("favorite", "存储快照", context: [
+            "total": "\(snapshot.total)", "cachedContent": "\(snapshot.contentCached)",
+            "contentChars": "\(snapshot.contentChars)", "imageFiles": "\(snapshot.imageFiles)",
+            "imageBytes": "\(snapshot.imageBytes)", "fileBytes": "\(snapshot.storageFileBytes)"
+        ])
+        return snapshot
     }
 
     /// 诊断修复：重写存储并回读校验
