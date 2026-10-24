@@ -12284,10 +12284,14 @@ enum SJZRevealRegistry {
     }
 }
 
-/// 内容首次出现时以弹簧动画错峰入场；同一会话内再次滚动到该区域不再重播
+/// 内容首次出现时以弹簧动画错峰入场；同一会话内再次滚动到该区域不再重播。
+/// - Note: `logReveal` 默认为 true；**「展示日志本身」的页面（应用日志）必须传 false**——
+///   否则揭示日志会变成列表里的新行、新行再触发揭示日志，形成自反馈风暴拖死主线程（2026-09-28 现场实证）。
 struct SJZRevealOnce: ViewModifier {
     let key: String
     let delay: Double
+    /// 是否记录揭示日志（默认 true；日志类页面必须关闭）
+    var logReveal: Bool = true
     @State private var shown = false
 
     func body(content: Content) -> some View {
@@ -12300,7 +12304,9 @@ struct SJZRevealOnce: ViewModifier {
                     withAnimation(.spring(response: 0.6, dampingFraction: 0.85).delay(delay)) {
                         shown = true
                     }
-                    LogManager.shared.debugLog("ui", "模块首次错峰入场", context: ["key": key])
+                    if logReveal {
+                        LogManager.shared.debugLog("ui", "模块首次错峰入场", context: ["key": key])
+                    }
                 } else {
                     shown = true
                 }
