@@ -1,0 +1,1 @@
+let a=(e,o,l)=>e?(e.onmouseenter=function(){o.call(e)},e.onmouseleave=function(){l.call(e)},!0):!1,n=(e=0,o=3)=>{let l=Math.floor(e),r=Math.floor(o);return Math.floor(Math.random()*(r-l+1))+l};export{a as h,n as r};

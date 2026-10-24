@@ -1,0 +1,8 @@
+证据采集记录（2026-10-01 23:0x）：
+- zsw_home2.json: dept/home2?site_key=zsw 全量响应（栏目树+模块内嵌数据）
+- zsw_article_detail.json: article/detail?article_id=a80c9d...（2026招生章程）
+- ev_zsw_home.jpg: 招生网首页全模块
+- ev_zsw_notice_list.jpg: 招生公告列表页
+- 接口均来自真实浏览器抓包 + curl 复现（含 Referer）
+- 录取查询提交端点: POST /mapi/common/recruit/query（GET 405 / 空 body 500）
+- zsw.sxjzit.edu.cn 子域名: NXDOMAIN（不存在）

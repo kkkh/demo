@@ -72,7 +72,7 @@
 
 - **正确用法**：`GET /common/article/page?site_id=<sid>&column_id=<cid>&page=<≥1>&size=<n>`；**勿使用 `pageNo`/`pageSize`**。
 - **⚠️ 与 `/common/column/articles` 不等价**：**同一 jwc 通知公告栏目**，`/common/article/page` 返回 `total=125`，而 `/common/column/articles` 返回 `total=378`——二者是**不同数据集**（口径不同），**不可互相替代**，客户端选接口时须明确目的。
-- **App 现状备注**：`qin/DesignCode/NetworkService.swift:759-763` 的 `fetchZSWArticlePage` 使用 `pageNo`/`pageSize` 传参（第 762 行 `"pageNo": …, "pageSize": …`），**实际被服务端忽略**，其"招生网分页"目前恒为第 1 页、每页 10 条，属失效分页，供后续接入修复参考。
+- **App 现状备注（已修复，2026-09-30）**：`qin/DesignCode/NetworkService.swift:759-766` 的 `fetchZSWArticlePage` **已改用 `page`/`size` 传参**（第 765 行 `"page": …, "size": …`；第 759-761 行注释明确「服务端只认 `page`/`size`——旧版传 `pageNo`/`pageSize` 会被静默忽略」）。**曾**处于分页失效状态（旧传参与见上方实测表），现已修复，勿再按"失效分页"处理。
 
 ---
 
@@ -124,8 +124,8 @@ data（第 1 层：根节点，title_cn="机构设置"，title_en="Schools & Dep
 |---|---|---|---|
 | **子站型** | `site_key` 非空 + `site_id` 非空，`article_id=null` | 20 条（含共用/重复） | 打开机构主页，走 `/dept/home2`（部门）或 `/college/home`（学院） |
 | **单文章型** | `article_id` 非空、`site_id=null` | **10 个** | 直接渲染一篇文章详情（`/common/article/detail`） |
-| **双配型** | 同时有 `site_id` 与 `article_id` | 1 个（财资处 130） | 既可站点、又可单文章 |
-| **仅 site_key** | 有 `site_key` 但 `site_id=null` | 3 个（校长办公室 124 / 学生工作处 133 / 保卫处 136） | 需从 `/dept/home2` 响应里补 `site_id` |
+| **双配型** | 同时有 `site_id` 与 `article_id` | 1 个（财资处 130） | 站点端 `/dept/home2?site_key=cwc` 与文章端 `/common/article/detail?article_id=cc3b8540…` **均可用**（2026-10-01 实测）；**机构列表页点击时前端优先走文章详情**（`#/list/article?id=cc3b8540…`），客户端可按需任选一端 |
+| **仅 site_key** | 有 `site_key` 但 `site_id=null` | 3 个（校长办公室 124 / 学生工作处 133 / 保卫处 136） | **仅保卫处 136 真正需要**从 `/dept/home2` 响应 `data.site.site_id` 补取（实测 `21184757…`）；校长办公室 124、学生工作处 133 为**共用键**（分别与党委办公室 121、党委学工部 146 共用 `dzbgs`/`dwxsgzb`），其 site_id 已存在于机构树内另一条目名下 |
 | **未配置** | 三者皆空 | 0 个 | — |
 
 单文章型 10 个明细：党委组织部 122、党委宣传部 142、党委统战部 143、纪检监察办公室 144、党委教师工作部 145、妇联 139、科协 140、关心下一代工作委员会 141（此 8 个 `site_key=null`）；思想政治教育工作部党支部 148、工会 138（此 2 个 `site_key=""` **空串，注意与 null 区分**）。
@@ -563,7 +563,7 @@ data（第 1 层：根节点，title_cn="机构设置"，title_en="Schools & Dep
 | `tabs` | 26 | ✅ 全 ok，`total=0` | tab 型栏目，文章挂在子组件（二级 tab），列表接口无文章 |
 | `tabs-sub` | 4 | ✅ 全 ok，`total=0` | 二级 tab（如「部门概况」的再分栏） |
 | `notice-small` | 16 | ✅ 全 ok | 小型通知（规章制度/管理流程等） |
-| `content` | 11 | ✅ 全 ok，`total=1`（单篇，如部门概况/图书馆介绍） | content 型单页 |
+| `content` | 11 | ✅ 全 ok，`total=1`（单篇，如部门概况/图书馆介绍）；**例外：dwxsgzb「部门概况」`total=2`**（2026-10-01 全量扫描确认，稳定值——前端取首篇即可） | content 型单页（个别站点多篇） |
 | `opinion` | 10 | 9 个 `code 500`，1 个 ok(total=0) | 联系我们（校长信箱表单），无列表文章 |
 | `download` | 7 | ✅ 全 ok | 资料下载 |
 | `news-important` | 7 | ✅ 全 ok（学院新闻，大 total） | 重要新闻（学院置顶大图） |
@@ -848,20 +848,20 @@ data（第 1 层：根节点，title_cn="机构设置"，title_en="Schools & Dep
 
 | 端点 | App 状态 | 证据（文件:行号） |
 |---|---|---|
-| `/school/org` | ✅ 已接入 | `NetworkService.swift:983`（`getRaw("/school/org")`）、`OrganizationView.swift:1887,2030`（机构树缓存盒） |
-| `/dept/home2` | ✅ 已接入 | `NetworkService.swift:755,962,1020,1086`、`NotificationManager.swift:638` |
+| `/school/org` | ✅ 已接入 | `NetworkService.swift:986`（`getRaw("/school/org")`）、`OrganizationView.swift:2227,2370`（单文章型频道/机构树缓存盒） |
+| `/dept/home2` | ✅ 已接入 | `NetworkService.swift:755(zsw),965(部门),1023(buildURL),1089(党建指纹)`；`NotificationManager.swift:679(党建),755(机构动态)` |
 | `/college/home` | ❌ 未接入 | 全仓库无该路径调用 |
 | `/common/column/articles` | ✅ 已接入 | `NetworkService.swift:193`；测试 `DesignCodeTests/NetworkServiceDTOTests.swift:445` |
-| `/common/column/oneTwoArticles` | ✅ 已接入 | `NetworkService.swift:888`（专业介绍/栏目板块） |
-| `/common/article/detail` | ✅ 已接入 | `NetworkService.swift:201,879,1160`；测试 `NetworkServiceDTOTests.swift:467` |
-| `/common/article/page` | ✅ 已接入（App 发现）· ⚠️ 分页失效 | `NetworkService.swift:759-763`（调用点 **760**；`pageNo/pageSize` 传参在 **762** 行，被服务端忽略，见 §1.1） |
+| `/common/column/oneTwoArticles` | ✅ 已接入 | `NetworkService.swift:891`（专业介绍/栏目板块） |
+| `/common/article/detail` | ✅ 已接入 | `NetworkService.swift:201,882,1163`；测试 `NetworkServiceDTOTests.swift:467` |
+| `/common/article/page` | ✅ 已接入（App 发现）· ✅ 已修复 | `NetworkService.swift:763-766`（调用点 **763**；已改用 `page/size` 传参，见 §1.1） |
 | `/common/column/head` | ✅ 已接入 | `NetworkService.swift:183`；`SJZNetworkMonitor.swift:231` |
 | `/common/foot` | ✅ 已接入 | `NetworkService.swift:188` |
 | `/school/home2` | ✅ 已接入 | `NetworkService.swift:178` |
-| `/school/intro` | ✅ 已接入 | `NetworkService.swift:282`、`SchoolProfileView.swift:404`、`NotificationManager.swift:494` |
-| `/school/cooperate` | ✅ 已接入 | `SchoolProfileView.swift:629`、`NotificationManager.swift:519` |
-| `/school/msg` | ✅ 已接入 | `NetworkService.swift:1249`；`PrincipalMailboxView.swift:6` |
-| `/common/msg/detail` | ✅ 已接入 | `NetworkService.swift:1336` |
+| `/school/intro` | ✅ 已接入 | `NetworkService.swift:282`、`SchoolProfileView.swift:404`、`NotificationManager.swift:535` |
+| `/school/cooperate` | ✅ 已接入 | `SchoolProfileView.swift:629`、`NotificationManager.swift:560` |
+| `/school/msg` | ✅ 已接入 | `NetworkService.swift:1252`；`PrincipalMailboxView.swift:6` |
+| `/common/msg/detail` | ✅ 已接入 | `NetworkService.swift:1339` |
 | `/dept/home` | ⚠️ 未接入 | 全仓库无该路径调用（旧版，功能被 home2 覆盖，无需接入） |
 | `/common/teacher/page` | ❌ 未接入 | 全仓库无该路径调用（**待接入**：师资队伍栏目当前无实现） |
 | `/common/search` | ❌ 未接入 | `grep "common/search"` 无命中（**待接入**：站内搜索） |
@@ -872,8 +872,8 @@ data（第 1 层：根节点，title_cn="机构设置"，title_en="Schools & Dep
 | `/common/short/create` | ❌ 未接入 | 无调用（短链，非必要） |
 | `/article/videos` | N/A | 非 API（前端路由），无需接入 |
 
-**汇总**：已接入 **14** 个（含 App 发现的 `/school/home2`、`/common/article/page`）；**未接入 9 个**（`college/home`、`teacher/page`、`search`、`school/events`、`school/home5`、`msg/send`、`recruit/query`、`short/create`，**另有旧版 `/dept/home` 亦未接入**——其功能已被 `/dept/home2` 覆盖，无需接入）；其中 **机构相关且建议优先待接入**：`/college/home`（学院型机构首页，6 个学院必接）、`/common/search`（站内搜索）、`/school/events`（日历）。
-> 注：`/common/article/page` 虽标记"已接入"，但 App 传参用的是被忽略的 `pageNo/pageSize`，**实际分页失效**（见 §1.1、§11.1 第 10b 条），应按"待修复"对待。
+**汇总**：已接入 **13** 个（含 App 发现的 `/school/home2`、`/common/article/page`）；**未接入 9 个**（`college/home`、`teacher/page`、`search`、`school/events`、`school/home5`、`msg/send`、`recruit/query`、`short/create`，**另有旧版 `/dept/home` 亦未接入**——其功能已被 `/dept/home2` 覆盖，无需接入）；其中 **机构相关且建议优先待接入**：`/college/home`（学院型机构首页，6 个学院必接）、`/common/search`（站内搜索）、`/school/events`（日历）。
+> 注：`/common/article/page` 曾存在"App 传 `pageNo/pageSize` 导致分页失效"问题，**已于 2026-09-30 修复**（改用 `page/size`，见 §1.1、§11.1 第 10b 条），当前无需再修。
 
 ---
 
@@ -893,7 +893,7 @@ data（第 1 层：根节点，title_cn="机构设置"，title_en="Schools & Dep
 | 8 | `tabs`/`content` 型 | `total=0`（tabs）/`total=1`（content） | tab 内容在子组件；content 是单篇 |
 | 9 | `oneTwoArticles` 根栏目要求 | 传一级子栏目 id → `code 500` | **必须传站点顶层根栏目 id** |
 | 10 | `teacher/page` 校验顺序 | 缺 `is_leader` 时先报 `参数[is_leader]为必填项`（即使 site_id 也没传） | is_leader 必传（0=全部，1=领导） |
-| 10b | **`/common/article/page` 参数名/默认值** | 参数是 **`page`/`size`（默认 size=10）**；传 `pageNo`/`pageSize` **被完全忽略**（恒返回第 1 页、10 条） | 用 `page`/`size`；勿用 `pageNo`/`pageSize`（App `NetworkService.swift:762` 目前误用，分页失效） |
+| 10b | **`/common/article/page` 参数名/默认值** | 参数是 **`page`/`size`（默认 size=10）**；传 `pageNo`/`pageSize` **被完全忽略**（恒返回第 1 页、10 条） | 用 `page`/`size`；勿用 `pageNo`/`pageSize`（App 曾误用 `NetworkService.swift:762` 致分页失效，**已于 2026-09-30 修复**为 763-766 行 `page/size`） |
 | 10c | **`/common/article/page` ≠ `/common/column/articles`** | 同一 jwc 通知公告栏目：前者 `total=125`、后者 `total=378`，**不同数据集** | 两者不可互相替代，按目的选接口 |
 
 ### 11.2 资源/内容坑
@@ -1041,7 +1041,7 @@ curl -s "$B/common/article/page?site_id=222fa53591a3494e9c860390039b0844&column_
 | `school_org.json` | 机构树原始响应 | §2.1~§2.5 |
 | `endpoints.txt` | SPA bundle 端点枚举基线 | §1、§7.4（"不存在"取证） |
 | `img_check.txt` | 10 篇正文图 https 复测日志 | §5.3 |
-| `raw/` | **310 个原始响应 JSON**（见下命名规则） | 全篇 |
+| `raw/` | **311 个原始响应 JSON + 1 个日志 txt（共 312 文件）**（见下命名规则） | 全篇 |
 
 ### raw/ 命名规则
 
@@ -1057,6 +1057,7 @@ curl -s "$B/common/article/page?site_id=222fa53591a3494e9c860390039b0844&column_
 | `probe_id.json` | 1 | `id=` 参数无效证据（code 400） |
 | `school_org.json` | 1 | 机构树原始响应（同上级目录） |
 | `dept_home2_jwc.json` | 1 | jwc nav 栏目树（用于取根栏目 id） |
+| `raw_cal_list.json` | 1 | 校园日历完整列表页 `#/list/more?site_id=1&column_id=8197fe41…` 响应（校历文章；结构变体 `data.articles:{total,list[]}`，见 §7.1） |
 | `img_check.txt` | 1 | 图片复测日志（非 JSON） |
 
 > **HAR / 截图说明**：
@@ -1076,7 +1077,7 @@ curl -s "$B/common/article/page?site_id=222fa53591a3494e9c860390039b0844&column_
 | agentC 资源验证 | 10 篇单文章机构详情 10/10 成功；10 条正文图 + 10 个 `image_url` 用 https 逐个复测 **全部 200 image/webp**（含中文名文件）；加/不加 Referer 结果一致 |
 | agentA 实机验证 | 子栏目穷举（jwc 8 项 + 学院 9 项）、翻到第 48 页、详情页 article_id 形态、搜索路由等效、日历更多/下载、机构页无轮播——全部实机确认 |
 | 本次组装复验 | 直连复测 `/college/home` ×13 site_key（确认仅 6 学院 200）、`/school/events` ×6 site_id（全 200）、`/school/home2`、`/common/article/page`（zsw total=62）、`/school/home5`/`/school/home`；App 端点 grep 全量核对 |
-| 审计后修复复验 | 直连复测 `/common/article/page` 参数（`page=1`→10 条、`page=1&size=20`→20 条、`pageNo=2&pageSize=3`→仍第 1 页 10 条，确认 `pageNo/pageSize` 被忽略、默认 size=10）；同栏目 `/common/article/page` total=125 vs `/common/column/articles` total=378（不等价）；grep 确认 App 调用点在 `NetworkService.swift:760`（`pageNo/pageSize` 在 762 行）；raw `detail_art_*` 计 6 个 |
+| 审计后修复复验 | 直连复测 `/common/article/page` 参数（`page=1`→10 条、`page=1&size=20`→20 条、`pageNo=2&pageSize=3`→仍第 1 页 10 条，确认 `pageNo/pageSize` 被忽略、默认 size=10）；同栏目 `/common/article/page` total=125 vs `/common/column/articles` total=378（不等价）；grep 确认 App 调用点当时在 `NetworkService.swift:760`（`pageNo/pageSize` 在 762 行，**随后当日已修复**，现 763-766 行为 `page/size`）；raw `detail_art_*` 计 6 个 |
 | 证据形态 | **无 HAR、无截图归档**（扩展不支持 HAR 导出；截图未在本任务归档）；以 network 捕获台账 + 直连原始响应为等效证据（已在 §0、§13 注明） |
 | 关键差异标注 | 「首页板块独有栏目」实测 **11 站点**（两种口径一致），与任务预期「16 站点」不同，已按实测记录并标注（见 §3.4） |
 | 结论口径 | 全文结论均以**实机/直连可复现证据**为准；凡未能复现者一律标注，未做推测填充 |

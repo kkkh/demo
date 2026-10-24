@@ -1,0 +1,1 @@
+let n=(l,i)=>{let e=i.split("-");if(e.length>1){let t=[e[0]];for(let r=1;r<e.length;r++)t.push(e[r].charAt(0).toUpperCase()+e[r].slice(1));return t=t.join(""),l[t]}if(l[i]!==void 0)return l[i]};export{n as c};
