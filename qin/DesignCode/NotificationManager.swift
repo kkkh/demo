@@ -851,7 +851,9 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             }
         }
 
-        notifiedOrgArticleIds = known
+        // 合并写回：期间可能有 seedOrgFollowBaseline 完成写入（关注动作），
+        // 并集合并避免「轮询整集覆盖」丢掉刚播种的基线（否则下一轮会把历史文章当新增推送）
+        notifiedOrgArticleIds = notifiedOrgArticleIds.union(known)
         if !baselineEstablished {
             UserDefaults.standard.set(true, forKey: orgFollowBaselineKey)
             LogManager.shared.info("notification", "机构动态通道基线建立（不推送历史）", context: [
@@ -878,6 +880,11 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
             var known = notifiedOrgArticleIds
             for candidate in candidates { known.insert(candidate.articleId) }
             notifiedOrgArticleIds = known
+            // 播种成功即视为「历史已消化」：同步建立全局基线，
+            // 否则关注后的第一轮轮询仍按「冷启动」只登记不推送，会吞掉这一窗口内的真新增
+            if !UserDefaults.standard.bool(forKey: orgFollowBaselineKey) {
+                UserDefaults.standard.set(true, forKey: orgFollowBaselineKey)
+            }
             LogManager.shared.info("notification", "关注机构基线播种完成（只登记不推送）", context: [
                 "siteKey": org.siteKey,
                 "name": org.name,
