@@ -290,7 +290,25 @@
 
 | 用例 | 断言 |
 | --- | --- |
-| `testSystemShareEncodingRespectsExtensionBudget` | 10.8MP → 直出且 ≤16MP/≤10MB、产物非黑图；22.5MP → **入口先降采样**到 ≤16MP、档位 1.0 起步、≤10MB |
+| `testSystemShareEncodingRespectsExtensionBudget` | 10.8MP → 直出且 ≤12MP/≤10MB、产物非黑图；22.5MP → **入口先降采样**到 ≤12MP、档位 1.0 起步、≤10MB |
 | `testShareFileSurvivesCleanupScheduling` | 登记清理后文件必须仍然存在（防「立即删除」竞态回归） |
 
 - 真机证据：`build/verify/longimage_share_{build,test}.log`（探针输出 `[LONGIMGPROBE] systemShare …`）
+
+---
+
+## 附录 E：第五轮（2026-09-28 深夜 · 复报仍在）：画布驻留内存 + 交付预算再收敛
+
+> 复报问题仍在 → 代码复查发现**第三条独立的内存路径**（画布在分享期间驻留），并顺带收敛交付规模、
+> 补齐「未完成」归因日志与替代路径提示。
+
+| # | 根因 / 改进 | 机制与修复 |
+| --- | --- | --- |
+| 1 | **画布在分享期间驻留**（新发现） | `generatedLongImage` 是**无人读取的死状态**，却持有 200–288MB 长图画布；分享扩展与宿主 App **共享内存池**——扩展运行期间宿主仍占着大块内存，系统回收时表现为「微信加载中 → 闪回 App」。修复：**删除该死状态**（新闻 / 机构两处声明与赋值），画布在编码完成后立即释放 |
+| 2 | **交付预算再收敛** | `systemShareMaxPixels` 16MP → **12MP**（≈48MB 解码内存，对齐微信扩展实际可承受规模）；仍先整体降采样、再走质量阶梯与四级内容校验 |
+| 3 | **未完成归因 + 替代路径**（新增） | 6 处完成回调：`completed == false` 时把**可判别数据**（交付像素 / 字节 / error）写入 `longimage` 域，并在 App 内提示「微信未完成分享，可改用『分享 → 长图分享到微信』」——App 内 SDK 直发路径（`WXImageObject`）不受系统扩展限制，是可靠兜底 |
+| 4 | 公开资料佐证 | 友盟《各平台分享限制》：微信图片分享 ≤10MB，且**无本地文件时会退化为 data 路径、限制 512KB**——说明微信侧对「非文件直传」存在硬限制；本工程坚持「**文件交付** + 扩展预算内收敛」双保险 |
+
+**若仍复现的诊断指引**：`longimage` 域按序应出现
+`长图分享文件编码完成（pixel / quality / scale / bytes）` → `长图分享未完成（系统扩展可能中止）（pixel / bytes / error）`；
+把这两行发回即可判定是「扩展内存中止」还是「尺寸 / 体积上限」，据此继续收敛（`systemShareMaxPixels` / `systemShareMaxBytes` 均为单点常量）。
