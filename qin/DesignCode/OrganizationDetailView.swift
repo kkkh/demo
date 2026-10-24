@@ -3088,6 +3088,13 @@ struct OrganizationArticleDetailView: View {
                     "readKey": readKey
                 ])
             }
+            // 真机验收自测模式溯源（-uiTestOrgImageBridge）：日志留痕，便于区分「参数未送达」与「钩子未触发」
+            if OrganizationArticleWebView.isImageBridgeSelfTestEnabled {
+                LogManager.shared.info("organization", "看图桥自测模式已启用", context: [
+                    "articleId": article.articleId,
+                    "arg": "-uiTestOrgImageBridge"
+                ])
+            }
             await loadArticleDetail()
         }
         .onReceive(NotificationCenter.default.publisher(for: .organizationArticleWebViewLoaded)) { _ in
@@ -3589,7 +3596,8 @@ struct OrganizationArticleDetailView: View {
                         },
                         onLinkTap: { url in
                             handleContentLink(url)
-                        }
+                        },
+                        articleId: article.articleId
                     )
                     .opacity(webViewLoaded ? 1 : 0)
 
@@ -4898,6 +4906,51 @@ struct OrganizationArticleWebView: UIViewRepresentable {
 
     /// JS → Swift 图片点击桥名（`window.webkit.messageHandlers.<name>`）
     static let imageTapHandlerName = "sjzOrgImageTap"
+    /// 文章 id（日志归因：探针与自测打点用；由详情页传入）
+    var articleId: String = ""
+
+    /// 看图桥就绪探针 JS（返回 `桥绑定|可查看图数|总 img 数`，形如 `true|3|5`）
+    static let imageBridgeProbeJS = """
+    (function(){
+      var bound = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.sjzOrgImageTap);
+      var imgs = document.querySelectorAll('body img');
+      var viewable = 0;
+      for (var i = 0; i < imgs.length; i++) {
+        var r = imgs[i].getBoundingClientRect();
+        var w = Math.max(r.width, imgs[i].naturalWidth || 0);
+        var h = Math.max(r.height, imgs[i].naturalHeight || 0);
+        if (w >= 60 && h >= 60) { viewable++; }
+      }
+      return bound + '|' + viewable + '|' + imgs.length;
+    })();
+    """
+
+    /// 看图桥自测点击 JS：对首个「可查看」图片派发真实 click（与人工点击同一条 postMessage 桥）
+    static let imageBridgeSelfTestJS = """
+    (function(){
+      var imgs = document.querySelectorAll('body img');
+      for (var i = 0; i < imgs.length; i++) {
+        var r = imgs[i].getBoundingClientRect();
+        var w = Math.max(r.width, imgs[i].naturalWidth || 0);
+        var h = Math.max(r.height, imgs[i].naturalHeight || 0);
+        if (w >= 60 && h >= 60) { imgs[i].click(); return 'clicked|' + i + '|' + imgs.length; }
+      }
+      return 'no-viewable-image|' + imgs.length;
+    })();
+    """
+
+    /// 真机验收自测开关：启动参数 `-uiTestOrgImageBridge` 或环境变量
+    /// `SJZ_ORG_IMAGE_BRIDGE_SELFTEST=1`（devicectl 的 `-e` 传参更稳，参数式在部分工具链会被解析为选项）；
+    /// 命中后：打开含图文章即自动派发一次正文首图点击（仅 DEBUG 生效）
+    static var isImageBridgeSelfTestEnabled: Bool {
+        #if DEBUG
+        let info = ProcessInfo.processInfo
+        return info.arguments.contains("-uiTestOrgImageBridge")
+            || info.environment["SJZ_ORG_IMAGE_BRIDGE_SELFTEST"] == "1"
+        #else
+        return false
+        #endif
+    }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -4909,6 +4962,7 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: Self.imageTapHandlerName)
         context.coordinator.onImageTap = onImageTap
         context.coordinator.onLinkTap = onLinkTap
+        context.coordinator.articleId = articleId
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
@@ -4950,6 +5004,7 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         // 回调保鲜：SwiftUI 重建 struct 时闭包捕获的父级状态可能变化，每次更新即同步
         context.coordinator.onImageTap = onImageTap
         context.coordinator.onLinkTap = onLinkTap
+        context.coordinator.articleId = articleId
         // 排版实时重注入（2026-09-29）：设置变更（家族/字号档/行距/字距/粗体）或字体下载完成（revision）
         // → 覆盖 <style id="sjz-typography"> + DOM 级 inline !important 强制 → 无需重载页面即时生效
         guard context.coordinator.lastTypographyCSS != typographyCSS else { return }
@@ -5310,6 +5365,10 @@ struct OrganizationArticleWebView: UIViewRepresentable {
         var onImageTap: ((Int, [String], [String]) -> Void)?
         /// 正文链接点击回调（阶段三 A）
         var onLinkTap: ((URL) -> Void)?
+        /// 文章 id（探针/自测日志归因）
+        var articleId: String = ""
+        /// 验收自测是否已派发（每个 WebView 实例只自动点一次）
+        private var imageSelfTestFired = false
 
         func retainProgressObservation(_ observation: NSKeyValueObservation) {
             progressObservation?.invalidate()
@@ -5395,6 +5454,33 @@ struct OrganizationArticleWebView: UIViewRepresentable {
                             "textLength": "\(textLength)",
                             "isImageOnly": "\(textLength == 0)"
                         ])
+                    }
+                    // 看图桥就绪探针（阶段三 A 验收增强）：回传「可查看图集」计数与桥绑定状态，
+                    // 供真机验收脚本区分「未点」与「点了无反应」（无此探针时 A1 判定模糊）
+                    webView.evaluateJavaScript(OrganizationArticleWebView.imageBridgeProbeJS) { result, _ in
+                        let raw = (result as? String) ?? "-"
+                        Task { @MainActor in
+                            LogManager.shared.debugLog("organization", "正文看图桥就绪探针", context: [
+                                "result": raw, // 形如 "true|3|5"：桥绑定|可查看图数|总 img 数
+                                "articleId": self.articleId
+                            ])
+                        }
+                    }
+                    // 验收自测钩子（仅 DEBUG + 启动参数 -uiTestOrgImageBridge）：自动派发一次正文图片点击，
+                    // 走与人工点击完全相同的 postMessage 桥 → 载荷 → 查看器，使 A1 用例可全自动判定
+                    if OrganizationArticleWebView.isImageBridgeSelfTestEnabled, !self.imageSelfTestFired {
+                        self.imageSelfTestFired = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            webView.evaluateJavaScript(OrganizationArticleWebView.imageBridgeSelfTestJS) { result, error in
+                                Task { @MainActor in
+                                    LogManager.shared.info("organization", "图片桥自测：模拟点击已派发", context: [
+                                        "articleId": self.articleId,
+                                        "result": (result as? String) ?? "-",
+                                        "error": error?.localizedDescription ?? "none"
+                                    ])
+                                }
+                            }
+                        }
                     }
                     NotificationCenter.default.post(
                         name: .organizationArticleWebViewLoaded,
